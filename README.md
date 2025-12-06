@@ -1,89 +1,61 @@
 # SIM-SP (Sistem Informasi Manajemen Serikat Pekerja)
 
-## Setup### Installation
+Laravel 11 + Inertia.js + Vue 3 + Tailwind untuk pengelolaan anggota serikat: onboarding, mutasi, kartu digital, notifikasi, dan admin tools. Disiapkan untuk peran pusat (super admin), unit, anggota, serta rencana bendahara unit.
 
-1.  **Clone the repository**
-    ```bash
-    git clone https://github.com/your-repo/sim-sp.git
-    cd sim-sp
-    ```
+## Fitur Utama
+- **Autentikasi & Role**: Google SSO, login form biasa; role `super_admin`, `admin_unit`, `anggota`, `reguler`, dan rencana `bendahara` (akses keuangan unit + menu anggota). Contoh whitelist domain ada di `LoginController`.
+- **Keanggotaan**: CRUD anggota (wizard 3 step), status aktif/cuti/suspended/resign/pensiun, filter unit (admin_unit hanya melihat unitnya). Onboarding reguler (pending_members) untuk pengguna baru yang belum jadi anggota.
+- **Import Anggota**: Upload CSV/XLS/XLSX dengan template bawaan; ringkasan sukses/gagal ditampilkan ke admin_unit.
+- **Mutasi & Update Request**: Permintaan mutasi (admin_unit → super_admin) dan permintaan pembaruan data anggota dengan approval.
+- **Kartu Digital**: Layout portrait, QR untuk verifikasi, unduh PDF; halaman portal anggota menampilkan kartu digital.
+- **Notification Center**: In-app notification dengan tab (All/Mutations/Updates/Onboarding/Security), badge unread di navbar, mark read/unread, dropdown recent.
+- **Dashboard & Counters**: Total unit, total anggota, mutasi pending, onboarding pending, update pending, anggota unit saya (admin_unit).
+- **Admin Tools**: Audit Log, Activity Log, Active Sessions (super_admin), Ops Center (super_admin).
+- **Reports**: Halaman laporan Growth, Mutations, Documents dengan filter dasar.
 
-2.  **Install Dependencies**
-    ```bash
-    composer install
-    npm install
-    ```
+## Persiapan & Instalasi
+```bash
+git clone https://github.com/your-repo/sim-sp.git
+cd sim-sp
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
+# set DB_*, GOOGLE_CLIENT_ID/SECRET/REDIRECT, APP_URL
+php artisan migrate
+# (opsional) php artisan db:seed
+npm run dev          # atau npm run build
+php artisan serve
+```
 
-3.  **Environment Setup**
-    ```bash
-    cp .env.example .env
-    php artisan key:generate
-    ```
-    - Reguler
+## Konfigurasi Penting
+- **Google SSO**: set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URL=${APP_URL}/auth/google/callback`.
+- **Role Mapping**: contoh whitelist domain ada di `app/Http/Controllers/Auth/LoginController.php`.
+- **Queue & Scheduler**: jalankan worker jika memakai notifikasi async (`php artisan queue:work`); aktifkan scheduler via cron `* * * * * php artisan schedule:run`.
 
-    And initial users:
-    - `superadmin@example.com` (Super Admin)
-    - `adminunit@example.com` (Admin Unit)
+## Navigasi Utama
+- **Super Admin**: Master data unit & jabatan serikat, anggota, mutasi, onboarding, update requests, laporan, notifikasi, audit/activity log, active sessions, Ops Center.
+- **Admin Unit**: Anggota (unit sendiri), mutasi anggota, onboarding reguler, update requests, import anggota, laporan unit, notifikasi, dashboard ringkas.
+- **Anggota**: Profil, Kartu Digital, Notifikasi; portal self-service untuk update terbatas.
+- **Bendahara (rencana)**: Modul keuangan unit (ledger & kategori), plus menu anggota; scope hanya unit sendiri.
 
-4.  **Run Application**
-    ```bash
-    npm run dev
-    php artisan serve
-    ```
-
-## Features
-
-- **Google SSO**: Login with Google.
-- **Role-Based Access Control**:
-    - **Super Admin / Admin Unit**: Access to Dashboard and Audit Logs.
-    - **Reguler**: Restricted to "It Works" page.
-- **Relasi User ↔ Member**:
-    - Tabel `users` memiliki `member_id` (nullable) ke `members`.
-    - Tabel `members` memiliki `user_id` (nullable) ke `users`.
-    - Helper `User::assignMember(Member $member)` akan menghubungkan keduanya dan men-set role menjadi `anggota` bila user sebelumnya `reguler`.
-    - Perintah sinkronisasi: `php artisan link:users-members` mencocokkan user-member berdasarkan email.
-- **Audit Logging**: Tracks login events (Success/Failure, IP, User Agent).
-- **Domain Whitelist**:
-    - `superadmin.com` -> Super Admin
-    - `adminunit.com` -> Admin Unit
-    - Others -> Reguler
-    (Configured in `app/Http/Controllers/Auth/LoginController.php`)
+## Rute Penting (contoh)
+- Auth: `/auth/google`, `/auth/google/callback`, `/login`
+- Dashboard: `/dashboard`
+- Anggota: `/admin/members`, `/admin/members/create`, `/admin/members/{id}/edit`
+- Mutasi: `/admin/mutations`
+- Onboarding: `/admin/onboarding`
+- Update Requests: `/admin/updates`
+- Notifications: `/notifications`
+- Portal Anggota: `/member/profile`, `/member/portal`
+- Reports: `/reports/growth`, `/reports/mutations`, `/reports/documents`
+- Tools: `/admin/activity-logs`, `/admin/sessions`, `/ops` (super_admin)
 
 ## Tech Stack
-- Laravel 11
-- Inertia.js
-- Vue 3
+- Laravel 11, PHP 8.2+
+- Inertia.js, Vue 3, Vite
 - Tailwind CSS
+- SQLite/MySQL (tergantung .env)
 
-## Notifications & Scheduler
-
-- Configure webhook integration via `.env`:
-  - `WEBHOOK_URL` and `WEBHOOK_TOKEN`
-- Run queue worker to process mails/webhooks:
-  - `php artisan queue:work`
-- Enable Laravel scheduler via cron:
-  - `* * * * * cd /path/to/app && php artisan schedule:run >> /dev/null 2>&1`
-- Scheduled commands (configured in `bootstrap/app.php`):
-
-## Reports & Export
-
-- Reports UI: `/reports/growth`, `/reports/mutations`, `/reports/documents` dengan filter tanggal/unit/status.
-- Export CSV dari halaman laporan: kirim `POST /reports/{type}/export` dengan body filter aktif.
-- API integrasi (JSON) untuk HRIS:
-  - Endpoint: `GET /api/reports/growth`, `GET /api/reports/mutations`, `GET /api/reports/documents`
-  - Auth: header `X-API-Token: <token>`; set `APP_API_TOKEN` di `.env`.
-  - Contoh: `curl -H "X-API-Token: $APP_API_TOKEN" https://your-app/api/reports/growth`
-  - `sla:remind-mutations` daily at 08:00
-  - `sla:remind-onboarding` daily at 09:00
-  - `sla:remind-updates` daily at 09:30
-  - `notifications:digest` daily at 18:00
-- Field Anggota baru:
-  - `members.kta_number`, `members.nip`, `members.union_position_id` (selain `email` yang sudah ada)
-  - `members` belongsTo `union_positions` via `union_position_id`; relasi tersedia sebagai `member.unionPosition`
-  - Form Admin Anggota menggunakan dropdown Jabatan Serikat (master data), dan export menyertakan KTA/NIP/Email/Jabatan.
-
-## Master Data: Jabatan Serikat
-
-- Tabel `union_positions` (id, name, code, description, timestamps)
-- CRUD Admin: `/admin/union-positions` (akses Super Admin)
-- Seeder default: `Ketua`, `Sekretaris`, `Bendahara`, `Anggota`
+## Lisensi
+Sesuaikan dengan kebutuhan proyek (isi di LICENSE jika diperlukan).
