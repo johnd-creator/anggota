@@ -1,0 +1,381 @@
+<?php
+
+use App\Http\Controllers\Auth\LoginController;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth as FacadesAuth;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+
+Route::get('/', function () {
+    if (Auth::check()) {
+        return redirect()->route('dashboard');
+    }
+    return Inertia::render('Auth/Login');
+});
+
+Route::get('/login', function () {
+    return Inertia::render('Auth/Login');
+})->name('login');
+
+Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5,1');
+
+Route::get('auth/google', [LoginController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('auth/google/callback', [LoginController::class, 'handleGoogleCallback'])->middleware('throttle:10,1');
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard', function () {
+        $user = Auth::user();
+        if ($user && $user->role && $user->role->name === 'reguler') {
+            return redirect()->route('itworks');
+        }
+
+        $membersByUnit = Cache::remember('dash_members_by_unit', 300, function(){
+            return \App\Models\OrganizationUnit::select('id','name')
+                ->withCount(['members as active_members_count' => function($q){ $q->where('status','aktif'); }])
+                ->orderByDesc('active_members_count')
+                ->limit(10)
+                ->get();
+        });
+
+        $months = collect(range(0,11))->map(function($i){ return now()->subMonths(11 - $i)->format('Y-m'); });
+        $growth = Cache::remember('dash_growth_last_12', 300, function() use ($months){
+            $rows = \App\Models\Member::select(DB::raw("strftime('%Y-%m', join_date) as ym"), DB::raw('count(*) as c'))
+                ->where('join_date', '>=', now()->subMonths(12)->toDateString())
+                ->groupBy('ym')->get()->keyBy('ym');
+            return $months->map(function($m) use ($rows){ return ['label' => $m, 'value' => (int) optional($rows->get($m))->c]; });
+        });
+
+        $mutationsStats = Cache::remember('dash_mutations_stats', 300, function(){
+            return [
+                'pending' => \App\Models\MutationRequest::where('status','pending')->count(),
+                'approved' => \App\Models\MutationRequest::where('status','approved')->count(),
+                'breach' => \App\Models\MutationRequest::where('sla_status','breach')->count(),
+            ];
+        });
+
+        $alerts = Cache::remember('dash_alerts', 300, function(){
+            $docMissing = \App\Models\Member::whereNull('photo_path')->orWhereNull('documents')->count();
+            $loginFailSameIp = \App\Models\AuditLog::where('event','login_failed')
+                ->select(DB::raw('ip_address'), DB::raw('count(*) as c'))
+                ->groupBy('ip_address')->having(DB::raw('count(*)'), '>=', 5)->count();
+            $slaBreached = \App\Models\MutationRequest::where('sla_status','breach')->count();
+            return [ 'documents_missing' => $docMissing, 'login_fail_same_ip' => $loginFailSameIp, 'mutations_sla_breach' => $slaBreached ];
+        });
+
+        return Inertia::render('Dashboard', [
+            'dashboard' => [
+                'members_by_unit' => $membersByUnit,
+                'growth_last_12' => $growth,
+                'mutations' => $mutationsStats,
+            ],
+            'alerts' => $alerts,
+        ]);
+    })->name('dashboard');
+
+    Route::get('/itworks', function () {
+        return Inertia::render('ItWorks');
+    })->name('itworks');
+
+    Route::get('/audit-logs', function (\Illuminate\Http\Request $request) {
+        $filters = $request->only(['role', 'date_start', 'date_end']);
+
+        $logs = \App\Models\AuditLog::with('user.role')
+            ->filter($filters)
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
+
+        return Inertia::render('Admin/AuditLogs', [
+            'logs' => $logs,
+            'filters' => $filters,
+        ]);
+    })->middleware('role:super_admin,admin_unit')->name('audit-logs');
+
+    Route::get('/ui/components', function () {
+        return Inertia::render('UI/ComponentsGallery');
+    })->middleware('role:super_admin')->name('ui.components');
+
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->middleware('role:super_admin,admin_unit,anggota,reguler')->name('notifications.index');
+    Route::post('/notifications/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markRead'])->middleware('role:super_admin,admin_unit,anggota,reguler')->name('notifications.read');
+    Route::post('/notifications/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->middleware('role:super_admin,admin_unit,anggota,reguler')->name('notifications.read_all');
+    Route::post('/notifications/{id}/unread', [\App\Http\Controllers\NotificationController::class, 'markUnread'])->middleware('role:super_admin,admin_unit,anggota,reguler')->name('notifications.unread');
+    Route::get('/notifications/recent', [\App\Http\Controllers\NotificationController::class, 'recent'])->middleware('role:super_admin,admin_unit,anggota,reguler')->name('notifications.recent');
+
+    Route::get('/settings', function(){
+        $pref = \App\Models\NotificationPreference::where('user_id', Auth::id())->first();
+        return Inertia::render('Settings/Index', [
+            'notification_prefs' => $pref ? [
+                'channels' => $pref->channels,
+                'digest_daily' => (bool) $pref->digest_daily,
+                'updated_at' => $pref->updated_at,
+            ] : null,
+        ]);
+    })->middleware('role:super_admin,admin_unit,anggota,reguler')->name('settings.index');
+
+    Route::patch('/settings/notifications', function(\Illuminate\Http\Request $request){
+        $user = Auth::user();
+        $data = $request->validate([
+            'channels' => ['required','array'],
+            'channels.mutations' => ['array'],
+            'channels.updates' => ['array'],
+            'channels.onboarding' => ['array'],
+            'channels.security' => ['array'],
+            'digest_daily' => ['boolean'],
+        ]);
+        $pref = \App\Models\NotificationPreference::updateOrCreate(
+            ['user_id' => $user->id],
+            ['channels' => $data['channels'], 'digest_daily' => (bool)($data['digest_daily'] ?? false), 'updated_at' => now()]
+        );
+        return response()->json(['status' => 'ok', 'updated_at' => $pref->updated_at?->toISOString()]);
+    })->middleware('role:super_admin,admin_unit,anggota,reguler')->name('settings.notification_prefs');
+
+    Route::get('/help', function(){
+        return Inertia::render('Help/Index');
+    })->middleware('role:super_admin,admin_unit,anggota,reguler')->name('help.index');
+
+    // root path handled above (guest: login page, auth: dashboard)
+
+    Route::prefix('reports')->middleware('role:super_admin,admin_unit')->group(function(){
+        Route::get('growth', [\App\Http\Controllers\ReportController::class, 'growth'])->name('reports.growth');
+        Route::get('mutations', [\App\Http\Controllers\ReportController::class, 'mutations'])->name('reports.mutations');
+        Route::get('documents', [\App\Http\Controllers\ReportController::class, 'documents'])->name('reports.documents');
+        Route::post('{type}/export', function(\Illuminate\Http\Request $request, string $type){
+            if ($type === 'growth') {
+                $unitId = (int) $request->input('unit_id');
+                $dateStart = $request->input('date_start');
+                $dateEnd = $request->input('date_end');
+                $query = \App\Models\Member::query();
+                if ($unitId) $query->where('organization_unit_id', $unitId);
+                if ($dateStart) $query->whereDate('join_date', '>=', $dateStart);
+                if ($dateEnd) $query->whereDate('join_date', '<=', $dateEnd);
+                $filename = 'report_growth_' . now()->format('Ymd_His') . '.csv';
+                return \App\Services\ReportExporter::streamCsv($filename, ['Month','Count'], function($out) use ($query){
+                    $months = collect(range(0,11))->map(fn($i) => now()->subMonths(11 - $i)->format('Y-m'));
+                    $rows = $query->select(DB::raw("strftime('%Y-%m', join_date) as ym"), DB::raw('count(*) as c'))->groupBy('ym')->get()->keyBy('ym');
+                    foreach ($months as $m) fputcsv($out, [$m, (int) optional($rows->get($m))->c]);
+                });
+            } elseif ($type === 'mutations') {
+                $unitId = (int) $request->input('unit_id');
+                $status = $request->input('status');
+                $dateStart = $request->input('date_start');
+                $dateEnd = $request->input('date_end');
+                $query = \App\Models\MutationRequest::query()->with(['member','fromUnit','toUnit']);
+                if ($unitId) $query->where(function($q) use ($unitId){ $q->where('from_unit_id', $unitId)->orWhere('to_unit_id', $unitId); });
+                if ($status) $query->where('status', $status);
+                if ($dateStart) $query->whereDate('effective_date', '>=', $dateStart);
+                if ($dateEnd) $query->whereDate('effective_date', '<=', $dateEnd);
+                $filename = 'report_mutations_' . now()->format('Ymd_His') . '.csv';
+                return \App\Services\ReportExporter::streamCsv($filename, ['ID','Anggota','Asal','Tujuan','Status','Tanggal Efektif'], function($out) use ($query){
+                    $query->orderBy('id')->chunk(500, function($rows) use (&$out){
+                        foreach ($rows as $r) fputcsv($out, [$r->id, optional($r->member)->full_name, optional($r->fromUnit)->name, optional($r->toUnit)->name, $r->status, $r->effective_date]);
+                    });
+                });
+            } elseif ($type === 'documents') {
+                $unitId = (int) $request->input('unit_id');
+                $status = $request->input('status');
+                $query = \App\Models\Member::query()->select('id','full_name','email','organization_unit_id','photo_path','documents','kta_number','nip','union_position_id')->with(['unit','unionPosition']);
+                if ($unitId) $query->where('organization_unit_id', $unitId);
+                if ($status) $query->where('status', $status);
+                $filename = 'report_documents_' . now()->format('Ymd_His') . '.csv';
+                return \App\Services\ReportExporter::streamCsv($filename, ['ID','Nama','Email','KTA','NIP','Jabatan','Unit','Foto','Dokumen'], function($out) use ($query){
+                    $query->orderBy('id')->chunk(500, function($rows) use (&$out){
+                        foreach ($rows as $m) fputcsv($out, [$m->id, $m->full_name, $m->email, $m->kta_number, $m->nip, optional($m->unionPosition)->name, optional($m->unit)->name, $m->photo_path ? 'YA' : 'TIDAK', $m->documents ? 'ADA' : 'TIDAK']);
+                    });
+                });
+            }
+            return response()->json(['error' => 'Unknown report'], 404);
+        })->name('reports.export');
+    });
+
+    
+
+    Route::get('/ops', function () {
+        $latest = null;
+        try {
+            $disk = Storage::disk('local');
+            $files = $disk->files('backups');
+            $latest = collect($files)->map(function ($f) use ($disk) {
+                return [
+                    'path' => $f,
+                    'modified' => $disk->lastModified($f),
+                    'size' => $disk->size($f),
+                ];
+            })->sortByDesc('modified')->first();
+        } catch (\Throwable $e) {
+            $latest = null;
+        }
+        $lastBackup = $latest ? [
+            'path' => $latest['path'],
+            'modified_at' => date('c', $latest['modified']),
+            'size' => $latest['size'],
+        ] : null;
+
+        return Inertia::render('Ops/Center', [
+            'last_backup' => $lastBackup,
+        ]);
+    })->middleware('role:super_admin')->name('ops.center');
+
+    Route::get('/docs/ops/backup-dr', function () {
+        $content = '';
+        try {
+            $content = file_get_contents(base_path('docs/ops/backup-dr.md')) ?: '';
+        } catch (\Throwable $e) {
+            $content = 'Dokumen tidak ditemukan.';
+        }
+        return Inertia::render('Docs/Viewer', [ 'title' => 'Backup & DR Runbook', 'content' => $content ]);
+    })->middleware('role:super_admin')->name('docs.ops.backup');
+
+    Route::get('/docs/release/launch-checklist', function () {
+        $content = '';
+        try {
+            $content = file_get_contents(base_path('docs/release/launch-checklist.md')) ?: '';
+        } catch (\Throwable $e) {
+            $content = 'Dokumen tidak ditemukan.';
+        }
+        return Inertia::render('Docs/Viewer', [ 'title' => 'Launch Checklist', 'content' => $content ]);
+    })->middleware('role:super_admin')->name('docs.release.launch');
+
+    Route::get('/docs/security/review', function () {
+        $path = base_path('docs/security/security-review.md');
+        $content = '';
+        $updatedAt = null;
+        try {
+            $content = file_get_contents($path) ?: '';
+            $updatedAt = filemtime($path) ? date('c', filemtime($path)) : null;
+        } catch (\Throwable $e) {
+            $content = 'Dokumen tidak ditemukan.';
+        }
+        return Inertia::render('Docs/Viewer', [ 'title' => 'Security Review', 'content' => $content, 'updated_at' => $updatedAt ]);
+    })->middleware('role:super_admin')->name('docs.security.review');
+
+    Route::get('/docs/help/{slug}', function($slug){
+        $path = base_path('docs/help/' . $slug . '.md');
+        $content = is_file($path) ? file_get_contents($path) : 'Artikel tidak ditemukan.';
+        return Inertia::render('Docs/Viewer', [ 'title' => 'Bantuan: ' . ucfirst($slug), 'content' => $content ]);
+    })->middleware('role:super_admin,admin_unit,anggota,reguler')->name('docs.help.show');
+
+    // Admin Routes
+    Route::prefix('admin')->name('admin.')->middleware('role:super_admin,admin_unit')->group(function () {
+        Route::resource('units', \App\Http\Controllers\Admin\OrganizationUnitController::class);
+        Route::resource('members', \App\Http\Controllers\Admin\MemberController::class);
+        Route::resource('union-positions', \App\Http\Controllers\Admin\UnionPositionController::class)->middleware('role:super_admin')->names('union_positions');
+        Route::resource('roles', \App\Http\Controllers\Admin\RoleController::class)->middleware('role:super_admin');
+        Route::post('roles/{role}/assign', [\App\Http\Controllers\Admin\RoleController::class, 'assign'])->middleware('role:super_admin')->name('roles.assign');
+        Route::get('activity-logs', function () {
+            $logs = \App\Models\ActivityLog::latest()->paginate(20)->withQueryString();
+            return Inertia::render('Admin/ActivityLogs', [ 'logs' => $logs ]);
+        })->name('activity-logs.index');
+        Route::get('onboarding', [\App\Http\Controllers\Admin\OnboardingController::class, 'index'])->name('onboarding.index');
+        Route::post('onboarding/{pending}/approve', [\App\Http\Controllers\Admin\OnboardingController::class, 'approve'])->name('onboarding.approve');
+        Route::post('onboarding/{pending}/reject', [\App\Http\Controllers\Admin\OnboardingController::class, 'reject'])->name('onboarding.reject');
+        Route::get('updates', [\App\Http\Controllers\Admin\MemberUpdateController::class, 'index'])->name('updates.index');
+        Route::post('updates/{request}/approve', [\App\Http\Controllers\Admin\MemberUpdateController::class, 'approve'])->name('updates.approve');
+        Route::post('updates/{request}/reject', [\App\Http\Controllers\Admin\MemberUpdateController::class, 'reject'])->name('updates.reject');
+        Route::get('mutations', [\App\Http\Controllers\Admin\MutationController::class, 'index'])->name('mutations.index');
+        Route::post('mutations', [\App\Http\Controllers\Admin\MutationController::class, 'store'])->name('mutations.store');
+        Route::get('mutations/{mutation}', [\App\Http\Controllers\Admin\MutationController::class, 'show'])->name('mutations.show');
+        Route::post('mutations/{mutation}/approve', [\App\Http\Controllers\Admin\MutationController::class, 'approve'])->middleware(['role:super_admin','throttle:10,1'])->name('mutations.approve');
+        Route::post('mutations/{mutation}/reject', [\App\Http\Controllers\Admin\MutationController::class, 'reject'])->middleware(['role:super_admin','throttle:10,1'])->name('mutations.reject');
+
+        Route::get('members-export', function(\Illuminate\Http\Request $request){
+            $user = FacadesAuth::user();
+            $unitId = (int) $request->query('unit_id');
+            if ($user && $user->role && $user->role->name === 'admin_unit') {
+                $unitId = (int) ($user->organization_unit_id ?? 0);
+            }
+            $query = \App\Models\Member::query()->select(['id','full_name','email','phone','status','organization_unit_id','nra','kta_number','nip','union_position_id','join_date'])->with(['unit','unionPosition']);
+            if ($unitId) $query->where('organization_unit_id', $unitId);
+            $filename = 'members_export_' . now()->format('Ymd_His') . '.csv';
+            \Illuminate\Support\Facades\Cache::put('export:members:' . $user->id, ['status' => 'started', 'time' => now()->toISOString()], 300);
+            return response()->streamDownload(function() use ($query, $user){
+                $out = fopen('php://output', 'w');
+                fputcsv($out, ['ID','Nama','Email','Telepon','Status','Unit','NRA','KTA','NIP','Jabatan Serikat','Join Date']);
+                $count = 0;
+                $query->orderBy('id')->chunk(500, function($rows) use (&$out, &$count){
+                    foreach ($rows as $m) {
+                        fputcsv($out, [$m->id, $m->full_name, $m->email, $m->phone, $m->status, $m->unit?->name, $m->nra, $m->kta_number, $m->nip, optional($m->unionPosition)->name, $m->join_date]);
+                        $count++;
+                    }
+                });
+                \Illuminate\Support\Facades\Cache::put('export:members:' . $user->id, ['status' => 'completed', 'count' => $count, 'time' => now()->toISOString()], 300);
+                fclose($out);
+            }, $filename, ['Content-Type' => 'text/csv']);
+        })->name('members.export');
+
+        Route::get('members/import/template', [\App\Http\Controllers\Admin\MemberImportController::class, 'template'])->middleware('role:admin_unit')->name('members.import.template');
+        Route::post('members/import', [\App\Http\Controllers\Admin\MemberImportController::class, 'store'])->middleware('role:admin_unit')->name('members.import');
+
+        Route::get('mutations/export', function(\Illuminate\Http\Request $request){
+            $user = FacadesAuth::user();
+            $unitId = (int) $request->query('unit_id');
+            $query = \App\Models\MutationRequest::query()->select(['id','member_id','from_unit_id','to_unit_id','status','effective_date'])->with(['member','fromUnit','toUnit']);
+            if ($unitId) $query->where(function($q) use ($unitId){ $q->where('from_unit_id', $unitId)->orWhere('to_unit_id', $unitId); });
+            $filename = 'mutations_export_' . now()->format('Ymd_His') . '.csv';
+            return response()->streamDownload(function() use ($query){
+                $out = fopen('php://output', 'w');
+                fputcsv($out, ['ID','Anggota','Asal','Tujuan','Status','Tanggal Efektif']);
+                $query->orderBy('id')->chunk(500, function($rows) use (&$out){
+                    foreach ($rows as $r) {
+                        fputcsv($out, [$r->id, optional($r->member)->full_name, optional($r->fromUnit)->name, optional($r->toUnit)->name, $r->status, $r->effective_date]);
+                    }
+                });
+                fclose($out);
+            }, $filename, ['Content-Type' => 'text/csv']);
+        })->name('admin.mutations.export');
+    });
+
+    Route::get('/member/profile', [\App\Http\Controllers\Member\SelfProfileController::class, 'show'])->middleware('role:anggota,super_admin,admin_unit')->name('member.profile');
+    Route::get('/member/portal', [\App\Http\Controllers\Member\PortalController::class, 'show'])->middleware('role:anggota,super_admin,admin_unit')->name('member.portal');
+    Route::post('/member/portal/request-update', [\App\Http\Controllers\Member\PortalController::class, 'requestUpdate'])->middleware('role:anggota')->name('member.request_update');
+    Route::post('/member/data/export-request', function(\Illuminate\Http\Request $request){
+        \App\Models\ActivityLog::create([
+            'actor_id' => $request->user()->id,
+            'action' => 'gdpr_export_request',
+            'subject_type' => \App\Models\User::class,
+            'subject_id' => $request->user()->id,
+            'payload' => ['channel' => 'portal'],
+        ]);
+        return back()->with('success', 'Permintaan export data tercatat');
+    })->middleware('role:anggota')->name('member.data.export_request');
+    Route::post('/member/data/delete-request', function(\Illuminate\Http\Request $request){
+        \App\Models\ActivityLog::create([
+            'actor_id' => $request->user()->id,
+            'action' => 'gdpr_delete_request',
+            'subject_type' => \App\Models\User::class,
+            'subject_id' => $request->user()->id,
+            'payload' => ['channel' => 'portal'],
+        ]);
+        return back()->with('success', 'Permintaan penghapusan data tercatat');
+    })->middleware('role:anggota')->name('member.data.delete_request');
+    Route::get('/verify-card/{token}', [\App\Http\Controllers\Member\CardController::class, 'verify'])->name('member.card.verify');
+    Route::get('/member/card/pdf', [\App\Http\Controllers\Member\CardPdfController::class, 'download'])->middleware('role:anggota,super_admin,admin_unit')->name('member.card.pdf');
+    Route::get('/member/card/qr.png', [\App\Http\Controllers\Member\CardController::class, 'qr'])->middleware('role:anggota,super_admin,admin_unit')->name('member.card.qr');
+});
+
+Route::post('/logout', function(){
+    \Illuminate\Support\Facades\Auth::logout();
+    request()->session()->invalidate();
+    request()->session()->regenerateToken();
+    return redirect()->route('login');
+})->middleware('auth')->name('logout');
+
+Route::post('/feedback', function(\Illuminate\Http\Request $request){
+    \App\Models\ActivityLog::create([
+        'actor_id' => $request->user()->id,
+        'action' => 'feedback_submitted',
+        'subject_type' => \App\Models\User::class,
+        'subject_id' => $request->user()->id,
+        'payload' => ['rating' => (int) $request->input('rating'), 'message' => (string) $request->input('message')],
+    ]);
+    return back()->with('success','Terima kasih atas feedback Anda');
+})->middleware('auth')->name('feedback.submit');
+
+// Public API (token-only)
+Route::prefix('api/reports')->middleware(['api_token'])->group(function(){
+    Route::get('growth', [\App\Http\Controllers\ReportController::class, 'apiGrowth']);
+    Route::get('mutations', [\App\Http\Controllers\ReportController::class, 'apiMutations']);
+    Route::get('documents', [\App\Http\Controllers\ReportController::class, 'apiDocuments']);
+});
