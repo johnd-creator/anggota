@@ -20,11 +20,11 @@
           </svg>
         </div>
         <h2 class="text-4xl font-bold text-white mb-6 tracking-tight">
-          Kelola Organisasi Anda <br/>
-          <span class="text-neutral-100">Lebih Efisien & Aman</span>
+          Satu Platform untuk<br/>
+          <span class="text-neutral-100">Organisasi yang Lebih Cerdas</span>
         </h2>
         <p class="text-lg text-neutral-300 leading-relaxed">
-          Optimalkan administrasi anggota, pantau kinerja struktur, dan ambil keputusan berbasis data melalui dashboard.
+          Integrasi administrasi anggota serikat dan pengelolaan bendahara secara efisien. Dapatkan visibilitas penuh atas seluruh entitas serikat Anda dalam satu dashboard terpadu.
         </p>
 
         <!-- Stats Cards -->
@@ -38,6 +38,20 @@
             <p class="text-2xl font-bold text-white mt-1">8.204</p>
           </div>
         </div>
+
+        <!-- Tagline -->
+<div class="mt-12 text-white text-center">
+  <div class="flex items-center justify-center gap-2">
+    <div class="text-3xl font-extrabold">
+      #Bersama #Kuat #Sejahtera
+      <br/>
+    </div>
+  </div>
+  <div class="mt-3 text-xs tracking-wide text-neutral-100">
+    Serikat Pekerja PT PLN Indonesia Power Services
+  </div>
+</div>
+
       </div>
     </div>
 
@@ -52,6 +66,11 @@
             </svg>
           </div>
           <h1 class="text-2xl font-bold text-neutral-900">SIM-SP</h1>
+        </div>
+
+        <!-- Desktop Logo -->
+        <div class="hidden lg:flex text-center justify-center">
+          <img src="/img/logo.png" alt="Logo" class="h-28 w-auto" />
         </div>
 
         <!-- Header -->
@@ -169,6 +188,7 @@ import { router } from '@inertiajs/vue3';
 import AlertBanner from '@/Components/UI/AlertBanner.vue';
 import InputField from '@/Components/UI/InputField.vue';
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
+
 
 const showPassword = ref(false);
 const loading = ref(false);

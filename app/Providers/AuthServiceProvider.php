@@ -16,6 +16,8 @@ class AuthServiceProvider extends ServiceProvider
         OrganizationUnit::class => OrganizationUnitPolicy::class,
         Member::class => MemberPolicy::class,
         PendingMember::class => PendingMemberPolicy::class,
+        \App\Models\FinanceCategory::class => \App\Policies\FinanceCategoryPolicy::class,
+        \App\Models\FinanceLedger::class => \App\Policies\FinanceLedgerPolicy::class,
     ];
 
     public function boot(): void
