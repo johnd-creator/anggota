@@ -10,7 +10,7 @@ Laravel 11 + Inertia.js + Vue 3 + Tailwind untuk pengelolaan anggota serikat: on
 - **Kartu Digital**: Layout portrait, QR untuk verifikasi, unduh PDF; halaman portal anggota menampilkan kartu digital.
 - **Notification Center**: In-app notification dengan tab (All/Mutations/Updates/Onboarding/Security), badge unread di navbar, mark read/unread, dropdown recent.
 - **Dashboard & Counters**: Total unit, total anggota, mutasi pending, onboarding pending, update pending, anggota unit saya (admin_unit).
-- **Admin Tools**: Audit Log, Activity Log, Active Sessions (super_admin), Ops Center (super_admin).
+- **Admin Tools**: Audit Log, Activity Log, Active Sessions (super_admin - monitor & terminate sessions), Ops Center (super_admin).
 - **Reports**: Halaman laporan Growth, Mutations, Documents dengan filter dasar.
 
 ## Persiapan & Instalasi

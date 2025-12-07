@@ -59,12 +59,65 @@
         </div>
       </CardContainer>
 
+      <!-- Quick Action Card -->
+      <CardContainer padding="sm">
+        <div class="space-y-3">
+          <div class="text-sm font-semibold text-neutral-700">Aksi Cepat - Batch Payment</div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <div>
+              <label class="block text-xs text-neutral-600">Jenis Iuran</label>
+              <select v-model="quickCategoryId" @change="onCategoryChange" class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700">
+                <option value="">-- Pilih kategori --</option>
+                <option v-for="cat in recurringCategories" :key="cat.id" :value="cat.id">
+                  {{ cat.name }}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-neutral-600">Nominal (Rp)</label>
+              <input type="number" v-model.number="quickAmount" min="1" step="1000" class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700" placeholder="Contoh: 50000" />
+            </div>
+            <div>
+              <label class="block text-xs text-neutral-600">Catatan</label>
+              <input type="text" v-model="quickNotes" class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700" placeholder="Opsional" />
+            </div>
+            <div class="flex items-end">
+              <PrimaryButton class="w-full justify-center" @click="submitMassPay" :loading="quickSubmitting" :disabled="selectedMemberIds.length === 0">
+                Tandai {{ selectedMemberIds.length }} Anggota
+              </PrimaryButton>
+            </div>
+            <div class="flex items-end">
+              <SecondaryButton class="w-full justify-center" @click="selectAllUnpaid">
+                Pilih Semua Belum Bayar
+              </SecondaryButton>
+            </div>
+          </div>
+          
+          <!-- Selected members count -->
+          <div v-if="selectedMemberIds.length > 0" class="flex items-center justify-between text-sm">
+            <span class="text-neutral-600">
+              <strong>{{ selectedMemberIds.length }}</strong> anggota dipilih
+              <span v-if="quickAmount > 0"> (Total: {{ formatCurrency(selectedMemberIds.length * quickAmount) }})</span>
+            </span>
+            <button @click="clearSelection" class="text-xs text-status-error hover:underline">Bersihkan pilihan</button>
+          </div>
+          
+          <p v-if="quickError" class="text-xs text-status-error">{{ quickError }}</p>
+          <p v-if="quickSuccess" class="text-xs text-green-600">{{ quickSuccess }}</p>
+        </div>
+      </CardContainer>
+
+
       <!-- Table Card -->
       <CardContainer padding="none" class="overflow-hidden">
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-neutral-200">
             <thead class="bg-neutral-50">
               <tr>
+                <th class="px-4 py-3 text-left">
+                  <input type="checkbox" :checked="isAllOnPageSelected" @change="togglePageSelection" class="rounded border-neutral-300 text-brand-primary-600 focus:ring-brand-primary-500" />
+                </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Nama</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">KTA</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Status</th>
@@ -75,7 +128,10 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-neutral-200">
-              <tr v-for="m in members.data" :key="m.id" class="hover:bg-neutral-50">
+              <tr v-for="m in members.data" :key="m.id" class="hover:bg-neutral-50" :class="{ 'bg-brand-primary-50': selectedMemberIds.includes(m.id) }">
+                <td class="px-4 py-4">
+                  <input type="checkbox" :value="m.id" v-model="selectedMemberIds" :disabled="m.dues_status === 'paid'" class="rounded border-neutral-300 text-brand-primary-600 focus:ring-brand-primary-500 disabled:opacity-50" />
+                </td>
                 <td class="px-6 py-4 text-sm text-neutral-700">{{ m.full_name }}</td>
                 <td class="px-6 py-4 text-sm text-neutral-700">{{ m.kta_number || '-' }}</td>
                 <td class="px-6 py-4">
@@ -98,11 +154,12 @@
                 </td>
               </tr>
               <tr v-if="members.data.length === 0">
-                <td colspan="7" class="px-6 py-10 text-center text-neutral-500">Tidak ada data anggota.</td>
+                <td colspan="8" class="px-6 py-10 text-center text-neutral-500">Tidak ada data anggota.</td>
               </tr>
             </tbody>
           </table>
         </div>
+
 
         <!-- Pagination -->
         <div v-if="members.links.length > 3" class="bg-white px-4 py-3 border-t border-neutral-200 flex items-center justify-between sm:px-6">
@@ -176,6 +233,7 @@ const props = defineProps({
   summary: Object,
   units: Array,
   canSelectUnit: { type: Boolean, default: false },
+  recurringCategories: { type: Array, default: () => [] },
 })
 
 const period = ref(props.filters.period || new Date().toISOString().slice(0, 7))
@@ -188,6 +246,40 @@ const paidPercentage = computed(() => {
   return (props.summary.paid / props.summary.total) * 100
 })
 
+// Multi-select state
+const selectedMemberIds = ref([])
+
+// Computed for select all checkbox
+const unpaidMembersOnPage = computed(() => {
+  return props.members.data.filter((m) => m.dues_status !== 'paid')
+})
+
+const isAllOnPageSelected = computed(() => {
+  if (unpaidMembersOnPage.value.length === 0) return false
+  return unpaidMembersOnPage.value.every((m) => selectedMemberIds.value.includes(m.id))
+})
+
+function togglePageSelection(event) {
+  if (event.target.checked) {
+    // Select all unpaid on this page
+    const unpaidIds = unpaidMembersOnPage.value.map((m) => m.id)
+    selectedMemberIds.value = [...new Set([...selectedMemberIds.value, ...unpaidIds])]
+  } else {
+    // Deselect all on this page
+    const pageIds = props.members.data.map((m) => m.id)
+    selectedMemberIds.value = selectedMemberIds.value.filter((id) => !pageIds.includes(id))
+  }
+}
+
+function selectAllUnpaid() {
+  const unpaidIds = unpaidMembersOnPage.value.map((m) => m.id)
+  selectedMemberIds.value = [...new Set([...selectedMemberIds.value, ...unpaidIds])]
+}
+
+function clearSelection() {
+  selectedMemberIds.value = []
+}
+
 // Pay modal state
 const showPayModal = ref(false)
 const selectedMember = ref(null)
@@ -197,6 +289,23 @@ const submitting = ref(false)
 
 // Revert modal state
 const showRevertModal = ref(false)
+
+// Quick action state
+const quickCategoryId = ref('')
+const quickAmount = ref(null)
+const quickNotes = ref('')
+const quickError = ref('')
+const quickSuccess = ref('')
+const quickSubmitting = ref(false)
+
+// Auto-fill amount when category changes
+function onCategoryChange() {
+  const cat = props.recurringCategories.find((c) => c.id === quickCategoryId.value)
+  if (cat && cat.default_amount) {
+    quickAmount.value = parseFloat(cat.default_amount)
+  }
+}
+
 
 function formatCurrency(n) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0)
@@ -226,6 +335,46 @@ function openPayModal(member) {
   payError.value = ''
   showPayModal.value = true
 }
+
+function submitMassPay() {
+  if (selectedMemberIds.value.length === 0) {
+    quickError.value = 'Pilih minimal 1 anggota'
+    return
+  }
+  if (!quickCategoryId.value) {
+    quickError.value = 'Pilih jenis iuran terlebih dahulu'
+    return
+  }
+  if (!quickAmount.value || quickAmount.value <= 0) {
+    quickError.value = 'Nominal harus diisi dan lebih dari 0'
+    return
+  }
+  quickError.value = ''
+  quickSuccess.value = ''
+  quickSubmitting.value = true
+  router.post('/finance/dues/mass-update', {
+    member_ids: selectedMemberIds.value,
+    period: period.value,
+    category_id: quickCategoryId.value,
+    amount: quickAmount.value,
+    notes: quickNotes.value,
+  }, {
+    preserveScroll: true,
+    onSuccess() {
+      selectedMemberIds.value = []
+      quickCategoryId.value = ''
+      quickAmount.value = null
+      quickNotes.value = ''
+    },
+    onError(errors) {
+      quickError.value = errors?.amount || errors?.member_ids || errors?.category_id || 'Gagal menyimpan pembayaran'
+    },
+    onFinish() {
+      quickSubmitting.value = false
+    },
+  })
+}
+
 
 function submitPay() {
   if (!payForm.value.amount || payForm.value.amount <= 0) {

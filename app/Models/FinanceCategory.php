@@ -14,7 +14,16 @@ class FinanceCategory extends Model
         'name',
         'type',
         'description',
+        'is_recurring',
+        'default_amount',
+        'is_system',
         'created_by',
+    ];
+
+    protected $casts = [
+        'is_recurring' => 'boolean',
+        'default_amount' => 'decimal:2',
+        'is_system' => 'boolean',
     ];
 
     public function organizationUnit()
@@ -31,5 +40,19 @@ class FinanceCategory extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
-}
 
+    public function scopeRecurring($query)
+    {
+        return $query->where('is_recurring', true);
+    }
+
+    public function scopeForUnit($query, $unitId = null)
+    {
+        return $query->where(function ($q) use ($unitId) {
+            $q->whereNull('organization_unit_id'); // Global categories
+            if ($unitId) {
+                $q->orWhere('organization_unit_id', $unitId);
+            }
+        });
+    }
+}

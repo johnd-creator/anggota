@@ -1,5 +1,5 @@
 import { createApp, h } from 'vue'
-import { createInertiaApp, router } from '@inertiajs/vue3'
+import { createInertiaApp, router, usePage } from '@inertiajs/vue3'
 import '../css/app.css';
 
 createInertiaApp({
@@ -11,6 +11,16 @@ createInertiaApp({
         const app = createApp({ render: () => h(App, props) })
             .use(plugin)
         app.mount(el)
+
+        const page = usePage();
+        let lastUserId = page.props?.auth?.user?.id || null;
+        router.on('finish', () => {
+            const currentId = page.props?.auth?.user?.id;
+            if (currentId && lastUserId && currentId !== lastUserId) {
+                window.location.reload();
+            }
+            lastUserId = currentId;
+        });
 
         router.on('invalid', () => {
             window.location.reload();

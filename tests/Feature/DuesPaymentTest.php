@@ -288,4 +288,109 @@ class DuesPaymentTest extends TestCase
                 ->where('dues_summary.unpaid', 1)
         );
     }
+
+    public function test_mass_update_creates_batch_payment_with_ledger()
+    {
+        // Create recurring category
+        $category = \App\Models\FinanceCategory::create([
+            'name' => 'Iuran Test',
+            'type' => 'income',
+            'organization_unit_id' => null,
+            'is_recurring' => true,
+            'default_amount' => 30000,
+            'created_by' => $this->superAdmin->id,
+        ]);
+
+        // Create 3 members in bendahara's unit
+        $members = Member::factory()->count(3)->create([
+            'organization_unit_id' => $this->unit->id,
+            'status' => 'aktif',
+        ]);
+
+        $period = now()->format('Y-m');
+
+        $response = $this->actingAs($this->bendahara)
+            ->post(route('finance.dues.mass_update'), [
+                'member_ids' => $members->pluck('id')->toArray(),
+                'period' => $period,
+                'category_id' => $category->id,
+                'amount' => 30000,
+                'notes' => 'Batch payment test',
+            ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        // All 3 members should have dues payments
+        foreach ($members as $member) {
+            $this->assertDatabaseHas('dues_payments', [
+                'member_id' => $member->id,
+                'period' => $period,
+                'status' => 'paid',
+                'amount' => 30000,
+            ]);
+        }
+
+        // Should create 1 ledger entry with aggregate amount
+        $this->assertDatabaseHas('finance_ledgers', [
+            'finance_category_id' => $category->id,
+            'amount' => 90000, // 30000 * 3
+            'organization_unit_id' => $this->unit->id,
+        ]);
+    }
+
+    public function test_mass_update_skips_already_paid_members()
+    {
+        $category = \App\Models\FinanceCategory::create([
+            'name' => 'Iuran Test 2',
+            'type' => 'income',
+            'organization_unit_id' => null,
+            'is_recurring' => true,
+            'default_amount' => 50000,
+            'created_by' => $this->superAdmin->id,
+        ]);
+
+        $member1 = Member::factory()->create([
+            'organization_unit_id' => $this->unit->id,
+            'status' => 'aktif',
+        ]);
+
+        $member2 = Member::factory()->create([
+            'organization_unit_id' => $this->unit->id,
+            'status' => 'aktif',
+        ]);
+
+        $period = now()->format('Y-m');
+
+        // Mark member1 as already paid
+        DuesPayment::create([
+            'member_id' => $member1->id,
+            'organization_unit_id' => $this->unit->id,
+            'period' => $period,
+            'status' => 'paid',
+            'amount' => 50000,
+        ]);
+
+        $response = $this->actingAs($this->bendahara)
+            ->post(route('finance.dues.mass_update'), [
+                'member_ids' => [$member1->id, $member2->id],
+                'period' => $period,
+                'category_id' => $category->id,
+                'amount' => 50000,
+            ]);
+
+        $response->assertRedirect();
+
+        // Flash message should show 1 success, 1 skipped
+        $response->assertSessionHas('success');
+        $this->assertStringContainsString('1 anggota berhasil', session('success'));
+        $this->assertStringContainsString('1 anggota sudah paid', session('success'));
+
+        // Only 1 ledger entry with amount for 1 member
+        $this->assertDatabaseHas('finance_ledgers', [
+            'finance_category_id' => $category->id,
+            'amount' => 50000, // Only 1 member
+        ]);
+    }
 }
+

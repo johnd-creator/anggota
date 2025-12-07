@@ -89,6 +89,10 @@
             <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
             Transaksi Keuangan
           </Link>
+          <Link href="/finance/dues" :class="['flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors', $page.url.startsWith('/finance/dues') ? 'bg-brand-primary-50 text-brand-primary-700' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900']">
+            <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2m4-3h-7m0 0l3-3m-3 3l3 3"/></svg>
+            Iuran Bulanan
+          </Link>
         </template>
 
         <template v-if="isMember || isTreasurer">
@@ -392,11 +396,12 @@ function relativeTime(s){
   if (h < 24) return `${h} jam yang lalu`;
   return d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
 }
-const isAdminOrUnit = computed(() => ['super_admin','admin_unit'].includes((page.props?.auth?.user?.role?.name) || ''));
-const isSuperAdmin = computed(() => ((page.props?.auth?.user?.role?.name) || '') === 'super_admin');
-const isAdminUnit = computed(() => ((page.props?.auth?.user?.role?.name) || '') === 'admin_unit');
-const isTreasurer = computed(() => ((page.props?.auth?.user?.role?.name) || '') === 'bendahara');
-const isMember = computed(() => !!(page.props?.auth?.user?.member_id));
+const roleName = computed(() => page.props?.auth?.user?.role?.name || '');
+const isAdminOrUnit = computed(() => ['super_admin','admin_unit'].includes(roleName.value));
+const isSuperAdmin = computed(() => roleName.value === 'super_admin');
+const isAdminUnit = computed(() => roleName.value === 'admin_unit');
+const isTreasurer = computed(() => roleName.value === 'bendahara');
+const isMember = computed(() => roleName.value === 'anggota');
 // quick view notifikasi dihapus
 const userMenuOpen = ref(false);
 function doLogout(){ router.post('/logout', {}, { onFinish(){ userMenuOpen.value=false; } }); }

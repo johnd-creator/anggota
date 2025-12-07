@@ -32,4 +32,16 @@ export default defineConfig({
             host: '127.0.0.1',
         },
     },
+    build: {
+        chunkSizeWarningLimit: 800,
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    vue: ['vue'],
+                    inertia: ['@inertiajs/vue3', '@inertiajs/core'],
+                    vendor: ['axios', 'lodash'],
+                },
+            },
+        },
+    },
 });

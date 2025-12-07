@@ -76,11 +76,12 @@ Route::middleware(['auth'])->group(function () {
         // Get dues summary for dashboard card
         $duesSummary = null;
         $unpaidMembers = [];
-        if ($user->hasRole(['admin_unit', 'bendahara'])) {
+        $roleName = optional(optional($user)->role)->name;
+        if (in_array($roleName, ['admin_unit', 'bendahara'], true)) {
             $unitId = $user->organization_unit_id;
             $duesSummary = \App\Http\Controllers\Finance\FinanceDuesController::getDashboardSummary($unitId);
             $unpaidMembers = \App\Http\Controllers\Finance\FinanceDuesController::getUnpaidMembers($unitId, null, 20);
-        } elseif ($user->hasRole('super_admin')) {
+        } elseif ($roleName === 'super_admin') {
             $duesSummary = \App\Http\Controllers\Finance\FinanceDuesController::getDashboardSummary();
             $unpaidMembers = \App\Http\Controllers\Finance\FinanceDuesController::getUnpaidMembers(null, null, 20);
         }
@@ -121,11 +122,11 @@ Route::middleware(['auth'])->group(function () {
         return Inertia::render('UI/ComponentsGallery');
     })->middleware('role:super_admin')->name('ui.components');
 
-    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->middleware('role:super_admin,admin_unit,anggota,reguler')->name('notifications.index');
-    Route::post('/notifications/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markRead'])->middleware('role:super_admin,admin_unit,anggota,reguler')->name('notifications.read');
-    Route::post('/notifications/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->middleware('role:super_admin,admin_unit,anggota,reguler')->name('notifications.read_all');
-    Route::post('/notifications/{id}/unread', [\App\Http\Controllers\NotificationController::class, 'markUnread'])->middleware('role:super_admin,admin_unit,anggota,reguler')->name('notifications.unread');
-    Route::get('/notifications/recent', [\App\Http\Controllers\NotificationController::class, 'recent'])->middleware('role:super_admin,admin_unit,anggota,reguler')->name('notifications.recent');
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('notifications.index');
+    Route::post('/notifications/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markRead'])->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('notifications.read');
+    Route::post('/notifications/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('notifications.read_all');
+    Route::post('/notifications/{id}/unread', [\App\Http\Controllers\NotificationController::class, 'markUnread'])->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('notifications.unread');
+    Route::get('/notifications/recent', [\App\Http\Controllers\NotificationController::class, 'recent'])->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('notifications.recent');
 
     Route::get('/settings', function () {
         $pref = \App\Models\NotificationPreference::where('user_id', Auth::id())->first();
@@ -136,7 +137,7 @@ Route::middleware(['auth'])->group(function () {
                 'updated_at' => $pref->updated_at,
             ] : null,
         ]);
-    })->middleware('role:super_admin,admin_unit,anggota,reguler')->name('settings.index');
+    })->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('settings.index');
 
     Route::patch('/settings/notifications', function (\Illuminate\Http\Request $request) {
         $user = Auth::user();
@@ -153,11 +154,11 @@ Route::middleware(['auth'])->group(function () {
             ['channels' => $data['channels'], 'digest_daily' => (bool) ($data['digest_daily'] ?? false), 'updated_at' => now()]
         );
         return response()->json(['status' => 'ok', 'updated_at' => $pref->updated_at?->toISOString()]);
-    })->middleware('role:super_admin,admin_unit,anggota,reguler')->name('settings.notification_prefs');
+    })->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('settings.notification_prefs');
 
     Route::get('/help', function () {
         return Inertia::render('Help/Index');
-    })->middleware('role:super_admin,admin_unit,anggota,reguler')->name('help.index');
+    })->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('help.index');
 
     // root path handled above (guest: login page, auth: dashboard)
 
@@ -292,7 +293,7 @@ Route::middleware(['auth'])->group(function () {
         $path = base_path('docs/help/' . $slug . '.md');
         $content = is_file($path) ? file_get_contents($path) : 'Artikel tidak ditemukan.';
         return Inertia::render('Docs/Viewer', ['title' => 'Bantuan: ' . ucfirst($slug), 'content' => $content]);
-    })->middleware('role:super_admin,admin_unit,anggota,reguler')->name('docs.help.show');
+    })->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('docs.help.show');
 
     // Admin Routes
     Route::prefix('admin')->name('admin.')->middleware('role:super_admin,admin_unit')->group(function () {
@@ -302,6 +303,12 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('roles', \App\Http\Controllers\Admin\RoleController::class)->middleware('role:super_admin');
         Route::post('roles/{role}/assign', [\App\Http\Controllers\Admin\RoleController::class, 'assign'])->middleware('role:super_admin')->name('roles.assign');
         Route::delete('roles/{role}/users/{user}', [\App\Http\Controllers\Admin\RoleController::class, 'removeUser'])->middleware('role:super_admin')->name('roles.remove_user');
+        
+        // Admin Sessions
+        Route::get('sessions', [\App\Http\Controllers\Admin\UserSessionController::class, 'index'])->middleware('role:super_admin')->name('sessions.index');
+        Route::delete('sessions/{session}', [\App\Http\Controllers\Admin\UserSessionController::class, 'destroy'])->middleware('role:super_admin')->name('sessions.destroy');
+        Route::delete('sessions/user/{user}', [\App\Http\Controllers\Admin\UserSessionController::class, 'destroyUserSessions'])->middleware('role:super_admin')->name('sessions.destroy_user');
+
         Route::get('activity-logs', function () {
             $logs = \App\Models\ActivityLog::latest()->paginate(20)->withQueryString();
             return Inertia::render('Admin/ActivityLogs', ['logs' => $logs]);
@@ -393,6 +400,7 @@ Route::middleware(['auth'])->group(function () {
         // Dues payment routes
         Route::get('dues', [\App\Http\Controllers\Finance\FinanceDuesController::class, 'index'])->name('dues.index');
         Route::post('dues/update', [\App\Http\Controllers\Finance\FinanceDuesController::class, 'update'])->name('dues.update');
+        Route::post('dues/mass-update', [\App\Http\Controllers\Finance\FinanceDuesController::class, 'massUpdate'])->name('dues.mass_update');
     });
 
     Route::get('/member/profile', [\App\Http\Controllers\Member\SelfProfileController::class, 'show'])->middleware('role:anggota,super_admin,admin_unit,bendahara')->name('member.profile');

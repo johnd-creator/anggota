@@ -20,7 +20,7 @@ class FinanceCategoryController extends Controller
 
         $user = Auth::user();
         $isSuper = $user->hasRole('super_admin');
-        $query = FinanceCategory::query()->with(['organizationUnit','creator']);
+        $query = FinanceCategory::query()->with(['organizationUnit', 'creator']);
 
         $type = $request->query('type');
         $search = $request->query('search');
@@ -36,7 +36,7 @@ class FinanceCategoryController extends Controller
             }
         }
 
-        if ($type && in_array($type, ['income','expense'])) {
+        if ($type && in_array($type, ['income', 'expense'])) {
             $query->where('type', $type);
         }
 
@@ -46,11 +46,11 @@ class FinanceCategoryController extends Controller
 
         $categories = $query->orderBy('name')->paginate(10)->withQueryString();
 
-        $units = $isSuper ? OrganizationUnit::select('id','name')->orderBy('name')->get() : [];
+        $units = $isSuper ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
 
         return Inertia::render('Finance/Categories/Index', [
             'categories' => $categories,
-            'filters' => $request->only(['type','search','unit_id']),
+            'filters' => $request->only(['type', 'search', 'unit_id']),
             'units' => $units,
         ]);
     }
@@ -60,7 +60,7 @@ class FinanceCategoryController extends Controller
         Gate::authorize('create', FinanceCategory::class);
 
         $user = Auth::user();
-        $units = $user->hasRole('super_admin') ? OrganizationUnit::select('id','name')->orderBy('name')->get() : [];
+        $units = $user->hasRole('super_admin') ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
 
         return Inertia::render('Finance/Categories/Form', [
             'units' => $units,
@@ -81,14 +81,18 @@ class FinanceCategoryController extends Controller
 
         $validated = $request->validate([
             'name' => [
-                'required','string','max:255',
-                Rule::unique('finance_categories')->where(function($q) use ($unitId, $type){
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('finance_categories')->where(function ($q) use ($unitId, $type) {
                     return $q->where('organization_unit_id', $unitId)->where('type', $type);
                 }),
             ],
-            'type' => ['required', Rule::in(['income','expense'])],
-            'description' => ['nullable','string'],
+            'type' => ['required', Rule::in(['income', 'expense'])],
+            'description' => ['nullable', 'string'],
             'organization_unit_id' => ['nullable'],
+            'is_recurring' => ['boolean'],
+            'default_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $category = FinanceCategory::create([
@@ -96,6 +100,8 @@ class FinanceCategoryController extends Controller
             'name' => $name,
             'type' => $type,
             'description' => $validated['description'] ?? null,
+            'is_recurring' => $validated['is_recurring'] ?? false,
+            'default_amount' => $validated['default_amount'] ?? null,
             'created_by' => $user->id,
         ]);
 
@@ -115,11 +121,11 @@ class FinanceCategoryController extends Controller
         Gate::authorize('update', $category);
 
         $user = Auth::user();
-        $units = $user->hasRole('super_admin') ? OrganizationUnit::select('id','name')->orderBy('name')->get() : [];
+        $units = $user->hasRole('super_admin') ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
 
         return Inertia::render('Finance/Categories/Form', [
             'units' => $units,
-            'category' => $category->only(['id','name','type','description','organization_unit_id']),
+            'category' => $category->only(['id', 'name', 'type', 'description', 'organization_unit_id', 'is_recurring', 'default_amount', 'is_system']),
         ]);
     }
 
@@ -136,14 +142,18 @@ class FinanceCategoryController extends Controller
 
         $validated = $request->validate([
             'name' => [
-                'required','string','max:255',
-                Rule::unique('finance_categories')->where(function($q) use ($unitId, $type){
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('finance_categories')->where(function ($q) use ($unitId, $type) {
                     return $q->where('organization_unit_id', $unitId)->where('type', $type);
                 })->ignore($category->id),
             ],
-            'type' => ['required', Rule::in(['income','expense'])],
-            'description' => ['nullable','string'],
+            'type' => ['required', Rule::in(['income', 'expense'])],
+            'description' => ['nullable', 'string'],
             'organization_unit_id' => [$isSuper ? 'nullable' : 'required'],
+            'is_recurring' => ['boolean'],
+            'default_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $category->update([
@@ -151,6 +161,8 @@ class FinanceCategoryController extends Controller
             'name' => $name,
             'type' => $type,
             'description' => $validated['description'] ?? null,
+            'is_recurring' => $validated['is_recurring'] ?? false,
+            'default_amount' => $validated['default_amount'] ?? null,
         ]);
 
         ActivityLog::create([
@@ -167,6 +179,12 @@ class FinanceCategoryController extends Controller
     public function destroy(FinanceCategory $category)
     {
         Gate::authorize('delete', $category);
+
+        // Prevent deletion of system categories
+        if ($category->is_system) {
+            return redirect()->route('finance.categories.index')->with('error', 'Kategori sistem tidak dapat dihapus');
+        }
+
         $deletedPayload = ['name' => $category->name, 'type' => $category->type, 'unit_id' => $category->organization_unit_id];
         $category->delete();
         ActivityLog::create([
@@ -185,7 +203,7 @@ class FinanceCategoryController extends Controller
 
         $user = Auth::user();
         $isSuper = $user->hasRole('super_admin');
-        $query = FinanceCategory::query()->with(['organizationUnit','creator']);
+        $query = FinanceCategory::query()->with(['organizationUnit', 'creator']);
 
         $type = $request->query('type');
         $search = $request->query('search');
@@ -201,7 +219,7 @@ class FinanceCategoryController extends Controller
             }
         }
 
-        if ($type && in_array($type, ['income','expense'])) {
+        if ($type && in_array($type, ['income', 'expense'])) {
             $query->where('type', $type);
         }
 
@@ -210,10 +228,10 @@ class FinanceCategoryController extends Controller
         }
 
         $filename = 'finance_categories_' . now()->format('Ymd_His') . '.csv';
-        return response()->streamDownload(function() use ($query){
+        return response()->streamDownload(function () use ($query) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Nama','Tipe','Unit','Dibuat Oleh']);
-            $query->orderBy('name')->chunk(500, function($rows) use (&$out){
+            fputcsv($out, ['Nama', 'Tipe', 'Unit', 'Dibuat Oleh']);
+            $query->orderBy('name')->chunk(500, function ($rows) use (&$out) {
                 foreach ($rows as $c) {
                     fputcsv($out, [
                         $c->name,

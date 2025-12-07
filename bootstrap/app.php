@@ -32,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
             $schedule->command('sla:remind-onboarding')->dailyAt('09:00');
             $schedule->command('sla:remind-updates')->dailyAt('09:30');
             $schedule->command('notifications:digest')->dailyAt('18:00');
+            $schedule->command('sessions:cleanup')->daily();
         })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -209,6 +209,9 @@ const handleLogin = () => {
       form.errors = errors;
       loading.value = false;
     },
+    onSuccess: () => {
+      router.visit('/dashboard', { replace: true });
+    },
     onFinish: () => {
       loading.value = false;
     },

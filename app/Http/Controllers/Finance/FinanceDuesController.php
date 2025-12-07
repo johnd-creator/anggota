@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Controller;
 use App\Models\DuesPayment;
+use App\Models\FinanceCategory;
 use App\Models\Member;
 use App\Models\OrganizationUnit;
+use App\Services\DuesService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +15,13 @@ use Inertia\Inertia;
 
 class FinanceDuesController extends Controller
 {
+    protected DuesService $duesService;
+
+    public function __construct(DuesService $duesService)
+    {
+        $this->duesService = $duesService;
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -117,6 +126,16 @@ class FinanceDuesController extends Controller
             $units = OrganizationUnit::select('id', 'name', 'code')->orderBy('name')->get();
         }
 
+        // Get recurring categories for quick action
+        $userUnitId = $user->hasRole('super_admin') ? null : $user->organization_unit_id;
+        $recurringCategories = FinanceCategory::query()
+            ->recurring()
+            ->where('type', 'income')
+            ->forUnit($userUnitId)
+            ->select('id', 'name', 'default_amount')
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('Finance/Dues/Index', [
             'members' => $members,
             'filters' => [
@@ -132,6 +151,7 @@ class FinanceDuesController extends Controller
             ],
             'units' => $units,
             'canSelectUnit' => $user->hasRole('super_admin'),
+            'recurringCategories' => $recurringCategories,
         ]);
     }
 
@@ -147,16 +167,6 @@ class FinanceDuesController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        // Get member and verify unit access
-        $member = Member::findOrFail($validated['member_id']);
-
-        // Check policy: user must have access to member's unit
-        if (!$user->hasRole('super_admin')) {
-            if ((int) $user->organization_unit_id !== (int) $member->organization_unit_id) {
-                abort(403, 'Anda tidak memiliki akses ke anggota unit ini');
-            }
-        }
-
         // Validate amount when marking as paid
         if ($validated['status'] === 'paid') {
             if (empty($validated['amount']) || $validated['amount'] <= 0) {
@@ -164,35 +174,55 @@ class FinanceDuesController extends Controller
             }
         }
 
-        // Create or update dues payment record
-        $data = [
-            'organization_unit_id' => $member->organization_unit_id,
-            'status' => $validated['status'],
-            'notes' => $validated['notes'] ?? null,
-        ];
-
-        if ($validated['status'] === 'paid') {
-            $data['amount'] = $validated['amount'];
-            $data['paid_at'] = now();
-            $data['recorded_by'] = $user->id;
-        } else {
-            // Revert to unpaid
-            $data['amount'] = null;
-            $data['paid_at'] = null;
-            $data['recorded_by'] = null;
-        }
-
-        DuesPayment::updateOrCreate(
-            [
-                'member_id' => $validated['member_id'],
-                'period' => $validated['period'],
-            ],
-            $data
+        $success = $this->duesService->recordSinglePayment(
+            $validated['member_id'],
+            $validated['period'],
+            $validated['status'],
+            $validated['amount'] ?? null,
+            $validated['notes'] ?? null,
+            $user
         );
+
+        if (!$success) {
+            abort(403, 'Anda tidak memiliki akses ke anggota unit ini');
+        }
 
         return back()->with('success', $validated['status'] === 'paid'
             ? 'Status iuran berhasil diperbarui menjadi Sudah Bayar'
             : 'Status iuran berhasil diperbarui menjadi Belum Bayar');
+    }
+
+    /**
+     * Mass update dues for multiple members
+     */
+    public function massUpdate(Request $request)
+    {
+        $user = Auth::user();
+
+        $validated = $request->validate([
+            'member_ids' => ['required', 'array', 'min:1'],
+            'member_ids.*' => ['integer', 'exists:members,id'],
+            'period' => ['required', 'regex:/^\d{4}-\d{2}$/'],
+            'category_id' => ['required', 'exists:finance_categories,id'],
+            'amount' => ['required', 'numeric', 'min:1'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $result = $this->duesService->recordPaymentBatch(
+            $validated['member_ids'],
+            $validated['period'],
+            $validated['category_id'],
+            $validated['amount'],
+            $validated['notes'] ?? null,
+            $user
+        );
+
+        $message = "{$result['success']} anggota berhasil ditandai sudah bayar";
+        if ($result['skipped'] > 0) {
+            $message .= ", {$result['skipped']} anggota sudah paid sebelumnya (dilewati)";
+        }
+
+        return back()->with('success', $message);
     }
 
     /**
