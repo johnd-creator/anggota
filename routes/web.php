@@ -129,13 +129,21 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/notifications/recent', [\App\Http\Controllers\NotificationController::class, 'recent'])->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('notifications.recent');
 
     Route::get('/settings', function () {
-        $pref = \App\Models\NotificationPreference::where('user_id', Auth::id())->first();
+        $user = Auth::user();
+        $pref = \App\Models\NotificationPreference::where('user_id', $user?->id)->first();
+        $profile = [
+            'name' => optional($user?->member)->full_name ?? $user?->name,
+            'email' => $user?->email,
+        ];
+        $canQuickActions = optional($user?->role)->name === 'super_admin';
         return Inertia::render('Settings/Index', [
             'notification_prefs' => $pref ? [
                 'channels' => $pref->channels,
                 'digest_daily' => (bool) $pref->digest_daily,
                 'updated_at' => $pref->updated_at,
             ] : null,
+            'profile' => $profile,
+            'can_quick_actions' => $canQuickActions,
         ]);
     })->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('settings.index');
 
@@ -303,7 +311,7 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('roles', \App\Http\Controllers\Admin\RoleController::class)->middleware('role:super_admin');
         Route::post('roles/{role}/assign', [\App\Http\Controllers\Admin\RoleController::class, 'assign'])->middleware('role:super_admin')->name('roles.assign');
         Route::delete('roles/{role}/users/{user}', [\App\Http\Controllers\Admin\RoleController::class, 'removeUser'])->middleware('role:super_admin')->name('roles.remove_user');
-        
+
         // Admin Sessions
         Route::get('sessions', [\App\Http\Controllers\Admin\UserSessionController::class, 'index'])->middleware('role:super_admin')->name('sessions.index');
         Route::delete('sessions/{session}', [\App\Http\Controllers\Admin\UserSessionController::class, 'destroy'])->middleware('role:super_admin')->name('sessions.destroy');
@@ -317,8 +325,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('onboarding/{pending}/approve', [\App\Http\Controllers\Admin\OnboardingController::class, 'approve'])->name('onboarding.approve');
         Route::post('onboarding/{pending}/reject', [\App\Http\Controllers\Admin\OnboardingController::class, 'reject'])->name('onboarding.reject');
         Route::get('updates', [\App\Http\Controllers\Admin\MemberUpdateController::class, 'index'])->name('updates.index');
-        Route::post('updates/{request}/approve', [\App\Http\Controllers\Admin\MemberUpdateController::class, 'approve'])->name('updates.approve');
-        Route::post('updates/{request}/reject', [\App\Http\Controllers\Admin\MemberUpdateController::class, 'reject'])->name('updates.reject');
+        Route::post('updates/{update_request}/approve', [\App\Http\Controllers\Admin\MemberUpdateController::class, 'approve'])->name('updates.approve');
+        Route::post('updates/{update_request}/reject', [\App\Http\Controllers\Admin\MemberUpdateController::class, 'reject'])->name('updates.reject');
         Route::get('mutations', [\App\Http\Controllers\Admin\MutationController::class, 'index'])->name('mutations.index');
         Route::post('mutations', [\App\Http\Controllers\Admin\MutationController::class, 'store'])->name('mutations.store');
         Route::get('mutations/{mutation}', [\App\Http\Controllers\Admin\MutationController::class, 'show'])->name('mutations.show');
@@ -405,7 +413,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/member/profile', [\App\Http\Controllers\Member\SelfProfileController::class, 'show'])->middleware('role:anggota,super_admin,admin_unit,bendahara')->name('member.profile');
     Route::get('/member/portal', [\App\Http\Controllers\Member\PortalController::class, 'show'])->middleware('role:anggota,super_admin,admin_unit,bendahara')->name('member.portal');
-    Route::post('/member/portal/request-update', [\App\Http\Controllers\Member\PortalController::class, 'requestUpdate'])->middleware('role:anggota')->name('member.request_update');
+    Route::post('/member/portal/request-update', [\App\Http\Controllers\Member\PortalController::class, 'requestUpdate'])->middleware(['role:anggota', 'throttle:3,1'])->name('member.request_update');
+    Route::post('/member/document/upload', [\App\Http\Controllers\Member\PortalController::class, 'uploadDocument'])->middleware('role:anggota')->name('member.document.upload');
     Route::post('/member/data/export-request', function (\Illuminate\Http\Request $request) {
         \App\Models\ActivityLog::create([
             'actor_id' => $request->user()->id,

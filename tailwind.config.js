@@ -73,6 +73,14 @@ export default {
             dark: '#1e40af',
           },
         },
+        sidebar: {
+          bg: '#1A2B63',
+          hover: '#243573',
+          active: '#2E4080',
+          text: '#CBD5E1',
+          textActive: '#FFFFFF',
+          border: '#2E4080',
+        },
       },
       spacing: {
         '18': '4.5rem',

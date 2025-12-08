@@ -1,25 +1,93 @@
 <template>
   <AppLayout page-title="Permintaan Perubahan Data">
+    <!-- Success/Error Messages -->
+    <transition name="fade">
+      <AlertBanner 
+        v-if="successMessage" 
+        type="success" 
+        :message="successMessage" 
+        class="mb-4"
+      />
+    </transition>
+    <transition name="fade">
+      <AlertBanner 
+        v-if="errorMessage" 
+        type="error" 
+        :message="errorMessage" 
+        class="mb-4"
+      />
+    </transition>
+
     <CardContainer padding="lg" shadow="sm">
       <div class="mb-3 flex items-center gap-3">
         <SelectField v-model="status" :options="[{label:'Semua',value:''},{label:'Pending',value:'pending'},{label:'Approved',value:'approved'},{label:'Rejected',value:'rejected'}]" />
       </div>
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-neutral-200">
-          <thead class="bg-neutral-50"><tr><th class="px-4 py-2 text-left text-xs text-neutral-500">Anggota</th><th class="px-4 py-2 text-left text-xs text-neutral-500">Status</th><th class="px-4 py-2 text-left text-xs text-neutral-500">Aksi</th></tr></thead>
+          <thead class="bg-neutral-50">
+            <tr>
+              <th class="px-4 py-2 text-left text-xs text-neutral-500">Anggota</th>
+              <th class="px-4 py-2 text-left text-xs text-neutral-500">Status</th>
+              <th class="px-4 py-2 text-left text-xs text-neutral-500">Perubahan</th>
+              <th class="px-4 py-2 text-left text-xs text-neutral-500">Tanggal</th>
+              <th class="px-4 py-2 text-right text-xs text-neutral-500">Aksi</th>
+            </tr>
+          </thead>
           <tbody class="divide-y divide-neutral-200 bg-white">
             <tr v-for="i in items.data" :key="i.id">
-              <td class="px-4 py-2 text-sm">{{ i.member.full_name }}</td>
-              <td class="px-4 py-2 text-sm">{{ i.status }}</td>
-              <td class="px-4 py-2 text-right text-sm">
-                <PrimaryButton @click="approve(i)">Approve</PrimaryButton>
-                <SecondaryButton class="ml-2" @click="reject(i)">Reject</SecondaryButton>
+              <td class="px-4 py-2 text-sm">{{ i.member?.full_name || '-' }}</td>
+              <td class="px-4 py-2 text-sm">
+                <Badge :variant="statusVariant(i.status)">{{ i.status }}</Badge>
               </td>
+              <td class="px-4 py-2 text-sm text-neutral-600">
+                <div v-if="i.new_data" class="text-xs space-y-1">
+                  <div v-if="i.new_data.address"><strong>Alamat:</strong> {{ i.new_data.address }}</div>
+                  <div v-if="i.new_data.phone"><strong>Telepon:</strong> {{ i.new_data.phone }}</div>
+                  <div v-if="i.new_data.emergency_contact"><strong>Kontak Darurat:</strong> {{ i.new_data.emergency_contact }}</div>
+                </div>
+                <span v-else class="text-neutral-400">-</span>
+              </td>
+              <td class="px-4 py-2 text-sm text-neutral-500">{{ formatDate(i.created_at) }}</td>
+              <td class="px-4 py-2 text-right text-sm">
+                <template v-if="i.status === 'pending'">
+                  <PrimaryButton size="sm" @click="approve(i)" :disabled="processing">Approve</PrimaryButton>
+                  <SecondaryButton size="sm" class="ml-2" @click="openRejectModal(i)" :disabled="processing">Reject</SecondaryButton>
+                </template>
+                <span v-else class="text-neutral-400 text-xs">-</span>
+              </td>
+            </tr>
+            <tr v-if="!items.data?.length">
+              <td colspan="5" class="px-4 py-8 text-center text-neutral-500">Tidak ada permintaan perubahan</td>
             </tr>
           </tbody>
         </table>
       </div>
     </CardContainer>
+
+    <!-- Reject Modal -->
+    <ModalBase v-model:show="rejectModalOpen" title="Tolak Permintaan">
+      <div class="space-y-4">
+        <p class="text-sm text-neutral-600">
+          Berikan alasan penolakan untuk permintaan dari <strong>{{ selectedRequest?.member?.full_name }}</strong>
+        </p>
+        <div>
+          <label class="block text-xs text-neutral-600 mb-1">Alasan Penolakan <span class="text-red-500">*</span></label>
+          <textarea 
+            v-model="rejectNotes" 
+            class="w-full rounded border px-3 py-2 text-sm" 
+            rows="3" 
+            placeholder="Masukkan alasan penolakan..."
+          ></textarea>
+          <div v-if="rejectNotesError" class="text-xs text-status-error mt-1">{{ rejectNotesError }}</div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <SecondaryButton @click="closeRejectModal">Batal</SecondaryButton>
+          <PrimaryButton @click="confirmReject" :disabled="processing">Tolak Permintaan</PrimaryButton>
+        </div>
+      </template>
+    </ModalBase>
   </AppLayout>
 </template>
 
@@ -29,15 +97,119 @@ import CardContainer from '@/Components/UI/CardContainer.vue';
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import SelectField from '@/Components/UI/SelectField.vue';
+import Badge from '@/Components/UI/Badge.vue';
+import AlertBanner from '@/Components/UI/AlertBanner.vue';
+import ModalBase from '@/Components/UI/ModalBase.vue';
 import { usePage, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 
 const page = usePage();
-const items = page.props.items;
+const items = ref(page.props.items);
 const status = ref('');
+const processing = ref(false);
+
+// Message handling
+const successMessage = ref('');
+const errorMessage = ref('');
+
+// Reject modal state
+const rejectModalOpen = ref(false);
+const selectedRequest = ref(null);
+const rejectNotes = ref('');
+const rejectNotesError = ref('');
+
+// Watch for prop changes (Inertia partial reload)
+watch(() => page.props.items, (newItems) => {
+  items.value = newItems;
+}, { deep: true });
+
+// Auto-hide messages
+function showSuccess(message) {
+  successMessage.value = message;
+  errorMessage.value = '';
+  setTimeout(() => { successMessage.value = ''; }, 4000);
+}
+
+function showError(message) {
+  errorMessage.value = message;
+  successMessage.value = '';
+  setTimeout(() => { errorMessage.value = ''; }, 4000);
+}
+
+// Read flash on mount
+onMounted(() => {
+  const flash = page.props.flash;
+  if (flash?.success) showSuccess(flash.success);
+  if (flash?.error) showError(flash.error);
+});
+
+// Watch for flash changes
+watch(() => page.props.flash?.success, (newVal) => {
+  if (newVal) showSuccess(newVal);
+});
+watch(() => page.props.flash?.error, (newVal) => {
+  if (newVal) showError(newVal);
+});
+
+// Filter by status
 watch(status, v => router.get('/admin/updates', { status: v }, { preserveState: true, replace: true }));
 
-function approve(i){ router.post(`/admin/updates/${i.id}/approve`); }
-function reject(i){ const notes = prompt('Alasan penolakan'); if (!notes) return; router.post(`/admin/updates/${i.id}/reject`, { notes }); }
-</script>
+function approve(i) { 
+  processing.value = true;
+  router.post(`/admin/updates/${i.id}/approve`, {}, { 
+    preserveScroll: true, 
+    onSuccess: () => {
+      showSuccess('Permintaan berhasil disetujui');
+      router.reload({ only: ['items'] });
+    },
+    onFinish: () => { processing.value = false; }
+  }); 
+}
 
+function openRejectModal(i) {
+  selectedRequest.value = i;
+  rejectNotes.value = '';
+  rejectNotesError.value = '';
+  rejectModalOpen.value = true;
+}
+
+function closeRejectModal() {
+  rejectModalOpen.value = false;
+  selectedRequest.value = null;
+  rejectNotes.value = '';
+  rejectNotesError.value = '';
+}
+
+function confirmReject() {
+  if (!rejectNotes.value.trim()) {
+    rejectNotesError.value = 'Alasan penolakan wajib diisi';
+    return;
+  }
+  
+  processing.value = true;
+  router.post(`/admin/updates/${selectedRequest.value.id}/reject`, { notes: rejectNotes.value }, { 
+    preserveScroll: true, 
+    onSuccess: () => {
+      showSuccess('Permintaan berhasil ditolak');
+      closeRejectModal();
+      router.reload({ only: ['items'] });
+    },
+    onFinish: () => { processing.value = false; }
+  });
+}
+
+function statusVariant(s) {
+  switch (s) {
+    case 'approved': return 'success';
+    case 'rejected': return 'danger';
+    case 'pending': return 'warning';
+    default: return 'neutral';
+  }
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+</script>

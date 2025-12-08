@@ -21,7 +21,7 @@
             <button :class="tabClass('language')" @click="setTab('language')" aria-label="Tab Bahasa">Bahasa</button>
           </div>
         </CardContainer>
-        <CardContainer padding="lg" shadow="sm" class="mt-4">
+        <CardContainer v-if="canQuickActions" padding="lg" shadow="sm" class="mt-4">
           <div class="text-sm font-semibold text-neutral-900 mb-2">Quick Actions</div>
           <div class="space-y-2">
             <SecondaryButton class="w-full" @click="forceLogout">Force Logout</SecondaryButton>
@@ -44,7 +44,7 @@
           </template>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <InputField v-model="form.name" label="Nama" aria-label="Nama" />
-            <InputField v-model="form.email" label="Email" aria-label="Email" />
+            <InputField v-model="form.email" label="Email" aria-label="Email" :disabled="true" helper="Email mengikuti akun pengguna dan tidak dapat diubah di sini." />
           </div>
         </CardContainer>
 
@@ -218,7 +218,8 @@ import { usePage, router } from '@inertiajs/vue3';
 import { reactive, ref } from 'vue';
 
 const page = usePage();
-const form = reactive({ name: page.props.auth.user?.name || '', email: page.props.auth.user?.email || '' });
+const profileDefaults = page.props.profile || { name: page.props.auth.user?.name || '', email: page.props.auth.user?.email || '' };
+const form = reactive({ name: profileDefaults.name || '', email: profileDefaults.email || '' });
 const tab = ref('profile');
 function setTab(t){ tab.value = t; }
 function tabClass(t){ return ['w-full text-left px-3 py-2 rounded', tab.value===t ? 'bg-brand-primary-50 text-brand-primary-700' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'].join(' '); }
@@ -270,6 +271,7 @@ function openRunbook(which){
   else if (which==='security') window.location.href = '/docs/security/review';
 }
 
+const canQuickActions = !!page.props.can_quick_actions;
 const isSuperAdmin = (page.props.auth?.user?.role?.name||'') === 'super_admin';
 const sessions = ref([]);
 if (isSuperAdmin) {

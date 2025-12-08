@@ -69,6 +69,11 @@ class HandleInertiaRequests extends Middleware
                 $hasUpdates = Schema::hasTable('member_update_requests');
                 $hasNotifications = Schema::hasTable('notifications');
 
+                $user = $request->user();
+                $roleName = $user?->role?->name;
+                $organizationUnitId = $user?->organization_unit_id ?: $user?->member?->organization_unit_id;
+                $canViewUnitCount = in_array($roleName, ['admin_unit','bendahara','anggota']);
+
                 return [
                     'members_total' => $hasMembers ? Cache::remember('metrics_members_total', 60, fn() => \App\Models\Member::count()) : 0,
                     'units_total' => $hasUnits ? Cache::remember('metrics_units_total', 60, fn() => \App\Models\OrganizationUnit::count()) : 0,
@@ -76,8 +81,8 @@ class HandleInertiaRequests extends Middleware
                     'onboarding_pending' => $hasOnboarding ? Cache::remember('metrics_onboarding_pending', 60, fn() => \App\Models\PendingMember::where('status','pending')->count()) : 0,
                     'updates_pending' => $hasUpdates ? Cache::remember('metrics_updates_pending', 60, fn() => \App\Models\MemberUpdateRequest::where('status','pending')->count()) : 0,
                     'notifications_unread' => ($userId && $hasNotifications) ? optional($request->user())->unreadNotifications()->count() : 0,
-                    'members_unit_total' => ($hasMembers && $request->user() && $request->user()->role && $request->user()->role->name === 'admin_unit' && $request->user()->organization_unit_id)
-                        ? \App\Models\Member::where('organization_unit_id', $request->user()->organization_unit_id)->count()
+                    'members_unit_total' => ($hasMembers && $canViewUnitCount && $organizationUnitId)
+                        ? \App\Models\Member::where('organization_unit_id', $organizationUnitId)->count()
                         : 0,
                 ];
             },

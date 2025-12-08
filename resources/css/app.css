@@ -1,5 +1,24 @@
 @import "tailwindcss";
 
+/* Sidebar Menu Item Styling */
+.sidebar-menu-item {
+  cursor: pointer;
+}
+
+.sidebar-inactive {
+  color: #CBD5E1;
+}
+
+.sidebar-inactive:hover {
+  background-color: #243573;
+  color: #FFFFFF;
+}
+
+.sidebar-active {
+  background-color: #2E4080;
+  color: #FFFFFF;
+}
+
 /* Custom Animations */
 @keyframes fadeIn {
   0% {
