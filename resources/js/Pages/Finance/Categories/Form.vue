@@ -1,6 +1,6 @@
 <template>
   <AppLayout :page-title="category ? 'Edit Kategori' : 'Tambah Kategori'">
-    <CardContainer padding="lg" class="max-w-2xl">
+    <CardContainer padding="lg" class="max-w-2xl mx-auto">
       <AlertBanner v-if="$page.props.flash.error" type="error" :message="$page.props.flash.error" />
       <form @submit.prevent="submit">
         <div class="space-y-6">
@@ -33,7 +33,7 @@
               </select>
             </template>
             <template v-else>
-              <InputField :model-value="$page.props.auth.user.organization_unit?.name" readonly />
+              <InputField :model-value="page.props.auth.user?.organization_unit?.name" readonly />
             </template>
             <p v-if="errors.organization_unit_id" class="text-xs text-status-error mt-1">{{ errors.organization_unit_id }}</p>
           </div>
@@ -75,7 +75,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { router, useForm } from '@inertiajs/vue3'
+import { router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
 import InputField from '@/Components/UI/InputField.vue'
@@ -84,13 +84,14 @@ import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
 import AlertBanner from '@/Components/UI/AlertBanner.vue'
 
 const props = defineProps({ units: Array, category: Object })
-const isSuperAdmin = computed(() => (typeof $page.props.auth.user.role?.name === 'string') && $page.props.auth.user.role.name === 'super_admin')
+const page = usePage()
+const isSuperAdmin = computed(() => (page.props?.auth?.user?.role?.name || '') === 'super_admin')
 
 const form = useForm({
   name: props.category?.name || '',
   type: props.category?.type || 'income',
   description: props.category?.description || '',
-  organization_unit_id: props.category?.organization_unit_id ?? (isSuperAdmin.value ? null : ($page.props.auth.user.organization_unit_id || null)),
+  organization_unit_id: props.category?.organization_unit_id ?? (isSuperAdmin.value ? null : (page.props?.auth?.user?.organization_unit_id || null)),
   is_recurring: props.category?.is_recurring || false,
   default_amount: props.category?.default_amount || null,
 })

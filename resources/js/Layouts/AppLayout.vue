@@ -233,6 +233,11 @@
             </div>
           </div>
 
+          <!-- Optional Page Actions -->
+          <div v-if="$slots.actions" class="hidden md:block mr-4">
+            <slot name="actions" />
+          </div>
+
           <!-- Right Side Actions -->
           <div class="flex items-center gap-3">
             <!-- Notification Bell -->
@@ -297,6 +302,9 @@
       <main class="flex-1">
         <div class="py-6">
           <div class="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+            <div v-if="$slots.actions" class="md:hidden mb-4">
+              <slot name="actions" />
+            </div>
             <!-- Flash Messages -->
             <div v-if="flashSuccess" class="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 text-sm flex items-center gap-2">
               <svg class="h-5 w-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

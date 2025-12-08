@@ -86,6 +86,62 @@ Route::middleware(['auth'])->group(function () {
             $unpaidMembers = \App\Http\Controllers\Finance\FinanceDuesController::getUnpaidMembers(null, null, 20);
         }
 
+        // Finance Data for Dashboard
+        $financeData = null;
+        if (in_array($roleName, ['admin_unit', 'bendahara', 'super_admin'], true)) {
+            $financeUnitId = ($roleName === 'super_admin') ? null : $user->organization_unit_id;
+
+            // 1. Current Balance
+            $balance = \App\Models\FinanceLedger::query()
+                ->when($financeUnitId, fn($q) => $q->where('organization_unit_id', $financeUnitId))
+                ->where('status', 'approved')
+                ->selectRaw("SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as balance")
+                ->value('balance') ?? 0;
+
+            // 2. YTD Chart Data (Last 12 months)
+            $ytdData = collect(range(0, 11))->map(function ($i) use ($financeUnitId) {
+                $date = now()->subMonths(11 - $i);
+                $month = $date->format('Y-m');
+
+                $stats = \App\Models\FinanceLedger::query()
+                    ->when($financeUnitId, fn($q) => $q->where('organization_unit_id', $financeUnitId))
+                    ->where('status', 'approved')
+                    ->where(DB::raw("strftime('%Y-%m', date)"), $month)
+                    ->selectRaw("SUM(CASE WHEN type='income' THEN amount ELSE 0 END) as income")
+                    ->selectRaw("SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as expense")
+                    ->first();
+
+                return [
+                    'month' => $date->format('M Y'),
+                    'income' => (float) ($stats->income ?? 0),
+                    'expense' => (float) ($stats->expense ?? 0),
+                ];
+            });
+
+            // 3. Recent Transactions
+            $recent = \App\Models\FinanceLedger::query()
+                ->when($financeUnitId, fn($q) => $q->where('organization_unit_id', $financeUnitId))
+                ->with('category:id,name') // Optimize eager load
+                ->latest('date')
+                ->limit(10)
+                ->get()
+                ->map(fn($l) => [
+                    'id' => $l->id,
+                    'date' => $l->date->format('Y-m-d'),
+                    'description' => $l->description ?: $l->category->name,
+                    'type' => $l->type,
+                    'amount' => $l->amount,
+                    'status' => $l->status,
+                ]);
+
+            $financeData = [
+                'balance' => $balance,
+                'ytd' => $ytdData,
+                'recent' => $recent,
+                'unit_name' => $financeUnitId ? optional(\App\Models\OrganizationUnit::find($financeUnitId))->name : 'Global',
+            ];
+        }
+
         return Inertia::render('Dashboard', [
             'dashboard' => [
                 'members_by_unit' => $membersByUnit,
@@ -95,6 +151,7 @@ Route::middleware(['auth'])->group(function () {
             'alerts' => $alerts,
             'dues_summary' => $duesSummary,
             'unpaid_members' => $unpaidMembers,
+            'finance' => $financeData,
         ]);
     })->name('dashboard');
 

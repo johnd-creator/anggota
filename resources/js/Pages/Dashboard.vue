@@ -20,7 +20,7 @@
                 badgeColor="amber"
                 :href="isMemberRole ? '' : '/admin/members'"
             />
-            <StatCard v-if="!isMemberRole"
+            <StatCard v-if="showAdminQueues"
                 title="Mutasi Pending"
                 :value="$page.props.counters?.mutations_pending || 0"
                 icon="transfer"
@@ -29,7 +29,7 @@
                 badgeColor="red"
                 href="/admin/mutations"
             />
-            <StatCard v-if="!isMemberRole"
+            <StatCard v-if="showAdminQueues"
                 title="Onboarding Pending"
                 :value="$page.props.counters?.onboarding_pending || 0"
                 icon="user-plus"
@@ -38,7 +38,7 @@
                 badgeColor="amber"
                 href="/admin/onboarding"
             />
-            <StatCard v-if="!isMemberRole"
+            <StatCard v-if="showAdminQueues"
                 title="Update Request Pending"
                 :value="$page.props.counters?.updates_pending || 0"
                 icon="refresh"
@@ -85,7 +85,7 @@
         </div>
 
         <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6" v-if="!isMemberRole">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6" v-if="showAdminQueues">
             <!-- Iuran Bulan Ini Panel - spans 2 columns -->
             <div v-if="showDuesCard" class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-neutral-100 p-6">
                 <h3 class="text-lg font-semibold text-neutral-900 mb-4">Iuran Bulan Ini</h3>
@@ -161,8 +161,149 @@
             </div>
         </div>
 
-        <!-- Recent Mutasi Pending Table -->
-        <div v-if="!isMemberRole" class="bg-white rounded-xl shadow-sm border border-neutral-100 overflow-hidden">
+        <!-- Finance Dashboard Section -->
+        <div v-if="finance" class="mb-8 space-y-6">
+            <!-- Top Row: Balance & Dues -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Current Balance Card -->
+                <div class="rounded-xl shadow-sm border border-neutral-100 overflow-hidden relative bg-blue-600">
+                    <div class="absolute inset-0 bg-blue-600"></div>
+                    <!-- Pattern overlay -->
+                    <div class="absolute inset-0 opacity-10" style="background-image: url('data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'1\' fill-rule=\'evenodd\'%3E%3Ccircle cx=\'3\' cy=\'3\' r=\'3\'/%3E%3Ccircle cx=\'13\' cy=\'13\' r=\'3\'/%3E%3C/g%3E%3C/svg%3E');"></div>
+                    
+                    <div class="relative p-6 text-white flex flex-col h-full justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-blue-100 font-medium text-sm uppercase tracking-wider">Saldo Saat Ini</h3>
+                                <span v-if="finance.unit_name" class="px-2 py-0.5 rounded text-xs font-semibold bg-white/20 text-white border border-white/20">
+                                    {{ finance.unit_name }}
+                                </span>
+                            </div>
+                            <div class="text-3xl font-bold mb-1">{{ formatCurrency(finance.balance) }}</div>
+                            <div class="text-blue-100 text-sm flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                                <span>Update terakhir hari ini</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6">
+                            <Link href="/finance/ledgers" class="inline-flex items-center px-4 py-2 bg-white text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition-colors shadow-sm">
+                                Kelola Keuangan
+                                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dues Progress Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-neutral-100 p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-neutral-900">Progres Iuran Bulan Ini</h3>
+                            <Link href="/finance/dues" class="text-sm font-medium text-brand-primary-600 hover:text-brand-primary-700 hover:underline">Detail</Link>
+                        </div>
+                        
+                        <div class="mb-2 flex items-baseline gap-2">
+                            <span class="text-2xl font-bold text-neutral-900">{{ formatCurrency(duesCollected) }}</span>
+                            <span class="text-sm text-neutral-500">terkumpul dari target {{ formatCurrency(duesTarget) }}</span>
+                        </div>
+
+                        <div class="w-full bg-neutral-100 rounded-full h-3 mb-4">
+                            <div class="bg-brand-primary-600 h-3 rounded-full transition-all duration-500" :style="{ width: `${duesProgress}%` }"></div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 mt-4">
+                            <div class="p-3 bg-green-50 rounded-lg border border-green-100">
+                                <span class="block text-xs text-green-600 mb-1">Sudah Bayar</span>
+                                <span class="text-lg font-bold text-green-700">{{ duesSummary?.paid || 0 }} <span class="text-xs font-normal">Anggota</span></span>
+                            </div>
+                            <div class="p-3 bg-red-50 rounded-lg border border-red-100">
+                                <span class="block text-xs text-red-600 mb-1">Belum Bayar</span>
+                                <span class="text-lg font-bold text-red-700">{{ duesSummary?.unpaid || 0 }} <span class="text-xs font-normal">Anggota</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Row: Chart & Recent -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Financial Overview Chart -->
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-neutral-100 p-6">
+                    <h3 class="text-lg font-semibold text-neutral-900 mb-6">Overview Pemasukan & Pengeluaran</h3>
+                    
+                    <!-- Simple CSS/SVG Chart Implementation -->
+                    <div class="h-64 relative flex items-end justify-between gap-2 px-2">
+                        <!-- Y-Axis Grid Lines (Simplified) -->
+                        <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10">
+                            <div class="border-t border-neutral-900 w-full"></div>
+                            <div class="border-t border-neutral-900 w-full"></div>
+                            <div class="border-t border-neutral-900 w-full"></div>
+                            <div class="border-t border-neutral-900 w-full"></div>
+                            <div class="border-t border-neutral-900 w-full"></div>
+                        </div>
+
+                        <template v-for="(stat, index) in finance.ytd" :key="index">
+                            <div class="flex-1 flex flex-col justify-end gap-1 h-full group relative">
+                                <!-- Tooltip -->
+                                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 bg-neutral-800 text-white text-xs rounded p-2 whitespace-nowrap shadow-lg">
+                                    <div class="font-bold">{{ stat.month }}</div>
+                                    <div class="text-green-300">In: {{ formatShortCurrency(stat.income) }}</div>
+                                    <div class="text-red-300">Out: {{ formatShortCurrency(stat.expense) }}</div>
+                                </div>
+                                
+                                <!-- Bars -->
+                                <div class="w-full flex gap-0.5 h-full items-end">
+                                    <div class="flex-1 bg-green-500 hover:bg-green-600 rounded-t transition-all relative min-h-[4px]" :style="{ height: `${getBarHeight(stat.income)}%` }"></div>
+                                    <div class="flex-1 bg-red-500 hover:bg-red-600 rounded-t transition-all relative min-h-[4px]" :style="{ height: `${getBarHeight(stat.expense)}%` }"></div>
+                                </div>
+                                
+                                <!-- X-Axis Label -->
+                                <div class="text-[10px] text-neutral-500 text-center truncate w-full mt-2">{{ stat.month.split(' ')[0] }}</div>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="mt-4 flex items-center justify-center gap-4 text-xs font-medium">
+                        <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-green-500"></span> Pemasukan</div>
+                        <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-red-500"></span> Pengeluaran</div>
+                    </div>
+                </div>
+
+                <!-- Recent Transactions -->
+                <div class="bg-white rounded-xl shadow-sm border border-neutral-100 p-0 flex flex-col">
+                    <div class="p-6 border-b border-neutral-100 flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-neutral-900">Transaksi Terakhir</h3>
+                        <Link href="/finance/ledgers" class="text-xs font-medium text-brand-primary-600 hover:underline">Lihat Semua</Link>
+                    </div>
+                    <div class="flex-1 overflow-auto max-h-[400px]">
+                         <table class="min-w-full divide-y divide-neutral-100">
+                             <tbody class="divide-y divide-neutral-100">
+                                 <tr v-for="tx in finance.recent" :key="tx.id" class="hover:bg-neutral-50 group transition-colors">
+                                     <td class="px-6 py-4">
+                                         <div class="flex justify-between items-start mb-1">
+                                             <span class="text-sm font-medium text-neutral-900 group-hover:text-brand-primary-600 transition-colors">{{ tx.description }}</span>
+                                             <span class="text-sm font-bold" :class="tx.type === 'income' ? 'text-green-600' : 'text-red-600'">
+                                                {{ tx.type === 'income' ? '+' : '-' }} {{ formatCurrency(tx.amount) }}
+                                             </span>
+                                         </div>
+                                         <div class="flex justify-between items-center text-xs text-neutral-500">
+                                            <span>{{ tx.date }}</span>
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] bg-neutral-100 text-neutral-600 capitalize">{{ tx.type }}</span>
+                                         </div>
+                                     </td>
+                                 </tr>
+                                 <tr v-if="finance.recent.length === 0">
+                                     <td class="px-6 py-8 text-center text-sm text-neutral-500">Belum ada transaksi</td>
+                                 </tr>
+                             </tbody>
+                         </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Mutasi Pending Table (Admin Only) -->
+        <div v-if="showAdminQueues" class="bg-white rounded-xl shadow-sm border border-neutral-100 overflow-hidden">
             <div class="px-6 py-4 border-b border-neutral-100">
                 <h3 class="text-lg font-semibold text-neutral-900">Recent Mutasi Pending</h3>
             </div>
@@ -249,6 +390,7 @@ const pg = page.props || {};
 
 const roleName = computed(() => pg.auth?.user?.role?.name || '');
 const isMemberRole = computed(() => roleName.value === 'anggota');
+const showAdminQueues = computed(() => ['super_admin', 'admin_unit'].includes(roleName.value));
 
 const showUnpaidModal = ref(false);
 const currentPeriod = new Date().toISOString().slice(0, 7);
@@ -256,9 +398,36 @@ const currentPeriod = new Date().toISOString().slice(0, 7);
 // Dues data
 const duesSummary = computed(() => pg.dues_summary || null);
 const unpaidMembers = computed(() => pg.unpaid_members || []);
+const finance = computed(() => pg.finance || null);
+
+// Chart helpers
+const maxChartValue = computed(() => {
+    if (!finance.value || !finance.value.ytd) return 1000;
+    let max = 0;
+    finance.value.ytd.forEach(d => {
+        if (d.income > max) max = d.income;
+        if (d.expense > max) max = d.expense;
+    });
+    return max || 1000;
+});
+
+const getBarHeight = (value) => {
+    return Math.round((value / maxChartValue.value) * 100);
+};
+
+const formatShortCurrency = (value) => {
+    if (value >= 1000000000) return (value / 1000000000).toFixed(1) + 'M';
+    if (value >= 1000000) return (value / 1000000).toFixed(1) + 'jt';
+    if (value >= 1000) return (value / 1000).toFixed(0) + 'rb';
+    return value;
+};
 
 const showUnitMembersCard = computed(() => ['admin_unit', 'bendahara', 'anggota'].includes(roleName.value));
-const showDuesCard = computed(() => ['admin_unit', 'bendahara', 'super_admin'].includes(roleName.value));
+const showDuesCard = computed(() => {
+    // Hide old card if finance dashboard is shown
+    if (finance.value) return false;
+    return ['admin_unit', 'bendahara', 'super_admin'].includes(roleName.value);
+});
 const showMemberDuesCard = computed(() => isMemberRole.value && !!duesSummary.value);
 const unitBadgeText = computed(() => {
     if (!showUnitMembersCard.value) return '';
@@ -272,12 +441,12 @@ const unitCardHref = computed(() => (isMemberRole.value ? '/member/profile' : ''
 // Dues progress calculations
 const duesCollected = computed(() => {
     if (!duesSummary.value) return 0;
-    return duesSummary.value.paid_amount || duesSummary.value.paid * 50000 || 0;
+    return duesSummary.value.paid_amount || duesSummary.value.paid * 30000 || 0;
 });
 
 const duesTarget = computed(() => {
-    if (!duesSummary.value) return 500000000;
-    return duesSummary.value.target_amount || duesSummary.value.total * 50000 || 500000000;
+    if (!duesSummary.value) return 30000 * 50; // Fallback dummy target
+    return duesSummary.value.target_amount || duesSummary.value.total * 30000 || 30000 * 50;
 });
 
 const duesProgress = computed(() => {

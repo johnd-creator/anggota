@@ -27,7 +27,11 @@ class FinanceCategoryController extends Controller
         $unitParam = $request->query('unit_id');
 
         if (!$isSuper) {
-            $query->where('organization_unit_id', $user->organization_unit_id);
+            $unitId = $user->organization_unit_id;
+            $query->where(function ($q) use ($unitId) {
+                $q->whereNull('organization_unit_id')
+                    ->orWhere('organization_unit_id', $unitId);
+            });
         } else {
             if ($unitParam === 'null') {
                 $query->whereNull('organization_unit_id');

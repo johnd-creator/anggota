@@ -1,27 +1,33 @@
 <template>
   <AppLayout page-title="Kategori Keuangan">
-    <template #actions>
-      <a href="/finance/categories/create" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-sm hover:bg-blue-700 transition-colors duration-200">
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-        </svg>
-        Tambah Kategori
-      </a>
-    </template>
-
     <div class="space-y-6">
       <AlertBanner v-if="$page.props.flash.success" type="success" :message="$page.props.flash.success" dismissible @dismiss="$page.props.flash.success = null" />
 
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-neutral-900">Kelola Kategori</h2>
+          <p class="text-sm text-neutral-500">Atur kategori pemasukan dan pengeluaran untuk unit Anda.</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <Link href="/finance/categories/create" class="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-full shadow-lg shadow-blue-300/70 hover:bg-blue-700 transition transform hover:-translate-y-0.5">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Tambah Kategori
+          </Link>
+        </div>
+      </div>
+
       <CardContainer padding="sm">
-        <div class="flex items-center space-x-3">
+        <div class="flex flex-wrap items-center gap-3">
           <div class="w-full max-w-md">
             <InputField v-model="search" placeholder="Cari nama kategori..." class="w-full" />
           </div>
-          <select v-model="type" class="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700">
-            <option value="">Semua Tipe</option>
-            <option value="income">Pemasukan</option>
-            <option value="expense">Pengeluaran</option>
-          </select>
+          <div>
+            <select v-model="type" class="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700">
+              <option value="">Semua Tipe</option>
+              <option value="income">Pemasukan</option>
+              <option value="expense">Pengeluaran</option>
+            </select>
+          </div>
           <div v-if="isSuperAdmin">
             <select v-model="unitId" class="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700">
               <option value="">Semua Unit</option>
@@ -47,7 +53,11 @@
             <tbody class="bg-white divide-y divide-neutral-200">
               <tr v-for="c in categories.data" :key="c.id" class="hover:bg-neutral-50">
                 <td class="px-6 py-4 text-sm font-medium text-neutral-900">{{ c.name }}</td>
-                <td class="px-6 py-4 text-sm text-neutral-700">{{ c.type === 'income' ? 'Pemasukan' : 'Pengeluaran' }}</td>
+                <td class="px-6 py-4 text-sm">
+                  <span :class="c.type === 'income' ? 'text-green-700' : 'text-status-error'">
+                    {{ c.type === 'income' ? 'Pemasukan' : 'Pengeluaran' }}
+                  </span>
+                </td>
                 <td class="px-6 py-4 text-sm text-neutral-700">{{ c.organization_unit ? c.organization_unit.name : 'Global' }}</td>
                 <td class="px-6 py-4 text-sm text-neutral-700">{{ c.creator ? c.creator.name : '-' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -57,7 +67,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </IconButton>
-                    <IconButton variant="ghost" aria-label="Delete" @click="confirmDelete(c)">
+                    <IconButton v-if="!c.is_system" variant="ghost" aria-label="Delete" @click="confirmDelete(c)">
                       <svg class="w-5 h-5 text-status-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
@@ -90,6 +100,7 @@
         </div>
       </CardContainer>
     </div>
+
     <ModalBase v-model:show="showDelete" title="Hapus Kategori" size="md">
       <div class="space-y-4">
         <p class="text-neutral-600">Anda yakin ingin menghapus <span class="font-semibold">{{ toDelete?.name }}</span>?</p>

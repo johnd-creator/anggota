@@ -1,11 +1,5 @@
 <template>
   <AppLayout page-title="Transaksi Keuangan">
-    <template #actions>
-      <a href="/finance/ledgers/create" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-sm hover:bg-blue-700 transition-colors duration-200">
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Tambah Transaksi
-      </a>
-    </template>
 
     <div class="space-y-6">
       <CardContainer padding="sm">
@@ -35,6 +29,19 @@
           </p>
         </div>
       </CardContainer>
+
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-neutral-900">Kelola Transaksi</h2>
+          <p class="text-sm text-neutral-500">Catat pemasukan dan pengeluaran unit Anda.</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <Link href="/finance/ledgers/create" class="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-full shadow-lg shadow-blue-300/70 hover:bg-blue-700 transition transform hover:-translate-y-0.5">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Tambah Transaksi
+          </Link>
+        </div>
+      </div>
 
       <AlertBanner v-if="$page.props.flash.success" type="success" :message="$page.props.flash.success" dismissible @dismiss="$page.props.flash.success = null" />
 
@@ -98,7 +105,7 @@
             </thead>
             <tbody class="bg-white divide-y divide-neutral-200">
               <tr v-for="l in ledgers.data" :key="l.id" class="hover:bg-neutral-50">
-                <td class="px-6 py-4 text-sm text-neutral-700">{{ l.date }}</td>
+                <td class="px-6 py-4 text-sm text-neutral-700">{{ formatDate(l.date) }}</td>
                 <td class="px-6 py-4 text-sm text-neutral-700">{{ l.category ? l.category.name : '-' }}</td>
                 <td class="px-6 py-4 text-sm" :class="l.type==='income' ? 'text-green-700' : 'text-status-error'">{{ l.type==='income' ? 'Pemasukan' : 'Pengeluaran' }}</td>
                 <td class="px-6 py-4 text-sm text-right font-semibold">{{ formatCurrency(l.amount) }}</td>
@@ -236,6 +243,13 @@ const rejecting = ref(false)
 
 function formatCurrency(n) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0)
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return dateStr
+  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 function applyFilters() {
