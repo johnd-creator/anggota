@@ -1,5 +1,13 @@
 <template>
   <AppLayout page-title="Pengajuan Mutasi">
+    <div class="space-y-6">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-neutral-900">Pengajuan Mutasi</h2>
+          <p class="text-sm text-neutral-500">Proses mutasi anggota antar unit kerja.</p>
+        </div>
+      </div>
+
     <CardContainer padding="lg" shadow="sm">
       <div class="mb-6">
         <div class="flex items-center gap-2 text-sm">
@@ -83,6 +91,7 @@
         </table>
       </div>
     </CardContainer>
+  </div>
   </AppLayout>
 </template>
 

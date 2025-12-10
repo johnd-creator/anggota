@@ -7,6 +7,7 @@
         <select v-model="filterForm.role" class="border rounded px-3 py-2 text-sm bg-white">
            <option value="">Semua Role</option>
            <option value="super_admin">Super Admin</option>
+           <option value="admin_pusat">Admin Pusat</option>
            <option value="admin_unit">Admin Unit</option>
            <option value="bendahara">Bendahara</option>
            <option value="anggota">Anggota</option>

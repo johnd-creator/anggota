@@ -1,17 +1,20 @@
 <template>
   <AppLayout page-title="Master Data: Organization Units">
-    <template #actions>
-      <a href="/admin/units/create" v-if="['super_admin','admin_unit'].includes($page.props.auth.user.role.name)" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-sm hover:bg-blue-700 transition-colors duration-200">
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-        </svg>
-        Tambah Unit
-      </a>
-    </template>
       <div class="space-y-6">
-        <div class="flex items-center justify-between">
-          <div class="text-sm text-neutral-600">Kelola daftar unit organisasi.</div>
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-neutral-900">Unit Organisasi</h2>
+          <p class="text-sm text-neutral-500">Kelola daftar unit organisasi.</p>
         </div>
+        <div class="flex flex-wrap gap-3">
+          <CtaButton href="/admin/units/create" v-if="['super_admin','admin_unit'].includes($page.props.auth.user.role.name)">
+            <template #icon>
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            </template>
+            Tambah Unit
+          </CtaButton>
+        </div>
+      </div>
       <!-- Success Message -->
       <AlertBanner
         v-if="$page.props.flash.success"
@@ -163,6 +166,7 @@ import { router, Link } from '@inertiajs/vue3';
 import debounce from 'lodash/debounce';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
+import CtaButton from '@/Components/UI/CtaButton.vue';
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import IconButton from '@/Components/UI/IconButton.vue';

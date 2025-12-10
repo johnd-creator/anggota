@@ -30,6 +30,20 @@
               </div>
             </div>
 
+            <!-- CTA Buttons -->
+            <div>
+              <h3 class="text-lg font-semibold mb-3">Call to Action Buttons (New)</h3>
+              <div class="flex flex-wrap gap-4">
+                <CtaButton>
+                  <template #icon>
+                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                  </template>
+                  Tambah Transaksi
+                </CtaButton>
+                <CtaButton href="#">Link CTA</CtaButton>
+              </div>
+            </div>
+
             <!-- Icon Buttons -->
             <div>
               <h3 class="text-lg font-semibold mb-3">Icon Buttons</h3>
@@ -165,6 +179,7 @@ import Checkbox from '@/Components/UI/Checkbox.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
 import AlertBanner from '@/Components/UI/AlertBanner.vue';
 import ModalBase from '@/Components/UI/ModalBase.vue';
+import CtaButton from '@/Components/UI/CtaButton.vue';
 
 const formData = ref({
   name: '',

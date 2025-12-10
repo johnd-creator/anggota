@@ -1,5 +1,13 @@
 <template>
   <AppLayout page-title="Onboarding Requests">
+    <div class="space-y-6">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-neutral-900">Onboarding Request</h2>
+          <p class="text-sm text-neutral-500">Daftar permintaan registrasi anggota baru (Reguler).</p>
+        </div>
+      </div>
+
     <div class="mb-4 flex items-center gap-3">
       <InputField v-model="search" placeholder="Cari nama/email" />
       <SelectField v-model="filter.status" :options="statusOptions" />
@@ -58,6 +66,7 @@
         </div>
       </form>
     </ModalBase>
+  </div>
   </AppLayout>
   <Toast v-if="toast.show" :message="toast.message" :type="toast.type" position="top-center" @close="toast.show=false" />
 </template>

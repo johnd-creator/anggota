@@ -31,8 +31,8 @@ class FinanceDuesController extends Controller
         $unitId = $request->input('unit_id');
 
         // Determine unit scope
-        if ($user->hasRole('super_admin')) {
-            // Super admin can view all or filter by unit
+        if ($user->hasGlobalAccess()) {
+            // Super admin and admin_pusat can view all or filter by unit
             $unitScope = $unitId ? [(int) $unitId] : null;
         } else {
             // Bendahara/admin_unit can only see their unit

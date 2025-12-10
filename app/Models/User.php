@@ -92,9 +92,19 @@ class User extends Authenticatable
             $member->save();
         }
         if (!$this->role || $this->role->name === 'reguler') {
-            $role = \App\Models\Role::where('name','anggota')->first();
-            if ($role) $this->role_id = $role->id;
+            $role = \App\Models\Role::where('name', 'anggota')->first();
+            if ($role)
+                $this->role_id = $role->id;
         }
         $this->save();
+    }
+
+    /**
+     * Check if user has global data access (can see all units).
+     * Super admin and admin pusat have global access even if they have a unit.
+     */
+    public function hasGlobalAccess(): bool
+    {
+        return $this->hasRole(['super_admin', 'admin_pusat']);
     }
 }

@@ -20,6 +20,17 @@
           <span>Dashboard</span>
         </Link>
 
+        <!-- Admin Aspirations -->
+        <template v-if="isAdminOrUnit">
+          <Link href="/admin/aspirations" :class="menuItemClass('/admin/aspirations')">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+            </svg>
+            <span>Aspirasi Anggota</span>
+            <span v-if="$page.props.counters?.aspirations_pending" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $page.props.counters.aspirations_pending }}</span>
+          </Link>
+        </template>
+
         <!-- Members Section -->
         <template v-if="isAdminOrUnit">
           <button @click="toggleSection('members')" :class="sectionHeaderClass('members')">
@@ -27,7 +38,7 @@
               <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <span>Members</span>
+              <span>Master Data</span>
             </div>
             <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': expandedSections.members }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -38,41 +49,28 @@
             <Link href="/admin/units" :class="subMenuItemClass('/admin/units')">Unit Pembangkit</Link>
             <Link v-if="isSuperAdmin" href="/admin/union-positions" :class="subMenuItemClass('/admin/union-positions')">Jabatan Serikat</Link>
             <Link v-if="isSuperAdmin" href="/admin/roles" :class="subMenuItemClass('/admin/roles')">Role & Access</Link>
+            <Link v-if="isSuperAdmin" href="/admin/aspiration-categories" :class="subMenuItemClass('/admin/aspiration-categories')">Kategori Aspirasi</Link>
           </div>
 
-          <!-- Mutations Section -->
-          <button @click="toggleSection('mutations')" :class="sectionHeaderClass('mutations')">
-            <div class="flex items-center gap-3">
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-              <span>Mutations</span>
-            </div>
-            <span v-if="$page.props.counters?.mutations_pending" class="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $page.props.counters.mutations_pending }}</span>
-            <svg class="h-4 w-4 transition-transform ml-auto" :class="{ 'rotate-180': expandedSections.mutations }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          <!-- Mutations -->
+          <Link href="/admin/mutations" :class="menuItemClass('/admin/mutations')">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
             </svg>
-          </button>
-          <div v-show="expandedSections.mutations" class="ml-6 space-y-1">
-            <Link href="/admin/mutations" :class="subMenuItemClass('/admin/mutations')">Mutasi Anggota</Link>
-          </div>
+            <span>Mutations</span>
+            <span v-if="$page.props.counters?.mutations_pending" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $page.props.counters.mutations_pending }}</span>
+          </Link>
 
-          <!-- Onboarding Section -->
-          <button @click="toggleSection('onboarding')" :class="sectionHeaderClass('onboarding')">
-            <div class="flex items-center gap-3">
+          <!-- Onboarding -->
+          <Link href="/admin/onboarding" :class="menuItemClass('/admin/onboarding')">
+            <div class="flex items-center gap-3 w-full">
               <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
               </svg>
               <span>Onboarding</span>
+              <span v-if="$page.props.counters?.onboarding_pending" class="ml-auto bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $page.props.counters.onboarding_pending }}</span>
             </div>
-            <span v-if="$page.props.counters?.onboarding_pending" class="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $page.props.counters.onboarding_pending }}</span>
-            <svg class="h-4 w-4 transition-transform ml-auto" :class="{ 'rotate-180': expandedSections.onboarding }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          <div v-show="expandedSections.onboarding" class="ml-6 space-y-1">
-            <Link href="/admin/onboarding" :class="subMenuItemClass('/admin/onboarding')">Onboarding Reguler</Link>
-          </div>
+          </Link>
 
           <!-- Update Requests -->
           <Link href="/admin/updates" :class="menuItemClass('/admin/updates')">
@@ -124,6 +122,18 @@
           </div>
         </template>
 
+
+
+        <!-- Member Aspirations -->
+        <template v-if="isMember || isTreasurer">
+          <Link href="/member/aspirations" :class="menuItemClass('/member/aspirations')">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            <span>Aspirasi</span>
+          </Link>
+        </template>
+
         <!-- Settings Section -->
         <button @click="toggleSection('settings')" :class="sectionHeaderClass('settings')">
           <div class="flex items-center gap-3">
@@ -138,6 +148,7 @@
           </svg>
         </button>
         <div v-show="expandedSections.settings" class="ml-6 space-y-1">
+          <Link v-if="isSuperAdmin || isAdminPusat" href="/admin/aspiration-categories" :class="subMenuItemClass('/admin/aspiration-categories')">Kategori Aspirasi</Link>
           <Link href="/settings" :class="subMenuItemClass('/settings')">Pengaturan</Link>
           <Link href="/help" :class="subMenuItemClass('/help')">Help Center</Link>
           <Link v-if="isSuperAdmin" href="/ops" :class="subMenuItemClass('/ops')">Ops Center</Link>
@@ -289,8 +300,12 @@
                   <p class="text-xs text-neutral-500">{{ $page.props.auth.user.email }}</p>
                 </div>
                 <Link href="/settings" class="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">Pengaturan</Link>
-                <Link href="/member/profile" v-if="isMember || isTreasurer" class="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">Profil Saya</Link>
-                <Link href="/member/portal" v-if="isMember || isTreasurer" class="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">KTA Digital</Link>
+                <Link href="/member/profile" v-if="isMember || isTreasurer || hasMemberAssociation" class="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">Profil Saya</Link>
+                <Link href="/member/portal" v-if="isMember || isTreasurer || hasMemberAssociation" class="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">KTA Digital</Link>
+                <!-- Show unit badge for admins with unit association -->
+                <div v-if="hasMemberAssociation && userUnitName" class="px-4 py-2 border-t border-neutral-100 text-xs text-neutral-500">
+                  Anggota Unit: <span class="font-medium text-neutral-700">{{ userUnitName }}</span>
+                </div>
                 <button class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50" @click="doLogout">Logout</button>
               </div>
             </div>
@@ -407,11 +422,18 @@ function relativeTime(s) {
 }
 
 const roleName = computed(() => page.props?.auth?.user?.role?.name || '');
-const isAdminOrUnit = computed(() => ['super_admin', 'admin_unit'].includes(roleName.value));
+const isAdminOrUnit = computed(() => ['super_admin', 'admin_unit', 'admin_pusat'].includes(roleName.value));
 const isSuperAdmin = computed(() => roleName.value === 'super_admin');
 const isAdminUnit = computed(() => roleName.value === 'admin_unit');
+const isAdminPusat = computed(() => roleName.value === 'admin_pusat');
 const isTreasurer = computed(() => roleName.value === 'bendahara');
 const isMember = computed(() => roleName.value === 'anggota');
+// Check if admin has member association (for super_admin/admin_pusat who are also members)
+const hasMemberAssociation = computed(() => {
+  const user = page.props?.auth?.user;
+  return (isSuperAdmin.value || isAdminPusat.value) && user?.member_id;
+});
+const userUnitName = computed(() => page.props?.auth?.user?.organization_unit?.name || null);
 
 function doLogout() {
   router.post('/logout', {}, { onFinish() { userMenuOpen.value = false; } });

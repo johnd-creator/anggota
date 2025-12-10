@@ -47,6 +47,15 @@
                 badgeColor="blue"
                 href="/admin/updates"
             />
+            <StatCard v-if="showAdminQueues"
+                title="Aspirasi Baru"
+                :value="$page.props.counters?.aspirations_pending || 0"
+                icon="chat-alt"
+                iconColor="purple"
+                badgeText="Needs Attention"
+                badgeColor="purple"
+                href="/admin/aspirations"
+            />
             <StatCard
                 v-if="showUnitMembersCard"
                 title="Total Anggota"
@@ -120,33 +129,7 @@
                 </Link>
             </div>
 
-            <!-- Recent Activity Panel -->
-            <div class="bg-white rounded-xl shadow-sm border border-neutral-100 p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-neutral-900">Recent Activity</h3>
-                    <button class="p-1.5 rounded-lg hover:bg-neutral-100 transition-colors">
-                        <svg class="h-4 w-4 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                    </button>
-                </div>
 
-                <div class="space-y-4">
-                    <div v-for="(activity, index) in recentActivities" :key="index" class="flex items-start gap-3">
-                        <div class="flex-shrink-0 mt-1">
-                            <component :is="getActivityIcon(activity.type)" class="h-4 w-4" :class="getActivityIconClass(activity.type)" />
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm text-neutral-800">{{ activity.message }}</p>
-                            <p class="text-xs text-neutral-500 mt-0.5">{{ activity.time }}</p>
-                        </div>
-                    </div>
-
-                    <div v-if="recentActivities.length === 0" class="text-center py-4 text-sm text-neutral-500">
-                        Belum ada aktivitas terbaru
-                    </div>
-                </div>
-            </div>
         </div>
         <div v-else-if="isMemberRole && showMemberDuesCard" class="bg-white rounded-xl shadow-sm border border-neutral-100 p-6 mb-6">
             <h3 class="text-lg font-semibold text-neutral-900 mb-4">Iuran Bulan Ini</h3>
@@ -302,39 +285,70 @@
             </div>
         </div>
 
-        <!-- Recent Mutasi Pending Table (Admin Only) -->
-        <div v-if="showAdminQueues" class="bg-white rounded-xl shadow-sm border border-neutral-100 overflow-hidden">
-            <div class="px-6 py-4 border-b border-neutral-100">
-                <h3 class="text-lg font-semibold text-neutral-900">Recent Mutasi Pending</h3>
+        <!-- Bottom Grid: Mutasi Pending & Recent Activity -->
+        <div v-if="showAdminQueues" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Recent Mutasi Pending Table (Admin Only) -->
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-neutral-100 overflow-hidden">
+                <div class="px-6 py-4 border-b border-neutral-100">
+                    <h3 class="text-lg font-semibold text-neutral-900">Recent Mutasi Pending</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-neutral-200">
+                        <thead class="bg-neutral-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Member Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-neutral-200 bg-white">
+                            <tr v-for="mutation in recentMutations" :key="mutation.id" class="hover:bg-neutral-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-800">{{ mutation.id }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-800">{{ mutation.member_name }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-600">{{ mutation.type }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-600">{{ formatDate(mutation.date) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <StatusBadge :status="mutation.status" :label="mutation.status_label" />
+                                </td>
+                            </tr>
+                            <tr v-if="recentMutations.length === 0">
+                                <td colspan="5" class="px-6 py-8 text-center text-sm text-neutral-500">
+                                    Tidak ada mutasi pending saat ini
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-neutral-200">
-                    <thead class="bg-neutral-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Member Name</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Type</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Date</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-neutral-200 bg-white">
-                        <tr v-for="mutation in recentMutations" :key="mutation.id" class="hover:bg-neutral-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-800">{{ mutation.id }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-800">{{ mutation.member_name }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-600">{{ mutation.type }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-600">{{ formatDate(mutation.date) }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <StatusBadge :status="mutation.status" :label="mutation.status_label" />
-                            </td>
-                        </tr>
-                        <tr v-if="recentMutations.length === 0">
-                            <td colspan="5" class="px-6 py-8 text-center text-sm text-neutral-500">
-                                Tidak ada mutasi pending saat ini
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+
+            <!-- Recent Activity Panel (Moved to Bottom) -->
+            <div class="bg-white rounded-xl shadow-sm border border-neutral-100 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-neutral-900">Recent Activity</h3>
+                    <button class="p-1.5 rounded-lg hover:bg-neutral-100 transition-colors">
+                        <svg class="h-4 w-4 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div v-for="(activity, index) in recentActivities" :key="index" class="flex items-start gap-3">
+                        <div class="flex-shrink-0 mt-1">
+                            <component :is="getActivityIcon(activity.type)" class="h-4 w-4" :class="getActivityIconClass(activity.type)" />
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-neutral-800">{{ activity.message }}</p>
+                            <p class="text-xs text-neutral-500 mt-0.5">{{ activity.time }}</p>
+                        </div>
+                    </div>
+
+                    <div v-if="recentActivities.length === 0" class="text-center py-4 text-sm text-neutral-500">
+                        Belum ada aktivitas terbaru
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -390,7 +404,7 @@ const pg = page.props || {};
 
 const roleName = computed(() => pg.auth?.user?.role?.name || '');
 const isMemberRole = computed(() => roleName.value === 'anggota');
-const showAdminQueues = computed(() => ['super_admin', 'admin_unit'].includes(roleName.value));
+const showAdminQueues = computed(() => ['super_admin', 'admin_unit', 'admin_pusat'].includes(roleName.value));
 
 const showUnpaidModal = ref(false);
 const currentPeriod = new Date().toISOString().slice(0, 7);

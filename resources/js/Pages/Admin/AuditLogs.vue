@@ -149,6 +149,7 @@ const filters = reactive({
 
 const roleOptions = [
   { value: 'super_admin', label: 'Super Admin' },
+  { value: 'admin_pusat', label: 'Admin Pusat' },
   { value: 'admin_unit', label: 'Admin Unit' },
   { value: 'anggota', label: 'Anggota' },
   { value: 'reguler', label: 'Reguler' },

@@ -18,7 +18,15 @@
       />
     </transition>
 
-    <CardContainer padding="lg" shadow="sm">
+    <div class="space-y-6">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-neutral-900">Permintaan Perubahan Data</h2>
+          <p class="text-sm text-neutral-500">Daftar permintaan perubahan data anggota yang perlu persetujuan.</p>
+        </div>
+      </div>
+
+      <CardContainer padding="lg" shadow="sm">
       <div class="mb-3 flex items-center gap-3">
         <SelectField v-model="status" :options="[{label:'Semua',value:''},{label:'Pending',value:'pending'},{label:'Approved',value:'approved'},{label:'Rejected',value:'rejected'}]" />
       </div>
@@ -63,9 +71,10 @@
         </table>
       </div>
     </CardContainer>
-
-    <!-- Reject Modal -->
-    <ModalBase v-model:show="rejectModalOpen" title="Tolak Permintaan">
+  </div>
+  
+  <!-- Reject Modal -->
+  <ModalBase v-model:show="rejectModalOpen" title="Tolak Permintaan">
       <div class="space-y-4">
         <p class="text-sm text-neutral-600">
           Berikan alasan penolakan untuk permintaan dari <strong>{{ selectedRequest?.member?.full_name }}</strong>

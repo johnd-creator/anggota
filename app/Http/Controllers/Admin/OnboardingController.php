@@ -20,6 +20,7 @@ class OnboardingController extends Controller
 
         $query = PendingMember::query()->with('unit')->where('status', 'pending');
         $user = $request->user();
+        // admin_unit sees only their unit; admin_pusat and super_admin see all
         if ($user && $user->role && $user->role->name === 'admin_unit') {
             if ($user->organization_unit_id) {
                 $query->where('organization_unit_id', $user->organization_unit_id);
@@ -27,13 +28,14 @@ class OnboardingController extends Controller
                 $query->whereRaw('1=0');
             }
         }
+        // admin_pusat and super_admin have global access - no unit filter
 
         $pendings = $query->latest()->paginate(10)->withQueryString();
 
         return Inertia::render('Admin/Onboarding/Index', [
             'items' => $pendings,
-            'units' => \App\Models\OrganizationUnit::select('id','name','code')->orderBy('name')->get(),
-            'positions' => \App\Models\UnionPosition::orderBy('name')->get(['id','name']),
+            'units' => \App\Models\OrganizationUnit::select('id', 'name', 'code')->orderBy('name')->get(),
+            'positions' => \App\Models\UnionPosition::orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -49,6 +51,7 @@ class OnboardingController extends Controller
         ]);
 
         $user = $request->user();
+        // admin_unit approves to their own unit; admin_pusat/super_admin can approve to any unit
         if ($user && $user->role && $user->role->name === 'admin_unit' && $user->organization_unit_id) {
             $validated['organization_unit_id'] = $user->organization_unit_id;
         }

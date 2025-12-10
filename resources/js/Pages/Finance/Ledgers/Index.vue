@@ -2,6 +2,22 @@
   <AppLayout page-title="Transaksi Keuangan">
 
     <div class="space-y-6">
+
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-neutral-900">Kelola Transaksi</h2>
+          <p class="text-sm text-neutral-500">Catat pemasukan dan pengeluaran unit Anda.</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <CtaButton href="/finance/ledgers/create">
+            <template #icon>
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            </template>
+            Tambah Transaksi
+          </CtaButton>
+        </div>
+      </div>
+
       <CardContainer padding="sm">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
@@ -29,19 +45,6 @@
           </p>
         </div>
       </CardContainer>
-
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 class="text-lg font-semibold text-neutral-900">Kelola Transaksi</h2>
-          <p class="text-sm text-neutral-500">Catat pemasukan dan pengeluaran unit Anda.</p>
-        </div>
-        <div class="flex flex-wrap gap-3">
-          <Link href="/finance/ledgers/create" class="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-full shadow-lg shadow-blue-300/70 hover:bg-blue-700 transition transform hover:-translate-y-0.5">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Tambah Transaksi
-          </Link>
-        </div>
-      </div>
 
       <AlertBanner v-if="$page.props.flash.success" type="success" :message="$page.props.flash.success" dismissible @dismiss="$page.props.flash.success = null" />
 
@@ -210,6 +213,7 @@ import AlertBanner from '@/Components/UI/AlertBanner.vue'
 import ModalBase from '@/Components/UI/ModalBase.vue'
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
+import CtaButton from '@/Components/UI/CtaButton.vue'
 
 const props = defineProps({
   ledgers: Object,

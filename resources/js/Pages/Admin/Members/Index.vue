@@ -1,20 +1,24 @@
 <template>
   <AppLayout page-title="Anggota Serikat">
-    <template #actions>
-      <a href="/admin/members/create" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-sm hover:bg-blue-700 transition-colors duration-200">
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-        </svg>
-        Tambah
-      </a>
-      <button v-if="$page.props.auth.user.role?.name==='admin_unit'" @click="uploadOpen=true" class="ml-2 inline-flex items-center px-4 py-2 border border-brand-secondary-300 text-brand-secondary-700 rounded-lg hover:bg-brand-secondary-50">
-        <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 9l5-5 5 5M12 4v12"/></svg>
-        Upload Anggota
-      </button>
-    </template>
-    <div class="flex items-center justify-between mb-4">
-      <div class="text-sm text-neutral-600">Kelola daftar anggota serikat.</div>
-    </div>
+    <div class="space-y-6">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-neutral-900">Anggota Serikat</h2>
+          <p class="text-sm text-neutral-500">Kelola daftar anggota serikat.</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <SecondaryButton v-if="$page.props.auth.user.role?.name==='admin_unit'" @click="uploadOpen=true">
+            <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 9l5-5 5 5M12 4v12"/></svg>
+            Upload Anggota
+          </SecondaryButton>
+          <CtaButton href="/admin/members/create">
+            <template #icon>
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            </template>
+            Tambah Anggota
+          </CtaButton>
+        </div>
+      </div>
     <AlertBanner v-if="$page.props.admin_unit_missing" type="warning" message="Akun admin belum dikaitkan dengan unit" />
     <CardContainer padding="lg" shadow="sm">
       <div class="flex flex-col gap-3 mb-4">
@@ -83,6 +87,7 @@
         </div>
       </div>
     </CardContainer>
+  </div>
   </AppLayout>
   <ModalBase v-model:show="uploadOpen" title="Upload Anggota" size="md">
     <div class="space-y-4 text-sm text-neutral-700">
@@ -117,6 +122,7 @@
  <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
+import CtaButton from '@/Components/UI/CtaButton.vue';
 import InputField from '@/Components/UI/InputField.vue';
 import SelectField from '@/Components/UI/SelectField.vue';
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue';

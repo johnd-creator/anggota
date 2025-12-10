@@ -72,23 +72,35 @@ class HandleInertiaRequests extends Middleware
                 $user = $request->user();
                 $roleName = $user?->role?->name;
                 $organizationUnitId = $user?->organization_unit_id ?: $user?->member?->organization_unit_id;
-                $canViewUnitCount = in_array($roleName, ['admin_unit','bendahara','anggota']);
+                $canViewUnitCount = in_array($roleName, ['admin_unit', 'bendahara', 'anggota']);
 
                 return [
                     'members_total' => $hasMembers ? Cache::remember('metrics_members_total', 60, fn() => \App\Models\Member::count()) : 0,
                     'units_total' => $hasUnits ? Cache::remember('metrics_units_total', 60, fn() => \App\Models\OrganizationUnit::count()) : 0,
-                    'mutations_pending' => $hasMutations ? Cache::remember('metrics_mutations_pending', 60, fn() => \App\Models\MutationRequest::where('status','pending')->count()) : 0,
-                    'onboarding_pending' => $hasOnboarding ? Cache::remember('metrics_onboarding_pending', 60, fn() => \App\Models\PendingMember::where('status','pending')->count()) : 0,
-                    'updates_pending' => $hasUpdates ? Cache::remember('metrics_updates_pending', 60, fn() => \App\Models\MemberUpdateRequest::where('status','pending')->count()) : 0,
+                    'mutations_pending' => $hasMutations ? Cache::remember('metrics_mutations_pending', 60, fn() => \App\Models\MutationRequest::where('status', 'pending')->count()) : 0,
+                    'onboarding_pending' => $hasOnboarding ? Cache::remember('metrics_onboarding_pending', 60, fn() => \App\Models\PendingMember::where('status', 'pending')->count()) : 0,
+                    'updates_pending' => $hasUpdates ? Cache::remember('metrics_updates_pending', 60, fn() => \App\Models\MemberUpdateRequest::where('status', 'pending')->count()) : 0,
+                    'aspirations_pending' => Schema::hasTable('aspirations') ? function () use ($user, $roleName, $organizationUnitId) {
+                        if (!$user)
+                            return 0;
+                        if (in_array($roleName, ['super_admin', 'admin_pusat'])) {
+                            return \App\Models\Aspiration::where('status', 'new')->notMerged()->count();
+                        }
+                        if ($roleName === 'admin_unit' && $organizationUnitId) {
+                            return \App\Models\Aspiration::where('organization_unit_id', $organizationUnitId)->where('status', 'new')->notMerged()->count();
+                        }
+                        return 0;
+                    } : 0,
                     'notifications_unread' => ($userId && $hasNotifications) ? optional($request->user())->unreadNotifications()->count() : 0,
                     'members_unit_total' => ($hasMembers && $canViewUnitCount && $organizationUnitId)
                         ? \App\Models\Member::where('organization_unit_id', $organizationUnitId)->count()
                         : 0,
                 ];
             },
-            'kpi' => function(){
+            'kpi' => function () {
                 $latest = Schema::hasTable('kpi_snapshots') ? \App\Models\KpiSnapshot::orderByDesc('calculated_at')->first() : null;
-                if (!$latest) return [ 'completeness_pct' => 0, 'mutation_sla_breach_pct' => 0, 'card_downloads' => 0 ];
+                if (!$latest)
+                    return ['completeness_pct' => 0, 'mutation_sla_breach_pct' => 0, 'card_downloads' => 0];
                 return [
                     'completeness_pct' => (float) $latest->completeness_pct,
                     'mutation_sla_breach_pct' => (float) $latest->mutation_sla_breach_pct,

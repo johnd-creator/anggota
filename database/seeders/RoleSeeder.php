@@ -13,6 +13,7 @@ class RoleSeeder extends Seeder
     public function run(): void
     {
         \App\Models\Role::firstOrCreate(['name' => 'super_admin'], ['label' => 'Super Admin']);
+        \App\Models\Role::firstOrCreate(['name' => 'admin_pusat'], ['label' => 'Admin Pusat']);
         \App\Models\Role::firstOrCreate(['name' => 'admin_unit'], ['label' => 'Admin Unit']);
         \App\Models\Role::firstOrCreate(['name' => 'anggota'], ['label' => 'Anggota']);
         \App\Models\Role::firstOrCreate(['name' => 'reguler'], ['label' => 'Reguler']);
