@@ -13,7 +13,8 @@
             <div class="space-y-3">
               <InputField label="Full Name" v-model="form.full_name" :error="err('full_name')" :disabled="submitting" required />
               <InputField label="NIP" v-model="form.nip" :error="err('nip')" :disabled="submitting" required />
-              <InputField label="Email" type="email" v-model="form.email" :error="err('email')" :disabled="submitting" required />
+              <InputField label="Email Pribadi" type="email" v-model="form.email" :error="err('email')" :disabled="submitting" required />
+              <InputField label="Email Perusahaan (Microsoft)" type="email" v-model="form.company_email" :error="err('company_email')" :disabled="submitting" />
               <InputField label="Phone (+62...)" type="tel" v-model="form.phone" :error="err('phone')" :disabled="submitting" />
               <InputField label="Birth Place" v-model="form.birth_place" :error="err('birth_place')" :disabled="submitting" />
               <InputField label="Birth Date" type="date" v-model="form.birth_date" :error="err('birth_date')" :disabled="submitting" />
@@ -117,6 +118,7 @@ function toDateInput(value) {
 const form = reactive({
   full_name: member?.full_name || '',
   email: member?.email || '',
+  company_email: member?.user?.company_email || '',
   phone: member?.phone || '',
   birth_place: member?.birth_place || '',
   birth_date: toDateInput(member?.birth_date),

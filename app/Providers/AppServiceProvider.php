@@ -41,5 +41,12 @@ class AppServiceProvider extends ServiceProvider
                 // swallow
             }
         });
+        \Laravel\Socialite\Facades\Socialite::extend('microsoft', function ($app) {
+            $config = $app['config']['services.microsoft'];
+            return $app->make(\Laravel\Socialite\Contracts\Factory::class)->buildProvider(
+                \App\Socialite\MicrosoftProvider::class,
+                $config
+            );
+        });
     }
 }

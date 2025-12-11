@@ -25,9 +25,17 @@ class LoginController extends Controller
             'remember' => ['nullable'],
         ]);
 
-        $remember = (bool)($credentials['remember'] ?? false);
+        $remember = (bool) ($credentials['remember'] ?? false);
 
-        if (Auth::attempt(['email' => $credentials['email'], 'password' => $credentials['password']], $remember)) {
+        $field = filter_var($credentials['email'], FILTER_VALIDATE_EMAIL) ? 'email' : 'email';
+
+        // Custom attempt to support company_email
+        $user = User::where('email', $credentials['email'])
+            ->orWhere('company_email', $credentials['email'])
+            ->first();
+
+        if ($user && \Hash::check($credentials['password'], $user->password)) {
+            Auth::login($user, $remember);
             $request->session()->regenerate();
 
             $user = Auth::user();
@@ -176,6 +184,65 @@ class LoginController extends Controller
             }
             return redirect()->route('itworks');
         }
+
+        return redirect()->route('dashboard');
+    }
+
+    public function redirectToMicrosoft()
+    {
+        return Socialite::driver('microsoft')->redirect();
+    }
+
+    public function handleMicrosoftCallback(Request $request)
+    {
+        try {
+            $driver = Socialite::driver('microsoft');
+            if (app()->environment('local')) {
+                $driver->stateless();
+            }
+            $msUser = $driver->user();
+        } catch (\Throwable $e) {
+            \Log::error('Microsoft login failed', ['error' => $e->getMessage()]);
+            return redirect('/login')->withErrors(['email' => 'Microsoft Login Failed']);
+        }
+
+        $email = $msUser->getEmail();
+        $domain = Str::after($email, '@');
+
+        // Enforce Domain Restriction
+        if ($domain !== 'plnipservices.co.id') {
+            return redirect('/login')->withErrors(['email' => 'Hanya email @plnipservices.co.id yang diizinkan untuk login Microsoft.']);
+        }
+
+        // Find User by Microsoft ID OR Company Email OR Standard Email
+        $user = User::where('microsoft_id', $msUser->getId())
+            ->orWhere('company_email', $email)
+            ->first();
+
+        if (!$user) {
+            // Check if standard email exists to link
+            $user = User::where('email', $email)->first();
+        }
+
+        if (!$user) {
+            return redirect('/login')->withErrors(['email' => 'Akun tidak ditemukan. Silakan hubungi admin untuk pendaftaran awal.']);
+        }
+
+        // Update/Link User
+        $user->forceFill([
+            'microsoft_id' => $msUser->getId(),
+            'company_email' => $email, // Ensure company email is set
+        ])->save();
+
+        Auth::login($user);
+
+        AuditLog::create([
+            'user_id' => $user->id,
+            'event' => 'login_success',
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'payload' => ['email' => $email, 'microsoft_id' => $msUser->getId(), 'msg' => 'via Microsoft SSO'],
+        ]);
 
         return redirect()->route('dashboard');
     }

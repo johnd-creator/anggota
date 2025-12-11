@@ -168,6 +168,16 @@
             </svg>
             <span class="text-sm font-semibold text-neutral-700">Masuk dengan Google</span>
           </a>
+          
+          <a href="/login/microsoft" class="mt-3 flex items-center justify-center gap-3 w-full px-4 py-2.5 border border-neutral-200 rounded-xl bg-white hover:bg-neutral-50 hover:border-neutral-300 transition-all duration-200 shadow-sm group relative" title="Hanya untuk email @plnipservices.co.id">
+            <svg class="h-5 w-5 group-hover:scale-110 transition-transform duration-200" viewBox="0 0 21 21">
+               <path fill="#f25022" d="M1 1h9v9H1z"/><path fill="#00a4ef" d="M1 11h9v9H1z"/><path fill="#7fba00" d="M11 1h9v9H11z"/><path fill="#ffb900" d="M11 11h9v9H11z"/>
+            </svg>
+            <span class="text-sm font-semibold text-neutral-700">Masuk dengan @plnipservices.co.id</span>
+            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-neutral-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+              Khusus @plnipservices.co.id
+            </div>
+          </a>
         </div>
 
         <!-- Footer -->

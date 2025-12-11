@@ -46,4 +46,10 @@ return [
         'webhook_token' => env('WEBHOOK_TOKEN'),
     ],
 
+    'microsoft' => [
+        'client_id' => env('MICROSOFT_CLIENT_ID'),
+        'client_secret' => env('MICROSOFT_CLIENT_SECRET'),
+        'redirect' => env('MICROSOFT_REDIRECT_URL'),
+    ],
+
 ];

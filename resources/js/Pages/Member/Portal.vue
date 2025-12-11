@@ -74,10 +74,10 @@
                   <span class="text-xs text-neutral-400 uppercase tracking-wider font-semibold">Bergabung</span>
                   <span class="text-sm font-medium text-neutral-700">{{ formatDate(member?.join_date) }}</span>
                 </div>
-                <div v-if="member?.company_join_date" class="flex justify-between items-center border-b border-dashed border-neutral-200 pb-2">
+                <!-- <div v-if="member?.company_join_date" class="flex justify-between items-center border-b border-dashed border-neutral-200 pb-2">
                   <span class="text-xs text-neutral-400 uppercase tracking-wider font-semibold">Gabung Perusahaan</span>
                   <span class="text-sm font-medium text-neutral-700">{{ formatDate(member?.company_join_date) }}</span>
-                </div>
+                </div> -->
               </div>
             </div>
 

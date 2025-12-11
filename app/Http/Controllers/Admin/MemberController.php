@@ -149,8 +149,14 @@ class MemberController extends Controller
 
         if ($request->filled('user_id')) {
             $user = \App\Models\User::find((int) $request->input('user_id'));
-            if ($user)
+            if ($user) {
+                // Update user company_email if provided
+                if ($request->filled('company_email')) {
+                    $user->company_email = $request->input('company_email');
+                    $user->save();
+                }
                 $user->assignMember($member);
+            }
         }
 
         if ($request->file('photo')) {
@@ -265,6 +271,12 @@ class MemberController extends Controller
             }
 
             $member->update($validated);
+
+            // Sync company_email to linked user
+            if ($request->has('company_email') && $member->user) {
+                $member->user->company_email = $request->input('company_email');
+                $member->user->save();
+            }
 
             if ($request->file('photo')) {
                 $path = $request->file('photo')->store('members/photos', 'public');

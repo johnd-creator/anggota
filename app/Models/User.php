@@ -26,6 +26,8 @@ class User extends Authenticatable
         'avatar',
         'member_id',
         'organization_unit_id',
+        'microsoft_id',
+        'company_email',
     ];
 
     /**
