@@ -17,7 +17,6 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\LogConflictResponses::class,
             \App\Http\Middleware\RequestIdMiddleware::class,
             \App\Http\Middleware\SecurityHeadersMiddleware::class,
-            \App\Http\Middleware\RevokedSessionMiddleware::class,
             \App\Http\Middleware\TrackUserSessionMiddleware::class,
         ]);
         $middleware->alias([

@@ -148,7 +148,6 @@
           </svg>
         </button>
         <div v-show="expandedSections.settings" class="ml-6 space-y-1">
-          <Link v-if="isSuperAdmin || isAdminPusat" href="/admin/aspiration-categories" :class="subMenuItemClass('/admin/aspiration-categories')">Kategori Aspirasi</Link>
           <Link href="/settings" :class="subMenuItemClass('/settings')">Pengaturan</Link>
           <Link href="/help" :class="subMenuItemClass('/help')">Help Center</Link>
           <Link v-if="isSuperAdmin" href="/ops" :class="subMenuItemClass('/ops')">Ops Center</Link>
