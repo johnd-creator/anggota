@@ -89,9 +89,13 @@ class LoginController extends Controller
     public function handleGoogleCallback(Request $request)
     {
         try {
-            $provider = app()->environment('local')
-                ? Socialite::driver('google')->stateless()
-                : Socialite::driver('google');
+            /** @var \Laravel\Socialite\Two\AbstractProvider $provider */
+            $driver = Socialite::driver('google');
+            if (app()->environment('local')) {
+                /** @var \Laravel\Socialite\Two\AbstractProvider $driver */
+                $driver->stateless();
+            }
+            $provider = $driver;
             $googleUser = $provider->user();
         } catch (InvalidStateException $e) {
             \Log::error('Google login failed (invalid state)', [
@@ -190,14 +194,21 @@ class LoginController extends Controller
 
     public function redirectToMicrosoft()
     {
-        return Socialite::driver('microsoft')->redirect();
+        $driver = Socialite::driver('microsoft');
+        if (app()->environment('local')) {
+            /** @var \Laravel\Socialite\Two\AbstractProvider $driver */
+            $driver->stateless();
+        }
+        return $driver->redirect();
     }
 
     public function handleMicrosoftCallback(Request $request)
     {
+        \Log::info('Microsoft Callback Request:', $request->all());
         try {
             $driver = Socialite::driver('microsoft');
             if (app()->environment('local')) {
+                /** @var \Laravel\Socialite\Two\AbstractProvider $driver */
                 $driver->stateless();
             }
             $msUser = $driver->user();
@@ -224,15 +235,42 @@ class LoginController extends Controller
             $user = User::where('email', $email)->first();
         }
 
+        // Auto-Create if not found (Registration)
         if (!$user) {
-            return redirect('/login')->withErrors(['email' => 'Akun tidak ditemukan. Silakan hubungi admin untuk pendaftaran awal.']);
-        }
+            $user = User::create([
+                'name' => $msUser->getName(),
+                'email' => $email,
+                'company_email' => $email,
+                'microsoft_id' => $msUser->getId(),
+                'password' => bcrypt(Str::random(16)),
+                'role_id' => Role::where('name', 'reguler')->value('id'), // Default to reguler/onboarding
+            ]);
 
-        // Update/Link User
-        $user->forceFill([
-            'microsoft_id' => $msUser->getId(),
-            'company_email' => $email, // Ensure company email is set
-        ])->save();
+            // Create pending member entry for onboarding flow
+            if (Schema::hasTable('pending_members')) {
+                $pending = PendingMember::firstOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'email' => $user->email,
+                        'name' => $user->name,
+                        'status' => 'pending',
+                    ]
+                );
+                ActivityLog::create([
+                    'actor_id' => $user->id,
+                    'action' => 'onboarding_pending_created',
+                    'subject_type' => PendingMember::class,
+                    'subject_id' => $pending->id,
+                    'payload' => ['email' => $pending->email, 'name' => $pending->name],
+                ]);
+            }
+        } else {
+            // Update/Link Existing User
+            $user->forceFill([
+                'microsoft_id' => $msUser->getId(),
+                'company_email' => $email, // Ensure company email is set
+            ])->save();
+        }
 
         Auth::login($user);
 
@@ -243,6 +281,11 @@ class LoginController extends Controller
             'user_agent' => $request->userAgent(),
             'payload' => ['email' => $email, 'microsoft_id' => $msUser->getId(), 'msg' => 'via Microsoft SSO'],
         ]);
+
+        // Redirect based on role
+        if ($user->role && $user->role->name === 'reguler') {
+            return redirect()->route('itworks');
+        }
 
         return redirect()->route('dashboard');
     }

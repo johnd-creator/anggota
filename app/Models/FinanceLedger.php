@@ -5,6 +5,28 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property int $organization_unit_id
+ * @property int $finance_category_id
+ * @property string $type
+ * @property float $amount
+ * @property \Illuminate\Support\Carbon $date
+ * @property string|null $description
+ * @property string|null $attachment_path
+ * @property string $status
+ * @property int|null $approved_by
+ * @property \Illuminate\Support\Carbon|null $approved_at
+ * @property string|null $rejected_reason
+ * @property \Illuminate\Support\Carbon|null $submitted_at
+ * @property int|null $created_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\FinanceCategory $category
+ * @property-read \App\Models\OrganizationUnit $organizationUnit
+ * @property-read \App\Models\User $creator
+ * @property-read \App\Models\User $approvedBy
+ */
 class FinanceLedger extends Model
 {
     use HasFactory;

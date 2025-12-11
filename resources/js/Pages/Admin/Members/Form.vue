@@ -17,10 +17,11 @@
               <InputField label="Email Perusahaan (Microsoft)" type="email" v-model="form.company_email" :error="err('company_email')" :disabled="submitting" />
               <InputField label="Phone (+62...)" type="tel" v-model="form.phone" :error="err('phone')" :disabled="submitting" />
               <InputField label="Birth Place" v-model="form.birth_place" :error="err('birth_place')" :disabled="submitting" />
-              <InputField label="Birth Date" type="date" v-model="form.birth_date" :error="err('birth_date')" :disabled="submitting" />
-              <label class="block text-sm font-semibold text-neutral-700 mb-1">Address</label>
-              <textarea v-model="form.address" :disabled="submitting" class="w-full rounded-lg border border-neutral-300 px-3 py-2"></textarea>
-              <p v-if="err('address')" class="mt-1 text-sm text-status-error">{{ err('address') }}</p>
+              <div class="grid grid-cols-2 gap-3">
+                <InputField label="Birth Date" type="date" v-model="form.birth_date" :error="err('birth_date')" :disabled="submitting" />
+                <SelectField label="Gender" v-model="form.gender" :options="[{label:'Laki-laki',value:'L'},{label:'Perempuan',value:'P'}]" :error="err('gender')" :disabled="submitting" />
+              </div>
+              <InputField label="Alamat / Domisili" type="textarea" v-model="form.address" :error="err('address')" :disabled="submitting" />
               <InputField label="Emergency Contact" v-model="form.emergency_contact" :error="err('emergency_contact')" :disabled="submitting" />
             </div>
           </div>
@@ -122,6 +123,7 @@ const form = reactive({
   phone: member?.phone || '',
   birth_place: member?.birth_place || '',
   birth_date: toDateInput(member?.birth_date),
+  gender: member?.gender || 'L',
   address: member?.address || '',
   emergency_contact: member?.emergency_contact || '',
   job_title: member?.job_title || '',

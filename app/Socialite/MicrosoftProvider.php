@@ -14,7 +14,7 @@ class MicrosoftProvider extends AbstractProvider implements ProviderInterface
      *
      * @var array
      */
-    protected $scopes = ['openid', 'email', 'profile'];
+    protected $scopes = ['openid', 'email', 'profile', 'User.Read'];
 
     /**
      * The separating character for the requested scopes.
@@ -31,7 +31,9 @@ class MicrosoftProvider extends AbstractProvider implements ProviderInterface
      */
     protected function getAuthUrl($state)
     {
-        return $this->buildAuthUrlFromBase('https://login.microsoftonline.com/common/oauth2/v2.0/authorize', $state);
+        $tenantId = config('services.microsoft.tenant_id');
+        $base = $tenantId ? "https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/authorize" : 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
+        return $this->buildAuthUrlFromBase($base, $state);
     }
 
     /**
@@ -41,7 +43,8 @@ class MicrosoftProvider extends AbstractProvider implements ProviderInterface
      */
     protected function getTokenUrl()
     {
-        return 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
+        $tenantId = config('services.microsoft.tenant_id');
+        return $tenantId ? "https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/token" : 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
     }
 
     /**
@@ -88,6 +91,7 @@ class MicrosoftProvider extends AbstractProvider implements ProviderInterface
     {
         return array_merge(parent::getTokenFields($code), [
             'grant_type' => 'authorization_code',
+            'redirect_uri' => config('services.microsoft.redirect'),
         ]);
     }
 }

@@ -224,6 +224,7 @@ class MemberController extends Controller
             }
         }
         // admin_pusat and super_admin can edit any member
+        $member->load('user');
         return Inertia::render('Admin/Members/Form', [
             'member' => $member,
             'units' => OrganizationUnit::select('id', 'name', 'code')->orderBy('code')->get(),
@@ -273,7 +274,7 @@ class MemberController extends Controller
             $member->update($validated);
 
             // Sync company_email to linked user
-            if ($request->has('company_email') && $member->user) {
+            if ($member->user) {
                 $member->user->company_email = $request->input('company_email');
                 $member->user->save();
             }

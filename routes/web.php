@@ -2,10 +2,6 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Auth as FacadesAuth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -24,136 +20,11 @@ Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5
 
 Route::get('auth/google', [LoginController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('auth/google/callback', [LoginController::class, 'handleGoogleCallback'])->middleware('throttle:10,1');
+Route::get('auth/microsoft', [LoginController::class, 'redirectToMicrosoft'])->name('auth.microsoft');
+Route::get('auth/microsoft/callback', [LoginController::class, 'handleMicrosoftCallback'])->middleware('throttle:10,1');
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/dashboard', function () {
-        $user = Auth::user();
-        if ($user && $user->role && $user->role->name === 'reguler') {
-            return redirect()->route('itworks');
-        }
-
-        $membersByUnit = Cache::remember('dash_members_by_unit', 300, function () {
-            return \App\Models\OrganizationUnit::select('id', 'name')
-                ->withCount([
-                    'members as active_members_count' => function ($q) {
-                        $q->where('status', 'aktif');
-                    }
-                ])
-                ->orderByDesc('active_members_count')
-                ->limit(10)
-                ->get();
-        });
-
-        $months = collect(range(0, 11))->map(function ($i) {
-            return now()->subMonths(11 - $i)->format('Y-m');
-        });
-        $growth = Cache::remember('dash_growth_last_12', 300, function () use ($months) {
-            $rows = \App\Models\Member::select(DB::raw("strftime('%Y-%m', join_date) as ym"), DB::raw('count(*) as c'))
-                ->where('join_date', '>=', now()->subMonths(12)->toDateString())
-                ->groupBy('ym')->get()->keyBy('ym');
-            return $months->map(function ($m) use ($rows) {
-                return ['label' => $m, 'value' => (int) optional($rows->get($m))->c];
-            });
-        });
-
-        $mutationsStats = Cache::remember('dash_mutations_stats', 300, function () {
-            return [
-                'pending' => \App\Models\MutationRequest::where('status', 'pending')->count(),
-                'approved' => \App\Models\MutationRequest::where('status', 'approved')->count(),
-                'breach' => \App\Models\MutationRequest::where('sla_status', 'breach')->count(),
-            ];
-        });
-
-        $alerts = Cache::remember('dash_alerts', 300, function () {
-            $docMissing = \App\Models\Member::whereNull('photo_path')->orWhereNull('documents')->count();
-            $loginFailSameIp = \App\Models\AuditLog::where('event', 'login_failed')
-                ->select(DB::raw('ip_address'), DB::raw('count(*) as c'))
-                ->groupBy('ip_address')->having(DB::raw('count(*)'), '>=', 5)->count();
-            $slaBreached = \App\Models\MutationRequest::where('sla_status', 'breach')->count();
-            return ['documents_missing' => $docMissing, 'login_fail_same_ip' => $loginFailSameIp, 'mutations_sla_breach' => $slaBreached];
-        });
-
-        // Get dues summary for dashboard card
-        $duesSummary = null;
-        $unpaidMembers = [];
-        $roleName = optional(optional($user)->role)->name;
-        if (in_array($roleName, ['admin_unit', 'bendahara'], true)) {
-            $unitId = $user->organization_unit_id;
-            $duesSummary = \App\Http\Controllers\Finance\FinanceDuesController::getDashboardSummary($unitId);
-            $unpaidMembers = \App\Http\Controllers\Finance\FinanceDuesController::getUnpaidMembers($unitId, null, 20);
-        } elseif (in_array($roleName, ['super_admin', 'admin_pusat'], true)) {
-            $duesSummary = \App\Http\Controllers\Finance\FinanceDuesController::getDashboardSummary();
-            $unpaidMembers = \App\Http\Controllers\Finance\FinanceDuesController::getUnpaidMembers(null, null, 20);
-        }
-
-        // Finance Data for Dashboard
-        $financeData = null;
-        if (in_array($roleName, ['admin_unit', 'bendahara', 'super_admin'], true)) {
-            $financeUnitId = ($roleName === 'super_admin') ? null : $user->organization_unit_id;
-
-            // 1. Current Balance
-            $balance = \App\Models\FinanceLedger::query()
-                ->when($financeUnitId, fn($q) => $q->where('organization_unit_id', $financeUnitId))
-                ->where('status', 'approved')
-                ->selectRaw("SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as balance")
-                ->value('balance') ?? 0;
-
-            // 2. YTD Chart Data (Last 12 months)
-            $ytdData = collect(range(0, 11))->map(function ($i) use ($financeUnitId) {
-                $date = now()->subMonths(11 - $i);
-                $month = $date->format('Y-m');
-
-                $stats = \App\Models\FinanceLedger::query()
-                    ->when($financeUnitId, fn($q) => $q->where('organization_unit_id', $financeUnitId))
-                    ->where('status', 'approved')
-                    ->where(DB::raw("strftime('%Y-%m', date)"), $month)
-                    ->selectRaw("SUM(CASE WHEN type='income' THEN amount ELSE 0 END) as income")
-                    ->selectRaw("SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as expense")
-                    ->first();
-
-                return [
-                    'month' => $date->format('M Y'),
-                    'income' => (float) ($stats->income ?? 0),
-                    'expense' => (float) ($stats->expense ?? 0),
-                ];
-            });
-
-            // 3. Recent Transactions
-            $recent = \App\Models\FinanceLedger::query()
-                ->when($financeUnitId, fn($q) => $q->where('organization_unit_id', $financeUnitId))
-                ->with('category:id,name') // Optimize eager load
-                ->latest('date')
-                ->limit(10)
-                ->get()
-                ->map(fn($l) => [
-                    'id' => $l->id,
-                    'date' => $l->date->format('Y-m-d'),
-                    'description' => $l->description ?: $l->category->name,
-                    'type' => $l->type,
-                    'amount' => $l->amount,
-                    'status' => $l->status,
-                ]);
-
-            $financeData = [
-                'balance' => $balance,
-                'ytd' => $ytdData,
-                'recent' => $recent,
-                'unit_name' => $financeUnitId ? optional(\App\Models\OrganizationUnit::find($financeUnitId))->name : 'Global',
-            ];
-        }
-
-        return Inertia::render('Dashboard', [
-            'dashboard' => [
-                'members_by_unit' => $membersByUnit,
-                'growth_last_12' => $growth,
-                'mutations' => $mutationsStats,
-            ],
-            'alerts' => $alerts,
-            'dues_summary' => $duesSummary,
-            'unpaid_members' => $unpaidMembers,
-            'finance' => $financeData,
-        ]);
-    })->name('dashboard');
+    Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
 
 
     Route::get('/itworks', function () {
@@ -398,7 +269,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('mutations/{mutation}/reject', [\App\Http\Controllers\Admin\MutationController::class, 'reject'])->middleware(['role:super_admin', 'throttle:10,1'])->name('mutations.reject');
 
         Route::get('members-export', function (\Illuminate\Http\Request $request) {
-            $user = FacadesAuth::user();
+            $user = Auth::user();
             $unitId = (int) $request->query('unit_id');
             if ($user && $user->role && $user->role->name === 'admin_unit') {
                 $unitId = (int) ($user->organization_unit_id ?? 0);
@@ -407,7 +278,7 @@ Route::middleware(['auth'])->group(function () {
             if ($unitId)
                 $query->where('organization_unit_id', $unitId);
             $filename = 'members_export_' . now()->format('Ymd_His') . '.csv';
-            \Illuminate\Support\Facades\Cache::put('export:members:' . $user->id, ['status' => 'started', 'time' => now()->toISOString()], 300);
+            Cache::put('export:members:' . $user->id, ['status' => 'started', 'time' => now()->toISOString()], 300);
             return response()->streamDownload(function () use ($query, $user) {
                 $out = fopen('php://output', 'w');
                 fputcsv($out, ['ID', 'Nama', 'Email', 'Telepon', 'Status', 'Unit', 'NRA', 'KTA', 'NIP', 'Jabatan Serikat', 'Join Date']);
@@ -418,7 +289,7 @@ Route::middleware(['auth'])->group(function () {
                         $count++;
                     }
                 });
-                \Illuminate\Support\Facades\Cache::put('export:members:' . $user->id, ['status' => 'completed', 'count' => $count, 'time' => now()->toISOString()], 300);
+                Cache::put('export:members:' . $user->id, ['status' => 'completed', 'count' => $count, 'time' => now()->toISOString()], 300);
                 fclose($out);
             }, $filename, ['Content-Type' => 'text/csv']);
         })->name('members.export');
@@ -427,7 +298,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('members/import', [\App\Http\Controllers\Admin\MemberImportController::class, 'store'])->middleware('role:admin_unit')->name('members.import');
 
         Route::get('mutations/export', function (\Illuminate\Http\Request $request) {
-            $user = FacadesAuth::user();
+            $user = Auth::user();
             $unitId = (int) $request->query('unit_id');
             $query = \App\Models\MutationRequest::query()->select(['id', 'member_id', 'from_unit_id', 'to_unit_id', 'status', 'effective_date'])->with(['member', 'fromUnit', 'toUnit']);
             if ($unitId)
@@ -513,7 +384,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::post('/logout', function () {
-    \Illuminate\Support\Facades\Auth::logout();
+    Auth::logout();
     request()->session()->invalidate();
     request()->session()->regenerateToken();
     return redirect()->route('login');

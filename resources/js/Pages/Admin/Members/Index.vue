@@ -97,7 +97,14 @@
       </div>
       <div>
         <input type="file" @change="onFileChange" accept=".csv,.xlsx,.xls" />
-        <div class="mt-2 text-xs text-neutral-500">Kolom minimal: full_name, email, nip, join_date, status, phone. Mendukung XLSX, XLS (template), dan CSV.</div>
+        <div class="mt-2 text-xs text-neutral-500">
+          Template mencakup data personal & organisasi. 
+          * <strong>personal_email</strong>: Email Google (opsional).
+          * <strong>company_email</strong>: Wajib untuk SSO Microsoft (@plnipservices.co.id).
+          * <strong>personal_gender</strong>: L / P.
+          * <strong>personal_phone</strong>: Format +62... (contoh: +628123456789).
+          * <strong>Unit Organisasi</strong>: Otomatis mengikuti akun Admin Unit.
+        </div>
       </div>
     </div>
     <template #footer>

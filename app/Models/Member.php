@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Facades\Crypt;
 
+/**
+ * @property \Illuminate\Support\Carbon|null $company_join_date
+ */
 class Member extends Model
 {
     use HasFactory, SoftDeletes;
@@ -20,6 +23,7 @@ class Member extends Model
         'phone',
         'birth_place',
         'birth_date',
+        'gender',
         'company_join_date',
         'address',
         'emergency_contact',
