@@ -35,6 +35,10 @@
               <p class="text-xs text-neutral-500">Join Date</p>
               <p class="text-sm text-neutral-900">{{ formatDate(member.join_date) }}</p>
             </div>
+            <div v-if="member.company_join_date">
+              <p class="text-xs text-neutral-500">Tanggal Gabung Perusahaan</p>
+              <p class="text-sm text-neutral-900">{{ formatDate(member.company_join_date) }}</p>
+            </div>
             <div v-if="member.birth_date">
               <p class="text-xs text-neutral-500">Birth Date</p>
               <p class="text-sm text-neutral-900">{{ formatDate(member.birth_date) }}</p>

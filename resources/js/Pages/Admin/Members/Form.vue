@@ -35,6 +35,7 @@
               <SelectField label="Employment Type" v-model="form.employment_type" :options="[{label:'Organik',value:'organik'},{label:'TKWT',value:'tkwt'}]" :error="err('employment_type')" :disabled="submitting" />
               <SelectField label="Status" v-model="form.status" :options="statusOptions" :error="err('status')" :disabled="submitting" />
               <InputField label="Join Date" type="date" v-model="form.join_date" :error="err('join_date')" :disabled="submitting" required />
+              <InputField label="Tanggal Gabung Perusahaan" type="date" v-model="form.company_join_date" :error="err('company_join_date')" :disabled="submitting" />
               <SelectField label="Organization Unit" v-model="form.organization_unit_id" :options="unitsOptions" :error="err('organization_unit_id')" :disabled="submitting" required />
               <label class="block text-sm font-semibold text-neutral-700 mb-1">Notes</label>
               <textarea v-model="form.notes" :disabled="submitting" class="w-full rounded-lg border border-neutral-300 px-3 py-2"></textarea>
@@ -128,6 +129,7 @@ const form = reactive({
   employment_type: member?.employment_type || 'organik',
   status: member?.status || 'aktif',
   join_date: toDateInput(member?.join_date),
+  company_join_date: toDateInput(member?.company_join_date),
   organization_unit_id: member?.organization_unit_id || '',
   notes: member?.notes || ''
 });
@@ -165,7 +167,7 @@ function submit(){
     onFinish(){ submitting.value = false; },
     onError(errs){
       const personalFields = ['full_name','email','phone','birth_place','birth_date','address','emergency_contact','nip'];
-      const orgFields = ['job_title','kta_number','union_position_id','employment_type','status','join_date','organization_unit_id','notes'];
+      const orgFields = ['job_title','kta_number','union_position_id','employment_type','status','join_date','company_join_date','organization_unit_id','notes'];
       const keys = Object.keys(errs || {});
       if (keys.some(k => personalFields.includes(k))) step.value = 1; else if (keys.some(k => orgFields.includes(k))) step.value = 2;
     }

@@ -12,13 +12,13 @@
                 :href="isMemberRole ? '' : '/admin/units'"
             />
             <StatCard
-                title="Total Seluruh Anggota"
+                title="Total Anggota"
                 :value="$page.props.counters?.members_total || 0"
                 icon="users"
                 iconColor="amber"
-                badgeText="KPI Summary"
+                badgeText="Se-Indonesia"
                 badgeColor="amber"
-                :href="isMemberRole ? '' : '/admin/members'"
+                :href="canOpenTotalMembers ? '/admin/members' : ''"
             />
             <StatCard v-if="showAdminQueues"
                 title="Mutasi Pending"
@@ -55,6 +55,16 @@
                 badgeText="Needs Attention"
                 badgeColor="purple"
                 href="/admin/aspirations"
+            />
+            <StatCard
+                v-if="employmentInfo && !isSuperAdmin"
+                title="Masa Kerja"
+                :value="employmentInfo.duration_string"
+                icon="clock"
+                iconColor="green"
+                :badgeText="employmentInfo.join_date"
+                badgeColor="green"
+                href="/member/profile"
             />
             <StatCard
                 v-if="showUnitMembersCard"
@@ -404,7 +414,9 @@ const pg = page.props || {};
 
 const roleName = computed(() => pg.auth?.user?.role?.name || '');
 const isMemberRole = computed(() => roleName.value === 'anggota');
+const isSuperAdmin = computed(() => roleName.value === 'super_admin');
 const showAdminQueues = computed(() => ['super_admin', 'admin_unit', 'admin_pusat'].includes(roleName.value));
+const canOpenTotalMembers = computed(() => !['anggota', 'bendahara'].includes(roleName.value));
 
 const showUnpaidModal = ref(false);
 const currentPeriod = new Date().toISOString().slice(0, 7);
@@ -413,6 +425,7 @@ const currentPeriod = new Date().toISOString().slice(0, 7);
 const duesSummary = computed(() => pg.dues_summary || null);
 const unpaidMembers = computed(() => pg.unpaid_members || []);
 const finance = computed(() => pg.finance || null);
+const employmentInfo = computed(() => pg.auth?.user?.employment_info || null);
 
 // Chart helpers
 const maxChartValue = computed(() => {

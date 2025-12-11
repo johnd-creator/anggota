@@ -15,7 +15,6 @@
           </CtaButton>
         </div>
       </div>
-      <AlertBanner v-if="$page.props.flash.success" type="success" :message="$page.props.flash.success" dismissible @dismiss="$page.props.flash.success=null" />
       <CardContainer padding="sm">
         <div class="flex items-center">
           <div class="w-full max-w-md"><InputField v-model="q" placeholder="Cari nama atau kode" class="w-full" /></div>
@@ -67,7 +66,6 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
 import CtaButton from '@/Components/UI/CtaButton.vue';
 import InputField from '@/Components/UI/InputField.vue';
-import AlertBanner from '@/Components/UI/AlertBanner.vue';
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import ModalBase from '@/Components/UI/ModalBase.vue';

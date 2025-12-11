@@ -33,6 +33,7 @@ class PortalController extends Controller
             'address' => 'nullable|string',
             'phone' => ['nullable', 'regex:/^\+?[1-9]\d{7,14}$/'],
             'emergency_contact' => 'nullable|string|max:100',
+            'company_join_date' => 'nullable|date',
         ]);
 
         // Check if there are actual changes from current member data
@@ -40,16 +41,18 @@ class PortalController extends Controller
             'address' => $member->address ?? '',
             'phone' => $member->phone ?? '',
             'emergency_contact' => $member->emergency_contact ?? '',
+            'company_join_date' => $member->company_join_date ? $member->company_join_date->format('Y-m-d') : '',
         ];
 
         $newData = [
             'address' => $validated['address'] ?? '',
             'phone' => $validated['phone'] ?? '',
             'emergency_contact' => $validated['emergency_contact'] ?? '',
+            'company_join_date' => $validated['company_join_date'] ?? '',
         ];
 
         $hasChanges = false;
-        foreach (['address', 'phone', 'emergency_contact'] as $field) {
+        foreach (['address', 'phone', 'emergency_contact', 'company_join_date'] as $field) {
             if (trim($newData[$field]) !== trim($currentData[$field])) {
                 $hasChanges = true;
                 break;
@@ -82,6 +85,7 @@ class PortalController extends Controller
                 'address' => $member->address,
                 'phone' => $member->phone,
                 'emergency_contact' => $member->emergency_contact,
+                'company_join_date' => $member->company_join_date ? $member->company_join_date->format('Y-m-d') : null,
             ],
             'new_data' => $validated,
             'status' => 'pending',

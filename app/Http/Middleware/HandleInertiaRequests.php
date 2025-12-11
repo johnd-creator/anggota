@@ -58,6 +58,32 @@ class HandleInertiaRequests extends Middleware
                         'name' => $request->user()->role->name,
                         'label' => $request->user()->role->label,
                     ] : null,
+                    'employment_info' => function () use ($request) {
+                        $user = $request->user();
+                        $member = $user->member;
+
+                        // Fallback: search by member_id if relationship returns null but member_id exists
+                        if (!$member && $user->member_id) {
+                            $member = \App\Models\Member::find($user->member_id);
+                        }
+                        if (!$member || !$member->company_join_date)
+                            return null;
+
+                        $joinDate = $member->company_join_date;
+                        $now = now();
+                        $diff = $joinDate->diff($now);
+
+                        $years = $diff->y;
+                        $months = $diff->m;
+                        $durationString = $years > 0 ? $years . ' tahun' : 'Baru bergabung';
+
+                        return [
+                            'join_date' => $joinDate->translatedFormat('d M Y'),
+                            'duration_years' => $years,
+                            'duration_months' => $months,
+                            'duration_string' => trim($durationString)
+                        ];
+                    },
                 ] : null,
             ],
             'counters' => function () use ($request) {

@@ -63,6 +63,17 @@
             </div>
           </div>
           
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label class="text-xs text-neutral-600">Tanggal Gabung Perusahaan</label>
+                <p class="mt-1 text-sm text-neutral-900 bg-neutral-50 rounded border px-3 py-2">{{ formatDate(member?.company_join_date) }}</p>
+            </div>
+            <div>
+                <label class="text-xs text-neutral-600">Masa Kerja</label>
+                <p class="mt-1 text-sm text-neutral-900 bg-neutral-50 rounded border px-3 py-2">{{ $page.props.auth.user.employment_info?.duration_string || '-' }}</p>
+            </div>
+          </div>
+          
           <!-- Editable fields -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

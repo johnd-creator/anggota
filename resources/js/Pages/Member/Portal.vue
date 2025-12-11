@@ -74,6 +74,10 @@
                   <span class="text-xs text-neutral-400 uppercase tracking-wider font-semibold">Bergabung</span>
                   <span class="text-sm font-medium text-neutral-700">{{ formatDate(member?.join_date) }}</span>
                 </div>
+                <div v-if="member?.company_join_date" class="flex justify-between items-center border-b border-dashed border-neutral-200 pb-2">
+                  <span class="text-xs text-neutral-400 uppercase tracking-wider font-semibold">Gabung Perusahaan</span>
+                  <span class="text-sm font-medium text-neutral-700">{{ formatDate(member?.company_join_date) }}</span>
+                </div>
               </div>
             </div>
 
@@ -135,9 +139,19 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import { usePage } from '@inertiajs/vue3';
+import { useForm } from '@inertiajs/vue3'; // Added useForm import
+import InputField from '@/Components/UI/InputField.vue'; // Fixed InputField import
 
 const page = usePage();
 const member = page.props.member;
+
+// Added form definition
+const form = useForm({
+    phone: member.phone || '',
+    emergency_contact: member.emergency_contact || '',
+    address: member.address || '',
+    company_join_date: member.company_join_date ? member.company_join_date.substring(0, 10) : '',
+});
 
 function downloadPdf(){ window.location.href = '/member/card/pdf'; }
 

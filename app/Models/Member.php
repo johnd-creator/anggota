@@ -13,12 +13,36 @@ class Member extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'user_id','full_name','employee_id','email','phone','birth_place','birth_date','address','emergency_contact','job_title','employment_type','status','join_date','organization_unit_id','nra','join_year','sequence_number','photo_path','documents','notes','kta_number','nip','union_position_id'
+        'user_id',
+        'full_name',
+        'employee_id',
+        'email',
+        'phone',
+        'birth_place',
+        'birth_date',
+        'company_join_date',
+        'address',
+        'emergency_contact',
+        'job_title',
+        'employment_type',
+        'status',
+        'join_date',
+        'organization_unit_id',
+        'nra',
+        'join_year',
+        'sequence_number',
+        'photo_path',
+        'documents',
+        'notes',
+        'kta_number',
+        'nip',
+        'union_position_id'
     ];
 
     protected $casts = [
         'birth_date' => 'date',
         'join_date' => 'date',
+        'company_join_date' => 'date',
         'documents' => 'array',
     ];
 
@@ -53,10 +77,15 @@ class Member extends Model
     {
         return Attribute::make(
             get: function ($value) {
-                if (!$value) return $value;
-                try { return Crypt::decryptString($value); } catch (\Throwable $e) { return $value; }
+                if (!$value)
+                    return $value;
+                try {
+                    return Crypt::decryptString($value);
+                } catch (\Throwable $e) {
+                    return $value;
+                }
             },
-            set: fn ($value) => $value ? Crypt::encryptString($value) : $value,
+            set: fn($value) => $value ? Crypt::encryptString($value) : $value,
         );
     }
 }
