@@ -30,6 +30,8 @@ class AspirationMergedNotification extends Notification
             'target_id' => $this->data['target_id'],
             'target_title' => $this->data['target_title'],
             'message' => "Aspirasi \"{$this->aspiration->title}\" telah digabungkan ke: \"{$this->data['target_title']}\"",
+            'link' => "/admin/aspirations/{$this->data['target_id']}",
+            'category' => 'aspiration',
         ];
     }
 }

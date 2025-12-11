@@ -50,11 +50,14 @@ class DashboardController extends Controller
             return now()->subMonths(11 - $i)->format('Y-m');
         });
         return Cache::remember('dash_growth_last_12', 300, function () use ($months) {
-            $rows = \App\Models\Member::select(DB::raw("strftime('%Y-%m', join_date) as ym"), DB::raw('count(*) as c'))
-                ->where('join_date', '>=', now()->subMonths(12)->toDateString())
-                ->groupBy('ym')->get()->keyBy('ym');
-            return $months->map(function ($m) use ($rows) {
-                return ['label' => $m, 'value' => (int) optional($rows->get($m))->c];
+            return $months->map(function ($m) {
+                $date = \Carbon\Carbon::createFromFormat('Y-m', $m);
+                $start = $date->copy()->startOfMonth()->toDateString();
+                $end = $date->copy()->endOfMonth()->toDateString();
+                $count = \App\Models\Member::whereDate('join_date', '>=', $start)
+                    ->whereDate('join_date', '<=', $end)
+                    ->count();
+                return ['label' => $m, 'value' => (int) $count];
             });
         });
     }
@@ -125,12 +128,14 @@ class DashboardController extends Controller
         // 2. YTD Chart Data (Last 12 months)
         $ytdData = collect(range(0, 11))->map(function ($i) use ($financeUnitId) {
             $date = now()->subMonths(11 - $i);
-            $month = $date->format('Y-m');
 
+            $start = $date->copy()->startOfMonth()->toDateString();
+            $end = $date->copy()->endOfMonth()->toDateString();
             $stats = \App\Models\FinanceLedger::query()
                 ->when($financeUnitId, fn($q) => $q->where('organization_unit_id', $financeUnitId))
                 ->where('status', 'approved')
-                ->where(DB::raw("strftime('%Y-%m', date)"), $month)
+                ->whereDate('date', '>=', $start)
+                ->whereDate('date', '<=', $end)
                 ->selectRaw("SUM(CASE WHEN type='income' THEN amount ELSE 0 END) as income")
                 ->selectRaw("SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as expense")
                 ->first();

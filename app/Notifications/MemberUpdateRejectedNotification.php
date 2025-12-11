@@ -23,10 +23,8 @@ class MemberUpdateRejectedNotification extends Notification
     {
         return [
             'message' => 'Perubahan data anggota ditolak: ' . ($this->requestModel->notes ?? ''),
-            'cta_url' => '/member/profile',
-            'cta_label' => 'Lihat Profil',
+            'link' => '/member/profile',
             'category' => 'updates',
         ];
     }
 }
-

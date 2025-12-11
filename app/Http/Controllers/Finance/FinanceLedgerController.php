@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
+use App\Notifications\FinanceLedgerApprovedNotification;
+use App\Notifications\FinanceLedgerRejectedNotification;
 
 class FinanceLedgerController extends Controller
 {
@@ -20,8 +22,8 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('viewAny', FinanceLedger::class);
         $user = Auth::user();
-        $isSuper = $user->hasRole('super_admin');
-        $isAdminUnit = $user->hasRole('admin_unit');
+        $isSuper = $user && $user->role && $user->role->name === 'super_admin';
+        $isAdminUnit = $user && $user->role && $user->role->name === 'admin_unit';
         $workflowEnabled = FinanceLedger::workflowEnabled();
 
         $query = FinanceLedger::query()->with(['category', 'organizationUnit', 'creator', 'approvedBy']);
@@ -77,8 +79,8 @@ class FinanceLedgerController extends Controller
         }
 
         $saldo = [
-            'income' => (float) $saldoQuery->clone()->where('type', 'income')->sum('amount'),
-            'expense' => (float) $saldoQuery->clone()->where('type', 'expense')->sum('amount'),
+            'income' => (float) (clone $saldoQuery)->where('type', 'income')->sum('amount'),
+            'expense' => (float) (clone $saldoQuery)->where('type', 'expense')->sum('amount'),
         ];
         $saldo['balance'] = $saldo['income'] - $saldo['expense'];
 
@@ -90,8 +92,8 @@ class FinanceLedgerController extends Controller
             $monthQuery->where('status', 'approved');
         }
 
-        $monthIncome = (float) $monthQuery->clone()->where('type', 'income')->whereDate('date', '>=', $monthStart)->sum('amount');
-        $monthExpense = (float) $monthQuery->clone()->where('type', 'expense')->whereDate('date', '>=', $monthStart)->sum('amount');
+        $monthIncome = (float) (clone $monthQuery)->where('type', 'income')->whereDate('date', '>=', $monthStart)->sum('amount');
+        $monthExpense = (float) (clone $monthQuery)->where('type', 'expense')->whereDate('date', '>=', $monthStart)->sum('amount');
 
         // Count pending approvals for admin_unit
         $pendingCount = 0;
@@ -118,7 +120,7 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('create', FinanceLedger::class);
         $user = Auth::user();
-        $isSuper = $user->hasRole('super_admin');
+        $isSuper = $user && $user->role && $user->role->name === 'super_admin';
         $units = $isSuper ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
         $categories = FinanceCategory::select('id', 'name', 'type', 'organization_unit_id')
             ->when(!$isSuper, function ($q) use ($user) {
@@ -140,7 +142,7 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('create', FinanceLedger::class);
         $user = Auth::user();
-        $isSuper = $user->hasRole('super_admin');
+        $isSuper = $user && $user->role && $user->role->name === 'super_admin';
         $unitId = $isSuper ? (int) $request->input('organization_unit_id') : (int) $user->organization_unit_id;
         $workflowEnabled = FinanceLedger::workflowEnabled();
 
@@ -202,7 +204,7 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('update', $ledger);
         $user = Auth::user();
-        $isSuper = $user->hasRole('super_admin');
+        $isSuper = $user && $user->role && $user->role->name === 'super_admin';
         $units = $isSuper ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
         $categories = FinanceCategory::select('id', 'name', 'type', 'organization_unit_id')
             ->when(!$isSuper, function ($q) use ($user) {
@@ -224,7 +226,7 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('update', $ledger);
         $user = Auth::user();
-        $isSuper = $user->hasRole('super_admin');
+        $isSuper = $user && $user->role && $user->role->name === 'super_admin';
         $unitId = $isSuper ? (int) $request->input('organization_unit_id') : (int) $user->organization_unit_id;
 
         $validated = $request->validate([
@@ -326,6 +328,11 @@ class FinanceLedgerController extends Controller
             ],
         ]);
 
+        $creator = $ledger->creator;
+        if ($creator) {
+            try { $creator->notify(new FinanceLedgerApprovedNotification($ledger)); } catch (\Throwable $e) {}
+        }
+
         return back()->with('success', 'Transaksi berhasil disetujui');
     }
 
@@ -361,6 +368,11 @@ class FinanceLedgerController extends Controller
             ],
         ]);
 
+        $creator = $ledger->creator;
+        if ($creator) {
+            try { $creator->notify(new FinanceLedgerRejectedNotification($ledger, $validated['rejected_reason'])); } catch (\Throwable $e) {}
+        }
+
         return back()->with('success', 'Transaksi ditolak');
     }
 
@@ -368,7 +380,7 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('viewAny', FinanceLedger::class);
         $user = Auth::user();
-        $isSuper = $user->hasRole('super_admin');
+        $isSuper = $user && $user->role && $user->role->name === 'super_admin';
         $query = FinanceLedger::query()->with(['category', 'organizationUnit', 'creator']);
 
         $dateStart = $request->query('date_start');

@@ -23,10 +23,8 @@ class OnboardingRejectedNotification extends Notification
     {
         return [
             'message' => 'Onboarding ditolak: ' . ($this->pending->notes ?? 'periksa detail'),
-            'cta_url' => '/help',
-            'cta_label' => 'Bantuan',
+            'link' => '/help',
             'category' => 'onboarding',
         ];
     }
 }
-

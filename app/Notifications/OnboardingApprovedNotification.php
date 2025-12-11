@@ -23,10 +23,8 @@ class OnboardingApprovedNotification extends Notification
     {
         return [
             'message' => 'Onboarding disetujui untuk ' . ($this->member->full_name ?? 'akun Anda'),
-            'cta_url' => '/member/portal',
-            'cta_label' => 'Buka Portal',
+            'link' => '/member/portal',
             'category' => 'onboarding',
         ];
     }
 }
-

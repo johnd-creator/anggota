@@ -23,10 +23,8 @@ class MemberUpdateApprovedNotification extends Notification
     {
         return [
             'message' => 'Perubahan data anggota disetujui',
-            'cta_url' => '/member/profile',
-            'cta_label' => 'Lihat Profil',
+            'link' => '/member/profile',
             'category' => 'updates',
         ];
     }
 }
-

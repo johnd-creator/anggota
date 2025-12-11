@@ -96,7 +96,7 @@
             </svg>
           </button>
           <div v-show="expandedSections.financials" class="ml-6 space-y-1">
-            <Link href="/finance/categories" :class="subMenuItemClass('/finance/categories')">Kategori</Link>
+            <Link v-if="isSuperAdmin || isTreasurer" href="/finance/categories" :class="subMenuItemClass('/finance/categories')">Kategori</Link>
             <Link href="/finance/ledgers" :class="subMenuItemClass('/finance/ledgers')">Transaksi</Link>
             <Link href="/finance/dues" :class="subMenuItemClass('/finance/dues')">Iuran Bulanan</Link>
           </div>
@@ -361,7 +361,7 @@ const recent = ref([]);
 
 // Collapsible sections state
 const expandedSections = ref({
-  members: true,
+  members: false,
   mutations: false,
   onboarding: false,
   financials: false,

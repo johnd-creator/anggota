@@ -38,6 +38,8 @@ class AspirationStatusUpdatedNotification extends Notification
             'old_status_label' => $statusLabels[$this->data['old_status']] ?? $this->data['old_status'],
             'new_status_label' => $statusLabels[$this->data['new_status']] ?? $this->data['new_status'],
             'message' => "Aspirasi \"{$this->aspiration->title}\" telah diperbarui ke status: " . ($statusLabels[$this->data['new_status']] ?? $this->data['new_status']),
+            'link' => "/admin/aspirations/{$this->aspiration->id}",
+            'category' => 'aspiration',
         ];
     }
 }

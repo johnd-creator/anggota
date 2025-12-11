@@ -22,8 +22,7 @@ class SessionTerminatedNotification extends Notification
     {
         return [
             'message' => 'Sesi Anda telah dihentikan oleh admin. Alasan: ' . $this->reason,
-            'cta_url' => '/login',
-            'cta_label' => 'Login Ulang',
+            'link' => '/login',
             'category' => 'security',
         ];
     }

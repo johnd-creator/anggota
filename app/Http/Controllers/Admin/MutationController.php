@@ -11,6 +11,8 @@ use App\Services\NraGenerator;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Notifications\MutationApprovedNotification;
+use App\Notifications\MutationRejectedNotification;
 
 class MutationController extends Controller
 {
@@ -134,7 +136,7 @@ class MutationController extends Controller
 
         $owner = $member->user_id ? \App\Models\User::find($member->user_id) : null;
         if ($owner) {
-            $owner->notify(new \App\Notifications\MutationApprovedNotification($mutation));
+            $owner->notify(new MutationApprovedNotification($mutation));
         }
 
         return back()->with('success', 'Mutasi disetujui');
@@ -150,6 +152,13 @@ class MutationController extends Controller
             'subject_type' => MutationRequest::class,
             'subject_id' => $mutation->id,
         ]);
+        $owner = $mutation->member?->user_id ? \App\Models\User::find($mutation->member->user_id) : null;
+        if ($owner) {
+            try {
+                $owner->notify(new MutationRejectedNotification($mutation));
+            } catch (\Throwable $e) {
+            }
+        }
         return back()->with('success', 'Mutasi ditolak');
     }
 }

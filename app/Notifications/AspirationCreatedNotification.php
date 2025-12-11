@@ -26,11 +26,9 @@ class AspirationCreatedNotification extends Notification
             'type' => 'aspiration_created',
             'aspiration_id' => $this->aspiration->id,
             'title' => $this->aspiration->title,
-            'message' => "Aspirasi baru: \"{$this->aspiration->title}\"", 
-            'cta_url' => "/admin/aspirations/{$this->aspiration->id}",
-            'cta_label' => 'Lihat Aspirasi',
-            'category' => 'other',
+            'message' => "Aspirasi baru: \"{$this->aspiration->title}\"",
+            'link' => "/admin/aspirations/{$this->aspiration->id}",
+            'category' => 'aspiration',
         ];
     }
 }
-

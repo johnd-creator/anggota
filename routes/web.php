@@ -3,6 +3,9 @@
 use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -358,6 +361,12 @@ Route::middleware(['auth'])->group(function () {
             'subject_id' => $request->user()->id,
             'payload' => ['channel' => 'portal'],
         ]);
+        try {
+            $request->user()->notify(new class extends \Illuminate\Notifications\Notification {
+                public function via($n){ return ['database']; }
+                public function toDatabase($n){ return ['message' => 'Permintaan export data tercatat', 'category' => 'security', 'link' => '/member/portal']; }
+            });
+        } catch (\Throwable $e) {}
         return back()->with('success', 'Permintaan export data tercatat');
     })->middleware('role:anggota')->name('member.data.export_request');
     Route::post('/member/data/delete-request', function (\Illuminate\Http\Request $request) {
@@ -368,6 +377,12 @@ Route::middleware(['auth'])->group(function () {
             'subject_id' => $request->user()->id,
             'payload' => ['channel' => 'portal'],
         ]);
+        try {
+            $request->user()->notify(new class extends \Illuminate\Notifications\Notification {
+                public function via($n){ return ['database']; }
+                public function toDatabase($n){ return ['message' => 'Permintaan penghapusan data tercatat', 'category' => 'security', 'link' => '/member/portal']; }
+            });
+        } catch (\Throwable $e) {}
         return back()->with('success', 'Permintaan penghapusan data tercatat');
     })->middleware('role:anggota')->name('member.data.delete_request');
     Route::get('/verify-card/{token}', [\App\Http\Controllers\Member\CardController::class, 'verify'])->name('member.card.verify');

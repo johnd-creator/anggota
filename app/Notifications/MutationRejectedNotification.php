@@ -6,7 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use App\Models\MutationRequest;
 
-class MutationApprovedNotification extends Notification
+class MutationRejectedNotification extends Notification
 {
     use Queueable;
 
@@ -22,9 +22,10 @@ class MutationApprovedNotification extends Notification
     public function toDatabase($notifiable)
     {
         return [
-            'message' => 'Mutasi disetujui: ' . optional($this->mutation->member)->full_name,
+            'message' => 'Mutasi ditolak: ' . optional($this->mutation->member)->full_name,
             'link' => '/member/portal?tab=riwayat',
             'category' => 'mutations',
         ];
     }
 }
+

@@ -80,7 +80,18 @@ class NotificationController extends Controller
         if (!Schema::hasTable('notifications')) return response()->json(['items' => []]);
         $items = DatabaseNotification::where('notifiable_type', \App\Models\User::class)
             ->where('notifiable_id', Auth::id())
-            ->latest()->limit(5)->get();
+            ->latest()->limit(5)->get()
+            ->map(function ($n) {
+                $data = is_array($n->data) ? $n->data : (array) $n->data;
+                return [
+                    'id' => $n->id,
+                    'message' => $data['message'] ?? ($data['title'] ?? ''),
+                    'category' => $data['category'] ?? ($n->type ?? 'general'),
+                    'link' => $data['link'] ?? ($data['cta_url'] ?? null),
+                    'read_at' => $n->read_at,
+                    'created_at' => $n->created_at,
+                ];
+            });
         return response()->json(['items' => $items]);
     }
 }
