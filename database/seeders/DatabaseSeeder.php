@@ -19,10 +19,10 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             OrganizationUnitSeeder::class,
             UnionPositionSeeder::class,
-            AspirationCategorySeeder::class,
-            DefaultFinanceCategorySeeder::class,
             UserSeeder::class,
             MemberSeeder::class,
+            AspirationCategorySeeder::class,
+            DefaultFinanceCategorySeeder::class,
             NotificationPreferenceSeeder::class,
         ]);
     }
