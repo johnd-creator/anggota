@@ -341,7 +341,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import UserAvatar from '@/Components/UI/UserAvatar.vue';
 
@@ -371,6 +371,13 @@ const expandedSections = ref({
 
 function toggleSection(section) {
   expandedSections.value[section] = !expandedSections.value[section];
+}
+
+function syncExpandedToRoute(path) {
+  expandedSections.value.members = /^\/admin\/(members|units|union-positions|roles|aspiration-categories)/.test(path);
+  expandedSections.value.financials = /^\/finance\//.test(path);
+  expandedSections.value.reports = /^\/reports\//.test(path);
+  expandedSections.value.settings = /^\/(settings|help|ops|audit-logs|admin\/activity-logs|admin\/sessions|ui\/components)/.test(path);
 }
 
 function toggleNotifDropdown() {
@@ -405,7 +412,15 @@ onMounted(() => {
   if (flashError.value) {
     setTimeout(() => { flashError.value = ''; }, 5000);
   }
+  syncExpandedToRoute(page.url || window.location.pathname || '');
 });
+
+watch(
+  () => page.url,
+  (val) => {
+    syncExpandedToRoute(val || window.location.pathname || '');
+  }
+);
 
 function relativeTime(s) {
   if (!s) return '';
