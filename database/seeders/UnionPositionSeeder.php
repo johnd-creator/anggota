@@ -13,6 +13,15 @@ class UnionPositionSeeder extends Seeder
             ['name' => 'Ketua', 'code' => 'KETUA'],
             ['name' => 'Sekretaris', 'code' => 'SEKRE'],
             ['name' => 'Bendahara', 'code' => 'BENDA'],
+            ['name' => 'Wakil Ketua', 'code' => 'WAKET'],
+            ['name' => 'Wakil Sekretaris', 'code' => 'WASEK'],
+            ['name' => 'Wakil Bendahara', 'code' => 'WABEN'],
+            ['name' => 'Divisi Hukum & Advokasi', 'code' => 'HUKUM'],
+            ['name' => 'Divisi Pendidikan & Pelatihan', 'code' => 'DIKLAT'],
+            ['name' => 'Divisi Kesejahteraan', 'code' => 'KESEH'],
+            ['name' => 'Divisi Organisasi & Keanggotaan', 'code' => 'ORGAN'],
+            ['name' => 'Divisi Komunikasi & Publikasi', 'code' => 'KOMPU'],
+            ['name' => 'Pengawas', 'code' => 'PENGA'],
             ['name' => 'Anggota', 'code' => 'ANGG'],
         ];
         foreach ($defaults as $d) {
@@ -20,4 +29,3 @@ class UnionPositionSeeder extends Seeder
         }
     }
 }
-
