@@ -18,7 +18,15 @@ class MemberUpdateController extends Controller
         if ($status = $request->get('status'))
             $query->where('status', $status);
         $items = $query->latest()->paginate(10)->withQueryString();
-        return Inertia::render('Admin/Updates/Index', ['items' => $items]);
+        return Inertia::render('Admin/Updates/Index', [
+            'items' => $items,
+            'stats' => [
+                'total' => MemberUpdateRequest::count(),
+                'pending' => MemberUpdateRequest::where('status', 'pending')->count(),
+                'approved' => MemberUpdateRequest::where('status', 'approved')->count(),
+                'rejected' => MemberUpdateRequest::where('status', 'rejected')->count(),
+            ],
+        ]);
     }
 
     public function approve(Request $request, MemberUpdateRequest $update_request)

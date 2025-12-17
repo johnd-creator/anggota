@@ -10,6 +10,13 @@
         </div>
       </div>
 
+      <!-- Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <SummaryCard title="Menunggu Persetujuan" :value="stats.pending" color="yellow" icon="clock" />
+        <SummaryCard title="Disetujui Bulan Ini" :value="stats.approved" color="green" icon="check" />
+        <SummaryCard title="Perlu Revisi / Ditolak" :value="stats.rejected" color="red" icon="x" />
+      </div>
+
       <!-- Filters -->
       <CardContainer padding="sm">
         <div class="flex flex-wrap items-center gap-3">
@@ -71,22 +78,8 @@
         </div>
 
         <!-- Pagination -->
-        <div v-if="letters.links.length > 3" class="bg-white px-4 py-3 border-t border-neutral-200 flex items-center justify-between sm:px-6">
-          <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p class="text-sm text-neutral-700">
-                Menampilkan <span class="font-medium">{{ letters.from }}</span> sampai <span class="font-medium">{{ letters.to }}</span> dari <span class="font-medium">{{ letters.total }}</span> data
-              </p>
-            </div>
-            <div>
-              <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <template v-for="(link, key) in letters.links" :key="key">
-                  <component :is="link.url ? 'Link' : 'span'" :href="link.url" v-html="link.label" class="relative inline-flex items-center px-4 py-2 border text-sm font-medium" :class="{ 'z-10 bg-brand-primary-50 border-brand-primary-500 text-brand-primary-600': link.active, 'bg-white border-neutral-300 text-neutral-500 hover:bg-neutral-50': !link.active && link.url, 'bg-neutral-100 border-neutral-300 text-neutral-400 cursor-not-allowed': !link.url }" />
-                </template>
-              </nav>
-            </div>
-          </div>
-        </div>
+        <!-- Pagination -->
+        <Pagination :paginator="letters" />
       </CardContainer>
     </div>
 
@@ -137,7 +130,7 @@
     </ModalBase>
   </AppLayout>
 </template>
-
+ 
 <script setup>
 import { ref, watch } from 'vue'
 import { router, Link } from '@inertiajs/vue3'
@@ -150,11 +143,14 @@ import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
 import StatusBadge from '@/Components/UI/StatusBadge.vue'
 import ColorBadge from '@/Components/UI/ColorBadge.vue'
+import Pagination from '@/Components/UI/Pagination.vue'
+import SummaryCard from '@/Components/UI/SummaryCard.vue'
 
 const props = defineProps({
   letters: Object,
   categories: Array,
   filters: Object,
+  stats: Object,
 })
 
 const search = ref(props.filters?.search || '')

@@ -34,9 +34,26 @@ class MutationController extends Controller
         // admin_pusat and super_admin have global access - no unit filter
         if ($status = $request->get('status'))
             $query->where('status', $status);
+            
         $items = $query->latest()->paginate(10)->withQueryString();
+
+        return Inertia::render('Admin/Mutations/Index', [
+            'items' => $items,
+            'stats' => [
+                'total' => (clone $query)->count(),
+                'pending' => (clone $query)->where('status', 'pending')->count(),
+                'approved' => (clone $query)->where('status', 'approved')->count(),
+                'rejected' => (clone $query)->where('status', 'rejected')->count(),
+            ],
+        ]);
+    }
+
+    public function create(Request $request)
+    {
+        $user = $request->user();
         $membersQuery = Member::select('id', 'full_name', 'nra', 'organization_unit_id')
             ->where('status', 'aktif');
+            
         // admin_unit only sees members from their unit; admin_pusat/super_admin see all
         if ($user && $user->role && $user->role->name === 'admin_unit') {
             if ($user->organization_unit_id) {
@@ -46,11 +63,10 @@ class MutationController extends Controller
             }
         }
         $members = $membersQuery->orderBy('full_name')->get();
-        return Inertia::render('Admin/Mutations/Index', [
-            'items' => $items,
+        
+        return Inertia::render('Admin/Mutations/Create', [
             'units' => OrganizationUnit::select('id', 'name', 'code')->orderBy('name')->get(),
             'members' => $members,
-            'selected_member' => (int) $request->query('member_id'),
         ]);
     }
 
@@ -94,7 +110,7 @@ class MutationController extends Controller
             'payload' => ['member_id' => $member->id],
         ]);
 
-        return back()->with('success', 'Pengajuan mutasi dikirim');
+        return redirect()->route('mutations.index')->with('success', 'Pengajuan mutasi dikirim');
     }
 
     public function show(MutationRequest $mutation)

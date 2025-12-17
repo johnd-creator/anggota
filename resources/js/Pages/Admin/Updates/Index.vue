@@ -26,10 +26,21 @@
         </div>
       </div>
 
-      <CardContainer padding="lg" shadow="sm">
-      <div class="mb-3 flex items-center gap-3">
-        <SelectField v-model="status" :options="[{label:'Semua',value:''},{label:'Pending',value:'pending'},{label:'Approved',value:'approved'},{label:'Rejected',value:'rejected'}]" />
+      <!-- Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <SummaryCard title="Total Request" :value="stats.total" color="blue" icon="document" />
+        <SummaryCard title="Menunggu" :value="stats.pending" color="yellow" icon="clock" />
+        <SummaryCard title="Disetujui" :value="stats.approved" color="green" icon="check" />
+        <SummaryCard title="Ditolak" :value="stats.rejected" color="red" icon="x" />
       </div>
+
+      <CardContainer padding="sm">
+        <div class="flex flex-wrap items-center gap-3">
+          <SelectField class="w-48" v-model="status" :options="statusOptions" />
+        </div>
+      </CardContainer>
+
+      <CardContainer padding="none" class="overflow-hidden">
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-neutral-200">
           <thead class="bg-neutral-50">
@@ -58,8 +69,8 @@
               <td class="px-4 py-2 text-sm text-neutral-500">{{ formatDate(i.created_at) }}</td>
               <td class="px-4 py-2 text-right text-sm">
                 <template v-if="i.status === 'pending'">
-                  <PrimaryButton size="sm" @click="approve(i)" :disabled="processing">Approve</PrimaryButton>
-                  <SecondaryButton size="sm" class="ml-2" @click="openRejectModal(i)" :disabled="processing">Reject</SecondaryButton>
+                  <button @click="approve(i)" :disabled="processing" class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 font-medium transition disabled:opacity-50">Approve</button>
+                  <button @click="openRejectModal(i)" :disabled="processing" class="ml-2 px-2 py-1 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200 font-medium transition disabled:opacity-50">Reject</button>
                 </template>
                 <span v-else class="text-neutral-400 text-xs">-</span>
               </td>
@@ -70,6 +81,7 @@
           </tbody>
         </table>
       </div>
+      <Pagination :paginator="items" />
     </CardContainer>
   </div>
   
@@ -109,12 +121,21 @@ import SelectField from '@/Components/UI/SelectField.vue';
 import Badge from '@/Components/UI/Badge.vue';
 import AlertBanner from '@/Components/UI/AlertBanner.vue';
 import ModalBase from '@/Components/UI/ModalBase.vue';
+import Pagination from '@/Components/UI/Pagination.vue';
+import SummaryCard from '@/Components/UI/SummaryCard.vue';
 import { usePage, router } from '@inertiajs/vue3';
-import { ref, watch, onMounted } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
 
 const page = usePage();
-const items = ref(page.props.items);
-const status = ref('');
+const items = computed(() => page.props.items);
+const stats = computed(() => page.props.stats || {});
+const status = ref(page.props.filters?.status || '');
+const statusOptions = [
+  { label: 'Semua', value: '' },
+  { label: 'Pending', value: 'pending' },
+  { label: 'Approved', value: 'approved' },
+  { label: 'Rejected', value: 'rejected' },
+];
 const processing = ref(false);
 
 // Message handling
@@ -126,11 +147,6 @@ const rejectModalOpen = ref(false);
 const selectedRequest = ref(null);
 const rejectNotes = ref('');
 const rejectNotesError = ref('');
-
-// Watch for prop changes (Inertia partial reload)
-watch(() => page.props.items, (newItems) => {
-  items.value = newItems;
-}, { deep: true });
 
 // Auto-hide messages
 function showSuccess(message) {
@@ -160,8 +176,14 @@ watch(() => page.props.flash?.error, (newVal) => {
   if (newVal) showError(newVal);
 });
 
-// Filter by status
-watch(status, v => router.get('/admin/updates', { status: v }, { preserveState: true, replace: true }));
+watch(() => page.props.filters?.status, (val) => {
+  const next = val || '';
+  if (next !== status.value) status.value = next;
+});
+
+watch(status, v => {
+  router.get('/admin/updates', { status: v || undefined }, { preserveState: true, replace: true });
+});
 
 function approve(i) { 
   processing.value = true;

@@ -36,6 +36,12 @@ class OnboardingController extends Controller
             'items' => $pendings,
             'units' => \App\Models\OrganizationUnit::select('id', 'name', 'code')->orderBy('name')->get(),
             'positions' => \App\Models\UnionPosition::orderBy('name')->get(['id', 'name']),
+            'stats' => [
+                'total' => PendingMember::count(),
+                'pending' => PendingMember::where('status', 'pending')->count(),
+                'approved' => PendingMember::where('status', 'approved')->count(),
+                'rejected' => PendingMember::where('status', 'rejected')->count(),
+            ],
         ]);
     }
 

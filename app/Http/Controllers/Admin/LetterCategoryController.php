@@ -29,7 +29,8 @@ class LetterCategoryController extends Controller
     {
         $categories = LetterCategory::withCount('letters')
             ->ordered()
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         return Inertia::render('Admin/LetterCategories/Index', [
             'categories' => $categories,

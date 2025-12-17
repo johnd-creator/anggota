@@ -156,20 +156,7 @@
           </table>
         </div>
 
-        <div v-if="ledgers.links.length > 3" class="bg-white px-4 py-3 border-t border-neutral-200 flex items-center justify-between sm:px-6">
-          <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p class="text-sm text-neutral-700">Menampilkan <span class="font-medium">{{ ledgers.from }}</span> sampai <span class="font-medium">{{ ledgers.to }}</span> dari <span class="font-medium">{{ ledgers.total }}</span> data</p>
-            </div>
-            <div>
-              <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <template v-for="(link, key) in ledgers.links" :key="key">
-                  <component :is="link.url ? 'Link' : 'span'" :href="link.url" v-html="link.label" class="relative inline-flex items-center px-4 py-2 border text-sm font-medium" :class="{ 'z-10 bg-brand-primary-50 border-brand-primary-500 text-brand-primary-600': link.active, 'bg-white border-neutral-300 text-neutral-500 hover:bg-neutral-50': !link.active && link.url, 'bg-neutral-100 border-neutral-300 text-neutral-400 cursor-not-allowed': !link.url }" />
-                </template>
-              </nav>
-            </div>
-          </div>
-        </div>
+        <Pagination :paginator="ledgers" />
       </CardContainer>
 
       <!-- Delete Modal -->
@@ -209,11 +196,12 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
 import InputField from '@/Components/UI/InputField.vue'
 import IconButton from '@/Components/UI/IconButton.vue'
-import AlertBanner from '@/Components/UI/AlertBanner.vue'
-import ModalBase from '@/Components/UI/ModalBase.vue'
-import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
-import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
-import CtaButton from '@/Components/UI/CtaButton.vue'
+	import AlertBanner from '@/Components/UI/AlertBanner.vue'
+	import ModalBase from '@/Components/UI/ModalBase.vue'
+	import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
+	import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
+	import CtaButton from '@/Components/UI/CtaButton.vue'
+	import Pagination from '@/Components/UI/Pagination.vue'
 
 const props = defineProps({
   ledgers: Object,

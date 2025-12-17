@@ -13,7 +13,8 @@ class AspirationCategoryController extends Controller
     {
         $categories = AspirationCategory::withCount('aspirations')
             ->orderBy('name')
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         return Inertia::render('Admin/Aspirations/Categories/Index', [
             'categories' => $categories,

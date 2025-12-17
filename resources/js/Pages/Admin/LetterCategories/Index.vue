@@ -22,26 +22,26 @@
           <table class="min-w-full divide-y divide-neutral-200">
             <thead class="bg-neutral-50">
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Kode</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Nama</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Warna</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Urutan</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Deskripsi</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Status</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Jumlah Surat</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Aksi</th>
+                <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Kode</th>
+                <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Nama</th>
+                <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Warna</th>
+                <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Urutan</th>
+                <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Deskripsi</th>
+                <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Status</th>
+                <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Jumlah Surat</th>
+                <th class="px-5 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Aksi</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-neutral-200">
-              <tr v-for="cat in categories" :key="cat.id" class="hover:bg-neutral-50">
-                <td class="px-6 py-4 text-sm font-mono font-medium text-neutral-900">{{ cat.code }}</td>
-                <td class="px-6 py-4 text-sm font-medium text-neutral-900">{{ cat.name }}</td>
-                <td class="px-6 py-4">
+              <tr v-for="cat in categories.data" :key="cat.id" class="hover:bg-neutral-50">
+                <td class="px-5 py-3 text-sm font-mono font-medium text-neutral-900">{{ cat.code }}</td>
+                <td class="px-5 py-3 text-sm font-medium text-neutral-900">{{ cat.name }}</td>
+                <td class="px-5 py-3">
                   <ColorBadge :color="cat.color || 'neutral'" :dot="true">{{ cat.color || 'neutral' }}</ColorBadge>
                 </td>
-                <td class="px-6 py-4 text-sm text-neutral-600">{{ cat.sort_order ?? 0 }}</td>
-                <td class="px-6 py-4 text-sm text-neutral-600">{{ cat.description || '-' }}</td>
-                <td class="px-6 py-4">
+                <td class="px-5 py-3 text-sm text-neutral-600">{{ cat.sort_order ?? 0 }}</td>
+                <td class="px-5 py-3 text-sm text-neutral-600">{{ cat.description || '-' }}</td>
+                <td class="px-5 py-3">
                   <span :class="[
                     'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
                     cat.is_active ? 'bg-green-100 text-green-800' : 'bg-neutral-100 text-neutral-600'
@@ -49,15 +49,15 @@
                     {{ cat.is_active ? 'Aktif' : 'Nonaktif' }}
                   </span>
                 </td>
-                <td class="px-6 py-4 text-sm text-neutral-600">{{ cat.letters_count }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div class="flex justify-end space-x-2">
-                    <IconButton variant="ghost" aria-label="Edit" @click="router.visit(`/admin/letter-categories/${cat.id}/edit`)">
+                <td class="px-5 py-3 text-sm text-neutral-600">{{ cat.letters_count }}</td>
+                <td class="px-5 py-3 whitespace-nowrap text-right text-sm font-medium">
+                  <div class="flex justify-end gap-2">
+                    <IconButton variant="ghost" size="sm" aria-label="Edit" @click="router.visit(`/admin/letter-categories/${cat.id}/edit`)">
                       <svg class="w-5 h-5 text-brand-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </IconButton>
-                    <IconButton variant="ghost" aria-label="Delete" @click="confirmDelete(cat)" :disabled="cat.letters_count > 0">
+                    <IconButton variant="ghost" size="sm" aria-label="Delete" @click="confirmDelete(cat)" :disabled="cat.letters_count > 0">
                       <svg :class="['w-5 h-5', cat.letters_count > 0 ? 'text-neutral-300' : 'text-status-error']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
@@ -65,12 +65,13 @@
                   </div>
                 </td>
               </tr>
-              <tr v-if="categories.length === 0">
-                <td colspan="8" class="px-6 py-10 text-center text-neutral-500">Belum ada kategori surat.</td>
+              <tr v-if="categories.data.length === 0">
+                <td colspan="8" class="px-5 py-10 text-center text-neutral-500">Belum ada kategori surat.</td>
               </tr>
             </tbody>
           </table>
         </div>
+        <Pagination :paginator="categories" />
       </CardContainer>
     </div>
 
@@ -99,8 +100,9 @@ import ModalBase from '@/Components/UI/ModalBase.vue'
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
 import ColorBadge from '@/Components/UI/ColorBadge.vue'
+import Pagination from '@/Components/UI/Pagination.vue'
 
-const props = defineProps({ categories: Array })
+const props = defineProps({ categories: Object })
 const showDelete = ref(false)
 const toDelete = ref(null)
 const deleting = ref(false)

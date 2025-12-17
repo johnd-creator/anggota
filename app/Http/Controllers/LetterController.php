@@ -87,6 +87,11 @@ class LetterController extends Controller
             'letters' => $letters,
             'categories' => $categories,
             'filters' => $request->only(['search', 'status', 'category_id']),
+            'stats' => [
+                'total' => (clone $query)->count(),
+                'unread' => (clone $query)->whereDoesntHave('reads', fn($q) => $q->where('user_id', $user->id))->count(),
+                'this_week' => (clone $query)->where('created_at', '>=', now()->subDays(7))->count(),
+            ],
         ]);
     }
 
@@ -163,6 +168,11 @@ class LetterController extends Controller
             'letters' => $letters,
             'categories' => $categories,
             'filters' => $request->only(['search', 'category_id']),
+            'stats' => [
+                'pending' => (clone $query)->where('status', 'submitted')->count(),
+                'approved' => (clone $query)->where('status', 'approved')->where('approved_at', '>=', now()->startOfMonth())->count(),
+                'rejected' => (clone $query)->whereIn('status', ['rejected', 'revision'])->count(),
+            ],
         ]);
     }
 

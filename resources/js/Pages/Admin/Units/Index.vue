@@ -24,8 +24,8 @@
         @dismiss="$page.props.flash.success = null"
       />
 
-      <!-- Search & Filter -->
-      <CardContainer padding="sm">
+      <!-- Search & Data Table -->
+        <CardContainer padding="sm">
         <div class="flex items-center">
           <div class="w-full max-w-md">
             <InputField
@@ -37,42 +37,42 @@
         </div>
       </CardContainer>
 
-      <!-- Data Table -->
       <CardContainer padding="none" class="overflow-hidden">
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-neutral-200">
             <thead class="bg-neutral-50">
               <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th scope="col" class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Code
                 </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th scope="col" class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Name
                 </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th scope="col" class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Address
                 </th>
-                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                <th scope="col" class="px-5 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-neutral-200">
               <tr v-for="unit in units.data" :key="unit.id" class="hover:bg-neutral-50">
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">
+                <td class="px-5 py-3 whitespace-nowrap text-sm font-medium text-neutral-900">
                   {{ unit.code }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-700">
+                <td class="px-5 py-3 whitespace-nowrap text-sm text-neutral-700">
                   {{ unit.name }}
                 </td>
-                <td class="px-6 py-4 text-sm text-neutral-500 truncate max-w-xs">
+                <td class="px-5 py-3 text-sm text-neutral-500 truncate max-w-xs">
                   {{ unit.address || '-' }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div class="flex justify-end space-x-2">
+                <td class="px-5 py-3 whitespace-nowrap text-right text-sm font-medium">
+                  <div class="flex justify-end gap-2">
                     <IconButton
                       v-if="$page.props.auth.user.role.name === 'super_admin'"
                       variant="ghost"
+                      size="sm"
                       aria-label="Edit"
                       @click="router.visit(`/admin/units/${unit.id}/edit`)"
                     >
@@ -83,6 +83,7 @@
                     <IconButton
                       v-if="$page.props.auth.user.role.name === 'super_admin'"
                       variant="ghost"
+                      size="sm"
                       aria-label="Delete"
                       @click="confirmDelete(unit)"
                     >
@@ -94,7 +95,7 @@
                 </td>
               </tr>
               <tr v-if="units.data.length === 0">
-                <td colspan="4" class="px-6 py-10 text-center text-neutral-500">
+                <td colspan="4" class="px-5 py-10 text-center text-neutral-500">
                   No organization units found.
                 </td>
               </tr>
@@ -102,33 +103,7 @@
           </table>
         </div>
         
-        <!-- Pagination -->
-        <div v-if="units.links.length > 3" class="bg-white px-4 py-3 border-t border-neutral-200 flex items-center justify-between sm:px-6">
-          <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p class="text-sm text-neutral-700">
-                Showing <span class="font-medium">{{ units.from }}</span> to <span class="font-medium">{{ units.to }}</span> of <span class="font-medium">{{ units.total }}</span> results
-              </p>
-            </div>
-            <div>
-              <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <template v-for="(link, key) in units.links" :key="key">
-                  <component
-                    :is="link.url ? 'Link' : 'span'"
-                    :href="link.url"
-                    v-html="link.label"
-                    class="relative inline-flex items-center px-4 py-2 border text-sm font-medium"
-                    :class="{
-                      'z-10 bg-brand-primary-50 border-brand-primary-500 text-brand-primary-600': link.active,
-                      'bg-white border-neutral-300 text-neutral-500 hover:bg-neutral-50': !link.active && link.url,
-                      'bg-neutral-100 border-neutral-300 text-neutral-400 cursor-not-allowed': !link.url
-                    }"
-                  />
-                </template>
-              </nav>
-            </div>
-          </div>
-        </div>
+        <Pagination :paginator="units" />
       </CardContainer>
     </div>
 
@@ -162,7 +137,7 @@
 
 <script setup>
 import { ref, watch } from 'vue';
-import { router, Link } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import debounce from 'lodash/debounce';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
@@ -170,6 +145,7 @@ import CtaButton from '@/Components/UI/CtaButton.vue';
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import IconButton from '@/Components/UI/IconButton.vue';
+import Pagination from '@/Components/UI/Pagination.vue';
 import InputField from '@/Components/UI/InputField.vue';
 import AlertBanner from '@/Components/UI/AlertBanner.vue';
 import ModalBase from '@/Components/UI/ModalBase.vue';
