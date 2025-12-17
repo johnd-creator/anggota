@@ -45,7 +45,7 @@
                 :value="lettersSummary.approvals || 0"
                 icon="check"
                 iconColor="green"
-                badgeText="Menunggu tanda tangan"
+                badgeText="Menunggu approval"
                 badgeColor="green"
                 href="/letters/approvals"
             />
@@ -64,7 +64,7 @@
                 :value="$page.props.counters?.mutations_pending || 0"
                 icon="transfer"
                 iconColor="red"
-                badgeText="KPI Summary"
+                badgeText="Approve mutasi"
                 badgeColor="red"
                 href="/admin/mutations"
             />
@@ -73,16 +73,16 @@
                 :value="$page.props.counters?.onboarding_pending || 0"
                 icon="user-plus"
                 iconColor="amber"
-                badgeText="New Summary"
+                badgeText="Approve onboarding"
                 badgeColor="amber"
                 href="/admin/onboarding"
             />
             <StatCard v-if="showAdminQueues"
-                title="Update Request Pending"
+                title="Update Request"
                 :value="$page.props.counters?.updates_pending || 0"
                 icon="refresh"
                 iconColor="blue"
-                badgeText="KPI Summary"
+                badgeText="Approve updates"
                 badgeColor="blue"
                 href="/admin/updates"
             />

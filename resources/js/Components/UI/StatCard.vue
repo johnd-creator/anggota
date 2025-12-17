@@ -12,7 +12,7 @@
 
         <!-- Content with full width -->
         <div class="relative z-10">
-            <p class="text-sm font-medium text-neutral-500 mb-2">{{ title }}</p>
+            <p class="text-base font-medium text-neutral-500 mb-2">{{ title }}</p>
             <h4 class="text-3xl font-bold text-neutral-900 group-hover:text-brand-primary-600 transition-colors mb-3">
                 {{ value }}
             </h4>
