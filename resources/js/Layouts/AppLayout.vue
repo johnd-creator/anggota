@@ -31,55 +31,24 @@
           </Link>
         </template>
 
-        <!-- Members Section -->
-        <template v-if="isAdminOrUnit">
-          <button @click="toggleSection('members')" :class="sectionHeaderClass('members')">
+        <!-- Surat Section -->
+        <template v-if="isSuperAdmin || isAdminUnit || isAdminPusat || isMember || isTreasurer">
+          <button @click="toggleSection('letters')" :class="sectionHeaderClass('letters')">
             <div class="flex items-center gap-3">
               <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              <span>Master Data</span>
+              <span>Surat</span>
             </div>
-            <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': expandedSections.members }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': expandedSections.letters }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-          <div v-show="expandedSections.members" class="ml-6 space-y-1">
-            <Link href="/admin/members" :class="subMenuItemClass('/admin/members')">Daftar Anggota</Link>
-            <Link href="/admin/units" :class="subMenuItemClass('/admin/units')">Unit Pembangkit</Link>
-            <Link v-if="isSuperAdmin" href="/admin/union-positions" :class="subMenuItemClass('/admin/union-positions')">Jabatan Serikat</Link>
-            <Link v-if="isSuperAdmin" href="/admin/roles" :class="subMenuItemClass('/admin/roles')">Role & Access</Link>
-            <Link v-if="isSuperAdmin" href="/admin/aspiration-categories" :class="subMenuItemClass('/admin/aspiration-categories')">Kategori Aspirasi</Link>
+          <div v-show="expandedSections.letters" class="ml-6 space-y-1">
+            <Link href="/letters/inbox" :class="subMenuItemClass('/letters/inbox')">Kotak Masuk</Link>
+            <Link v-if="isSuperAdmin || isAdminUnit || isAdminPusat" href="/letters/outbox" :class="subMenuItemClass('/letters/outbox')">Surat Keluar</Link>
+            <Link v-if="isSuperAdmin || canApproveLetters" href="/letters/approvals" :class="subMenuItemClass('/letters/approvals')">Perlu Persetujuan</Link>
           </div>
-
-          <!-- Mutations -->
-          <Link href="/admin/mutations" :class="menuItemClass('/admin/mutations')">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-            </svg>
-            <span>Mutations</span>
-            <span v-if="$page.props.counters?.mutations_pending" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $page.props.counters.mutations_pending }}</span>
-          </Link>
-
-          <!-- Onboarding -->
-          <Link href="/admin/onboarding" :class="menuItemClass('/admin/onboarding')">
-            <div class="flex items-center gap-3 w-full">
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
-              <span>Onboarding</span>
-              <span v-if="$page.props.counters?.onboarding_pending" class="ml-auto bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $page.props.counters.onboarding_pending }}</span>
-            </div>
-          </Link>
-
-          <!-- Update Requests -->
-          <Link href="/admin/updates" :class="menuItemClass('/admin/updates')">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            <span>Update Requests</span>
-            <span v-if="$page.props.counters?.updates_pending" class="ml-auto bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $page.props.counters.updates_pending }}</span>
-          </Link>
         </template>
 
         <!-- Financials Section -->
@@ -102,6 +71,55 @@
           </div>
         </template>
 
+        <!-- Master Data + Admin Workflows -->
+        <template v-if="isAdminOrUnit">
+          <button @click="toggleSection('members')" :class="sectionHeaderClass('members')">
+            <div class="flex items-center gap-3">
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>Master Data</span>
+            </div>
+            <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': expandedSections.members }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div v-show="expandedSections.members" class="ml-6 space-y-1">
+            <Link href="/admin/members" :class="subMenuItemClass('/admin/members')">Daftar Anggota</Link>
+            <Link href="/admin/units" :class="subMenuItemClass('/admin/units')">Unit Pembangkit</Link>
+            <Link v-if="isSuperAdmin" href="/admin/union-positions" :class="subMenuItemClass('/admin/union-positions')">Jabatan Serikat</Link>
+            <Link v-if="isSuperAdmin" href="/admin/roles" :class="subMenuItemClass('/admin/roles')">Role & Access</Link>
+            <Link v-if="isSuperAdmin" href="/admin/aspiration-categories" :class="subMenuItemClass('/admin/aspiration-categories')">Kategori Aspirasi</Link>
+            <Link v-if="isSuperAdmin" href="/admin/letter-categories" :class="subMenuItemClass('/admin/letter-categories')">Kategori Surat</Link>
+          </div>
+
+          <Link href="/admin/mutations" :class="menuItemClass('/admin/mutations')">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            <span>Mutations</span>
+            <span v-if="$page.props.counters?.mutations_pending" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $page.props.counters.mutations_pending }}</span>
+          </Link>
+
+          <Link href="/admin/onboarding" :class="menuItemClass('/admin/onboarding')">
+            <div class="flex items-center gap-3 w-full">
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+              <span>Onboarding</span>
+              <span v-if="$page.props.counters?.onboarding_pending" class="ml-auto bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $page.props.counters.onboarding_pending }}</span>
+            </div>
+          </Link>
+
+          <Link href="/admin/updates" :class="menuItemClass('/admin/updates')">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>Update Requests</span>
+            <span v-if="$page.props.counters?.updates_pending" class="ml-auto bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $page.props.counters.updates_pending }}</span>
+          </Link>
+        </template>
+
         <!-- Reports Section -->
         <template v-if="isAdminOrUnit">
           <button @click="toggleSection('reports')" :class="sectionHeaderClass('reports')">
@@ -121,9 +139,6 @@
             <Link href="/reports/documents" :class="subMenuItemClass('/reports/documents')">Monitoring Dokumen</Link>
           </div>
         </template>
-
-
-
         <!-- Member Aspirations -->
         <template v-if="isMember || isTreasurer">
           <Link href="/member/aspirations" :class="menuItemClass('/member/aspirations')">
@@ -177,40 +192,76 @@
           </div>
           <span class="text-xl font-bold text-white">SP-PIPS</span>
         </div>
-        <!-- Mobile Nav - simplified -->
-        <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          <Link href="/dashboard" :class="menuItemClass('/dashboard')" @click="mobileMenuOpen = false">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
-            </svg>
-            <span>Dashboard</span>
-          </Link>
-          <Link v-if="isAdminOrUnit" href="/admin/members" :class="menuItemClass('/admin/members')" @click="mobileMenuOpen = false">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span>Members</span>
-          </Link>
-          <Link v-if="isAdminOrUnit" href="/admin/mutations" :class="menuItemClass('/admin/mutations')" @click="mobileMenuOpen = false">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-            </svg>
-            <span>Mutations</span>
-          </Link>
-          <Link v-if="isSuperAdmin || isTreasurer || isAdminUnit" href="/finance/ledgers" :class="menuItemClass('/finance/ledgers')" @click="mobileMenuOpen = false">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>Financials</span>
-          </Link>
-          <Link href="/settings" :class="menuItemClass('/settings')" @click="mobileMenuOpen = false">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span>Settings</span>
-          </Link>
-        </nav>
+	        <!-- Mobile Nav - simplified -->
+	        <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+	          <Link href="/dashboard" :class="menuItemClass('/dashboard')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+	            </svg>
+	            <span>Dashboard</span>
+	          </Link>
+	          <Link v-if="isAdminOrUnit" href="/admin/aspirations" :class="menuItemClass('/admin/aspirations')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+	            </svg>
+	            <span>Aspirasi Anggota</span>
+	          </Link>
+	          <Link v-if="isSuperAdmin || isAdminUnit || isAdminPusat || isMember || isTreasurer" href="/letters/inbox" :class="menuItemClass('/letters')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+	            </svg>
+	            <span>Surat</span>
+	          </Link>
+	          <Link v-if="isMember || isTreasurer" href="/member/aspirations" :class="menuItemClass('/member/aspirations')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+	            </svg>
+	            <span>Aspirasi</span>
+	          </Link>
+	          <Link v-if="isSuperAdmin || isTreasurer || isAdminUnit" href="/finance/ledgers" :class="menuItemClass('/finance/ledgers')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+	            </svg>
+	            <span>Financials</span>
+	          </Link>
+	          <Link v-if="isAdminOrUnit" href="/admin/members" :class="menuItemClass('/admin/members')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+	            </svg>
+	            <span>Master Data</span>
+	          </Link>
+	          <Link v-if="isAdminOrUnit" href="/admin/mutations" :class="menuItemClass('/admin/mutations')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+	            </svg>
+	            <span>Mutations</span>
+	          </Link>
+	          <Link v-if="isAdminOrUnit" href="/admin/onboarding" :class="menuItemClass('/admin/onboarding')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+	            </svg>
+	            <span>Onboarding</span>
+	          </Link>
+	          <Link v-if="isAdminOrUnit" href="/admin/updates" :class="menuItemClass('/admin/updates')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+	            </svg>
+	            <span>Update Requests</span>
+	          </Link>
+	          <Link v-if="isAdminOrUnit" href="/reports/growth" :class="menuItemClass('/reports')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+	            </svg>
+	            <span>Reports</span>
+	          </Link>
+	          <Link href="/settings" :class="menuItemClass('/settings')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+	            </svg>
+	            <span>Settings</span>
+	          </Link>
+	        </nav>
       </div>
     </div>
 
@@ -269,10 +320,21 @@
                   Tidak ada notifikasi baru
                 </div>
                 <div v-else class="max-h-64 overflow-y-auto">
-                  <div v-for="n in recent" :key="n.id" class="px-4 py-3 hover:bg-neutral-50 border-b border-neutral-50 last:border-0">
-                    <p class="text-sm text-neutral-800">{{ (n.data && n.data.message) || n.message }}</p>
-                    <p class="text-xs text-neutral-500 mt-1">{{ relativeTime(n.created_at) }}</p>
-                  </div>
+                  <button
+                    v-for="n in recent"
+                    :key="n.id"
+                    type="button"
+                    class="w-full text-left px-4 py-3 hover:bg-neutral-50 border-b border-neutral-50 last:border-0"
+                    @click="openNotification(n)"
+                  >
+                    <div class="flex items-start gap-2">
+                      <span class="mt-1 w-2 h-2 rounded-full" :class="n.read_at ? 'bg-neutral-300' : 'bg-brand-primary-600'" />
+                      <div class="flex-1">
+                        <p class="text-sm text-neutral-800">{{ (n.data && n.data.message) || n.message }}</p>
+                        <p class="text-xs text-neutral-500 mt-1">{{ relativeTime(n.created_at) }}</p>
+                      </div>
+                    </div>
+                  </button>
                 </div>
                 <div class="px-4 py-2 border-t border-neutral-100 flex items-center justify-between">
                   <Link href="/notifications" class="text-sm text-brand-primary-600 hover:underline">Lihat semua</Link>
@@ -366,6 +428,7 @@ const expandedSections = ref({
   onboarding: false,
   financials: false,
   reports: false,
+  letters: false,
   settings: false,
 });
 
@@ -374,9 +437,10 @@ function toggleSection(section) {
 }
 
 function syncExpandedToRoute(path) {
-  expandedSections.value.members = /^\/admin\/(members|units|union-positions|roles|aspiration-categories)/.test(path);
+  expandedSections.value.members = /^\/admin\/(members|units|union-positions|roles|aspiration-categories|letter-categories)/.test(path);
   expandedSections.value.financials = /^\/finance\//.test(path);
   expandedSections.value.reports = /^\/reports\//.test(path);
+  expandedSections.value.letters = /^\/letters\//.test(path);
   expandedSections.value.settings = /^\/(settings|help|ops|audit-logs|admin\/activity-logs|admin\/sessions|ui\/components)/.test(path);
 }
 
@@ -386,8 +450,28 @@ function toggleNotifDropdown() {
   if (notifOpen.value) {
     fetch('/notifications/recent')
       .then(r => r.json())
-      .then(d => { recent.value = d.items || []; })
+      .then(d => { 
+        recent.value = d.items || []; 
+        const ids = (recent.value || []).filter(x => !x.read_at).map(x => x.id);
+        if (ids.length) {
+          router.post('/notifications/read-batch', { ids }, {
+            onSuccess() {
+              unreadCount.value = Math.max(0, (unreadCount.value || 0) - ids.length);
+            }
+          });
+        }
+      })
       .catch(() => { recent.value = []; });
+  }
+}
+
+function openNotification(n) {
+  const link = n?.link || (n?.data && n.data.link) || null;
+  notifOpen.value = false;
+  if (link) {
+    router.visit(link);
+  } else {
+    router.visit('/notifications');
   }
 }
 
@@ -442,6 +526,8 @@ const isAdminUnit = computed(() => roleName.value === 'admin_unit');
 const isAdminPusat = computed(() => roleName.value === 'admin_pusat');
 const isTreasurer = computed(() => roleName.value === 'bendahara');
 const isMember = computed(() => roleName.value === 'anggota');
+const unionPositionName = computed(() => (page.props?.auth?.user?.union_position?.name || '').toLowerCase());
+const canApproveLetters = computed(() => ['ketua', 'sekretaris'].includes(unionPositionName.value));
 // Check if admin has member association (for super_admin/admin_pusat who are also members)
 const hasMemberAssociation = computed(() => {
   const user = page.props?.auth?.user;
@@ -472,11 +558,12 @@ function subMenuItemClass(path) {
 
 function sectionHeaderClass(section) {
   const hasActiveChild = {
-    members: ['/admin/members', '/admin/units', '/admin/union-positions', '/admin/roles'].some(p => page.url.startsWith(p)),
+    members: ['/admin/members', '/admin/units', '/admin/union-positions', '/admin/roles', '/admin/aspiration-categories', '/admin/letter-categories'].some(p => page.url.startsWith(p)),
     mutations: page.url.startsWith('/admin/mutations'),
     onboarding: page.url.startsWith('/admin/onboarding'),
     financials: ['/finance/categories', '/finance/ledgers', '/finance/dues'].some(p => page.url.startsWith(p)),
     reports: page.url.startsWith('/reports'),
+    letters: page.url.startsWith('/letters'),
     settings: ['/settings', '/help', '/ops', '/audit-logs', '/admin/activity-logs', '/admin/sessions', '/ui/components'].some(p => page.url.startsWith(p)),
   };
   return [

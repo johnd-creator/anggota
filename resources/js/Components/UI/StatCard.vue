@@ -37,7 +37,7 @@ const props = defineProps({
   icon: {
     type: String,
     default: '',
-    validator: (v) => ['', 'building', 'users', 'transfer', 'user-plus', 'refresh', 'money', 'chart', 'id-card', 'clock'].includes(v),
+    validator: (v) => ['', 'building', 'users', 'transfer', 'user-plus', 'refresh', 'money', 'chart', 'id-card', 'clock', 'inbox', 'mail', 'pencil', 'shield', 'bolt'].includes(v),
   },
   iconColor: {
     type: String,
@@ -168,6 +168,41 @@ const iconComponent = computed(() => {
       render() {
         return h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
           h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' })
+        ]);
+      }
+    },
+    inbox: {
+      render() {
+        return h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+          h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0l-2 6H8l-2-6m14 0h-4a2 2 0 01-2 2h-4a2 2 0 01-2-2H4' })
+        ]);
+      }
+    },
+    mail: {
+      render() {
+        return h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+          h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-18 0V6a2 2 0 012-2h14a2 2 0 012 2v2m-18 0v10a2 2 0 002 2h14a2 2 0 002-2V8' })
+        ]);
+      }
+    },
+    pencil: {
+      render() {
+        return h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+          h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' })
+        ]);
+      }
+    },
+    shield: {
+      render() {
+        return h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+          h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 2l7 4v6c0 5-3 9-7 10-4-1-7-5-7-10V6l7-4z' })
+        ]);
+      }
+    },
+    bolt: {
+      render() {
+        return h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+          h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M13 10V3L4 14h7v7l9-11h-7z' })
         ]);
       }
     },

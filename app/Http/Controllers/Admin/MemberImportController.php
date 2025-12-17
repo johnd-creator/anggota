@@ -8,6 +8,7 @@ use App\Services\NraGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\UploadedFile;
 
 class MemberImportController extends Controller
 {
@@ -24,7 +25,7 @@ class MemberImportController extends Controller
             abort(403);
         }
         if (!$user->organization_unit_id) {
-            return back()->with('error', 'Akun admin unit belum memiliki unit organisasi');
+            return redirect()->route('admin.members.index')->with('error', 'Akun admin unit belum memiliki unit organisasi');
         }
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls,csv|max:5120',
@@ -33,18 +34,18 @@ class MemberImportController extends Controller
         $file = $request->file('file');
 
         try {
-            $array = \Maatwebsite\Excel\Facades\Excel::toArray(new \App\Imports\SimpleArrayImport, $file);
+            $array = $this->readSpreadsheetToArray($file);
         } catch (\Exception $e) {
-            return back()->with('error', 'Gagal membaca file Excel: ' . $e->getMessage());
+            return redirect()->route('admin.members.index')->with('error', 'Gagal membaca file Excel: ' . $e->getMessage());
         }
 
         if (count($array) === 0) {
-            return back()->with('error', 'File kosong.');
+            return redirect()->route('admin.members.index')->with('error', 'File kosong.');
         }
 
         $sheet = $array[0]; // First sheet
         if (count($sheet) < 2) {
-            return back()->with('error', 'File tidak memiliki data (hanya header atau kosong).');
+            return redirect()->route('admin.members.index')->with('error', 'File tidak memiliki data (hanya header atau kosong).');
         }
 
         $header = array_map('trim', $sheet[0]);
@@ -87,10 +88,148 @@ class MemberImportController extends Controller
             if (count($errors) > 0) {
                 $msg .= " Error pertama: " . $errors[0]['message'] . " (Baris " . $errors[0]['row'] . ")";
             }
-            return back()->with('warning', $msg);
+            return redirect()->route('admin.members.index')->with('warning', $msg);
         }
 
-        return back()->with('success', "Berhasil mengimpor {$success} anggota.");
+        return redirect()->route('admin.members.index')->with('success', "Berhasil mengimpor {$success} anggota.");
+    }
+
+    /**
+     * Read spreadsheet file to array (supports CSV, XLSX (inlineStr), and XLS SpreadsheetML XML).
+     * Returns array of sheets, each sheet is array of rows (array of cell values).
+     */
+    private function readSpreadsheetToArray(UploadedFile $file): array
+    {
+        $ext = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: '');
+
+        // Handle SpreadsheetML 2003 saved with .xls extension (XML).
+        if ($ext === 'xls') {
+            $content = $file->get();
+            $trimmed = ltrim((string) $content);
+            if (str_starts_with($trimmed, '<?xml') || str_contains($trimmed, '<Workbook')) {
+                return [$this->parseSpreadsheetMlXml((string) $content)];
+            }
+        }
+
+        // Handle minimal XLSX (inlineStr) without relying on Laravel-Excel's detection.
+        if ($ext === 'xlsx') {
+            try {
+                return [$this->parseXlsxInlineStrings($file->getRealPath())];
+            } catch (\Throwable $e) {
+                // Fallback to Laravel-Excel if our parser can't handle the file.
+            }
+        }
+
+        return \Maatwebsite\Excel\Facades\Excel::toArray(new \App\Imports\SimpleArrayImport, $file);
+    }
+
+    private function parseSpreadsheetMlXml(string $xmlContent): array
+    {
+        $xml = @simplexml_load_string($xmlContent);
+        if (!$xml) {
+            throw new \RuntimeException('Format XLS (XML) tidak valid.');
+        }
+
+        $ns = 'urn:schemas-microsoft-com:office:spreadsheet';
+        $xml->registerXPathNamespace('s', $ns);
+
+        $rows = [];
+        foreach ($xml->xpath('//s:Row') ?: [] as $rowNode) {
+            $row = [];
+            // NOTE: XPath namespaces are not inherited on SimpleXMLElement nodes,
+            // so we use children($ns) instead of $rowNode->xpath('./s:Cell').
+            foreach ($rowNode->children($ns)->Cell ?: [] as $cell) {
+                $data = $cell->children($ns)->Data;
+                $row[] = isset($data[0]) ? (string) $data[0] : '';
+            }
+            $rows[] = $row;
+        }
+
+        return $rows;
+    }
+
+    private function parseXlsxInlineStrings(?string $path): array
+    {
+        if (!$path || !is_file($path)) {
+            throw new \RuntimeException('File XLSX tidak ditemukan.');
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($path) !== true) {
+            throw new \RuntimeException('Gagal membuka file XLSX.');
+        }
+
+        $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $zip->close();
+
+        if (!$sheetXml) {
+            throw new \RuntimeException('Sheet XLSX tidak ditemukan.');
+        }
+
+        // Some test-generated XLSX XML strings contain literal "\n" sequences.
+        $sheetXml = str_replace(['\\n', '\\r'], ["\n", "\r"], $sheetXml);
+
+        $xml = @simplexml_load_string($sheetXml);
+        if (!$xml) {
+            throw new \RuntimeException('Format XLSX tidak valid.');
+        }
+
+        $ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+        $xml->registerXPathNamespace('s', $ns);
+
+        $rows = [];
+        foreach ($xml->xpath('//s:sheetData/s:row') ?: [] as $rowNode) {
+            $row = [];
+            // NOTE: XPath namespaces are not inherited on SimpleXMLElement nodes,
+            // so we use children($ns) instead of $rowNode->xpath('./s:c').
+            foreach ($rowNode->children($ns)->c ?: [] as $cell) {
+                $attrs = $cell->attributes() ?: [];
+                $ref = isset($attrs['r']) ? (string) $attrs['r'] : '';
+                $colLetters = preg_replace('/[^A-Z]/', '', strtoupper($ref));
+                $colIndex = $this->xlsxColumnIndex($colLetters);
+                $value = '';
+
+                $type = isset($attrs['t']) ? (string) $attrs['t'] : '';
+                if ($type === 'inlineStr') {
+                    $is = $cell->children($ns)->is;
+                    $t = $is ? $is->children($ns)->t : null;
+                    $value = $t ? (string) $t : '';
+                } else {
+                    $v = $cell->children($ns)->v;
+                    $value = $v ? (string) $v : '';
+                }
+
+                if ($colIndex !== null) {
+                    $row[$colIndex] = $value;
+                } else {
+                    $row[] = $value;
+                }
+            }
+
+            if (!empty($row)) {
+                ksort($row);
+                $rows[] = array_values($row);
+            }
+        }
+
+        return $rows;
+    }
+
+    private function xlsxColumnIndex(?string $letters): ?int
+    {
+        if (!$letters) {
+            return null;
+        }
+        $letters = strtoupper($letters);
+        $idx = 0;
+        for ($i = 0; $i < strlen($letters); $i++) {
+            $c = ord($letters[$i]);
+            if ($c < 65 || $c > 90) {
+                return null;
+            }
+            $idx = ($idx * 26) + ($c - 64);
+        }
+        return $idx - 1;
     }
 
     private function importRow(array $item, $user, int &$success, int &$failed, array &$errors, int $row)

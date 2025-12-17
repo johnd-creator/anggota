@@ -109,4 +109,44 @@ class User extends Authenticatable
     {
         return $this->hasRole(['super_admin', 'admin_pusat']);
     }
+
+    /**
+     * Get the member linked to this user via member_id.
+     */
+    public function linkedMember()
+    {
+        return $this->belongsTo(Member::class, 'member_id');
+    }
+
+    /**
+     * Check if user can approve letters with given signer type.
+     * User must have a linked member with matching union position.
+     */
+    public function canApproveSignerType(string $signerType): bool
+    {
+        if (!$this->member_id) {
+            return false;
+        }
+
+        $member = Member::with('unionPosition')->find($this->member_id);
+        if (!$member?->unionPosition) {
+            return false;
+        }
+
+        $positionName = strtolower($member->unionPosition->name);
+        return $positionName === strtolower($signerType);
+    }
+
+    /**
+     * Get the union position name of the linked member.
+     */
+    public function getUnionPositionName(): ?string
+    {
+        if (!$this->member_id) {
+            return null;
+        }
+
+        $member = Member::with('unionPosition')->find($this->member_id);
+        return $member?->unionPosition?->name;
+    }
 }

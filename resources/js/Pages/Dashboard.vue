@@ -20,6 +20,45 @@
                 badgeColor="amber"
                 :href="canOpenTotalMembers ? '/admin/members' : ''"
             />
+            <StatCard
+                v-if="lettersSummary"
+                title="Kotak Masuk"
+                :value="lettersSummary.unread || 0"
+                icon="inbox"
+                iconColor="blue"
+                badgeText="Belum dibaca"
+                badgeColor="blue"
+                href="/letters/inbox"
+            />
+            <StatCard
+                v-if="lettersSummary"
+                title="Surat Masuk"
+                :value="lettersSummary.this_month || 0"
+                icon="mail"
+                iconColor="green"
+                badgeText="Bulan ini"
+                badgeColor="green"
+                href="/letters/inbox"
+            />
+            <StatCard v-if="lettersSummary && showApprovalsCard"
+                title="Perlu Persetujuan"
+                :value="lettersSummary.approvals || 0"
+                icon="refresh"
+                iconColor="amber"
+                badgeText="Menunggu tanda tangan"
+                badgeColor="amber"
+                href="/letters/approvals"
+            />
+            <StatCard
+                v-if="lettersSummary"
+                title="Urgensi Tinggi"
+                :value="lettersSummary.urgent || 0"
+                icon="bolt"
+                iconColor="red"
+                badgeText="Segera & kilat"
+                badgeColor="red"
+                href="/letters/inbox"
+            />
             <StatCard v-if="showAdminQueues"
                 title="Mutasi Pending"
                 :value="$page.props.counters?.mutations_pending || 0"
@@ -78,11 +117,11 @@
             />
         </div>
 
-        <div v-if="isMemberRole" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            <div class="bg-white rounded-xl shadow-sm border border-neutral-100 p-6 flex flex-col gap-2">
-                <p class="text-sm text-neutral-500">Kartu Digital</p>
-                <h3 class="text-lg font-semibold text-neutral-900">Akses KTA Digital</h3>
-                <p class="text-sm text-neutral-500">Lihat dan unduh KTA kamu kapan saja.</p>
+	        <div v-if="isMemberRole" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+	            <div class="bg-white rounded-xl shadow-sm border border-neutral-100 p-6 flex flex-col gap-2">
+	                <p class="text-sm text-neutral-500">Kartu Digital</p>
+	                <h3 class="text-lg font-semibold text-neutral-900">Akses KTA Digital</h3>
+	                <p class="text-sm text-neutral-500">Lihat dan unduh KTA kamu kapan saja.</p>
                 <Link href="/member/portal" class="inline-flex items-center gap-2 text-sm font-semibold text-brand-primary-600 hover:underline">
                     Buka Portal KTA
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -422,10 +461,11 @@ const showUnpaidModal = ref(false);
 const currentPeriod = new Date().toISOString().slice(0, 7);
 
 // Dues data
-const duesSummary = computed(() => pg.dues_summary || null);
-const unpaidMembers = computed(() => pg.unpaid_members || []);
-const finance = computed(() => pg.finance || null);
-const employmentInfo = computed(() => pg.auth?.user?.employment_info || null);
+	const duesSummary = computed(() => pg.dues_summary || null);
+	const unpaidMembers = computed(() => pg.unpaid_members || []);
+		const finance = computed(() => pg.finance || null);
+		const employmentInfo = computed(() => pg.auth?.user?.employment_info || null);
+	    const lettersSummary = computed(() => pg.letters || null);
 
 // Chart helpers
 const maxChartValue = computed(() => {
@@ -449,7 +489,11 @@ const formatShortCurrency = (value) => {
     return value;
 };
 
-const showUnitMembersCard = computed(() => ['admin_unit', 'bendahara', 'anggota'].includes(roleName.value));
+		const showUnitMembersCard = computed(() => ['admin_unit', 'bendahara', 'anggota'].includes(roleName.value));
+	    const showApprovalsCard = computed(() => {
+	        if (roleName.value === 'super_admin') return true;
+	        return pg.auth?.user?.union_position && ['ketua', 'sekretaris'].includes((pg.auth?.user?.union_position?.name || '').toLowerCase());
+	    });
 const showDuesCard = computed(() => {
     // Hide old card if finance dashboard is shown
     if (finance.value) return false;

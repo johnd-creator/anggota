@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        if (Schema::hasTable('members')) {
+            return;
+        }
+
         Schema::create('members', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
@@ -43,4 +47,3 @@ return new class extends Migration {
         Schema::dropIfExists('members');
     }
 };
-

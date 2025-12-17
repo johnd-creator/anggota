@@ -4,6 +4,7 @@
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div class="flex items-center gap-2 text-sm">
           <button :class="tabClass('all')" @click="setTab('all')">All</button>
+          <button :class="tabClass('surat')" @click="setTab('surat')">Surat</button>
           <button :class="tabClass('mutations')" @click="setTab('mutations')">Mutations</button>
           <button :class="tabClass('updates')" @click="setTab('updates')">Updates</button>
           <button :class="tabClass('onboarding')" @click="setTab('onboarding')">Onboarding</button>

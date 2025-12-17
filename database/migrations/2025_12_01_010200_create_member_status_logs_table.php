@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        if (Schema::hasTable('member_status_logs')) {
+            return;
+        }
+
         Schema::create('member_status_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('member_id')->constrained('members')->cascadeOnDelete();
@@ -25,4 +29,3 @@ return new class extends Migration {
         Schema::dropIfExists('member_status_logs');
     }
 };
-

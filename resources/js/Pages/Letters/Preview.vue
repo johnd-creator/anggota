@@ -64,31 +64,16 @@
 
       <!-- Recipient -->
       <div class="mb-4 text-sm">
-        <p><strong>Kepada Yth.</strong></p>
-        <p>{{ recipientName }}</p>
-        <p>di Tempat</p>
+        <p><strong>Kepada Yth,</strong></p>
+        <p class="whitespace-pre-wrap">{{ recipientName }}</p>
       </div>
 
       <!-- Body -->
-      <div class="mb-8 text-sm leading-relaxed whitespace-pre-wrap">{{ letter.body }}</div>
+      <div class="text-sm leading-relaxed whitespace-pre-wrap">{{ letter.body }}</div>
 
-      <!-- Spacer pushes footer blocks to bottom for short letters -->
-      <div class="flex-1"></div>
-
-      <!-- Bottom Row: Tembusan (left) + Signature (right) -->
-      <div class="mt-6 flex items-end justify-between gap-6">
-        <!-- Tembusan (bottom-left) -->
-        <div class="w-1/2 text-sm">
-          <div v-if="tembusanList.length" class="leading-relaxed">
-            <p class="font-semibold mb-1">Tembusan:</p>
-            <ol class="list-decimal list-inside space-y-0.5">
-              <li v-for="(item, idx) in tembusanList" :key="idx">{{ item }}</li>
-            </ol>
-          </div>
-        </div>
-
-        <!-- Signature (bottom-right) -->
-        <div class="w-56 text-center">
+      <!-- Signature Block (2 spasi setelah badan surat; harus berada di atas tembusan) -->
+      <div class="mt-10">
+        <div class="ml-auto text-center w-56">
           <p class="text-sm">{{ cityDateLine }}</p>
           <p class="text-sm font-semibold mt-1">{{ signerTitle }}</p>
 
@@ -103,6 +88,17 @@
 
           <p class="mt-2 text-sm font-semibold underline">{{ signerName }}</p>
         </div>
+      </div>
+
+      <!-- Spacer pushes tembusan to bottom for short letters -->
+      <div class="flex-1 min-h-8"></div>
+
+      <!-- Tembusan (selalu di bawah kiri) -->
+      <div v-if="tembusanList.length" class="text-sm leading-relaxed">
+        <p class="font-semibold mb-1">Tembusan:</p>
+        <ol class="list-decimal list-inside space-y-0.5">
+          <li v-for="(item, idx) in tembusanList" :key="idx">{{ item }}</li>
+        </ol>
       </div>
 
       <!-- Footer -->
@@ -210,6 +206,11 @@ const recipientName = computed(() => {
   if (props.letter.to_type === 'unit') return props.letter.to_unit?.name || 'Unit'
   if (props.letter.to_type === 'member') return props.letter.to_member?.full_name || 'Anggota'
   if (props.letter.to_type === 'admin_pusat') return 'Admin Pusat'
+  if (props.letter.to_type === 'eksternal') {
+    const name = props.letter.to_external_name || 'Pihak Eksternal'
+    const org = props.letter.to_external_org
+    return org ? `${name}\n${org}` : name
+  }
   return '-'
 })
 

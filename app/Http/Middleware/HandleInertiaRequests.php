@@ -58,7 +58,34 @@ class HandleInertiaRequests extends Middleware
                         'name' => $request->user()->role->name,
                         'label' => $request->user()->role->label,
                     ] : null,
+                    'union_position' => function () use ($request) {
+                        $user = $request->user();
+                        if (!$user?->member_id) {
+                            return null;
+                        }
+
+                        $member = $user->member;
+                        if (!$member && $user->member_id) {
+                            $member = \App\Models\Member::with('unionPosition')->find($user->member_id);
+                        } else {
+                            $member?->loadMissing('unionPosition');
+                        }
+
+                        $pos = $member?->unionPosition;
+                        if (!$pos) {
+                            return null;
+                        }
+
+                        return [
+                            'id' => $pos->id,
+                            'name' => $pos->name,
+                            'code' => $pos->code,
+                        ];
+                    },
                     'employment_info' => function () use ($request) {
+                        if (!Schema::hasTable('members')) {
+                            return null;
+                        }
                         $user = $request->user();
                         $member = $user->member;
 
@@ -97,7 +124,7 @@ class HandleInertiaRequests extends Middleware
 
                 $user = $request->user();
                 $roleName = $user?->role?->name;
-                $organizationUnitId = $user?->organization_unit_id ?: $user?->member?->organization_unit_id;
+                $organizationUnitId = $user?->organization_unit_id ?: ($hasMembers ? optional($user?->member)->organization_unit_id : null);
                 $canViewUnitCount = in_array($roleName, ['admin_unit', 'bendahara', 'anggota']);
 
                 return [

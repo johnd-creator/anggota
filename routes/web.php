@@ -26,6 +26,11 @@ Route::get('auth/google/callback', [LoginController::class, 'handleGoogleCallbac
 Route::get('auth/microsoft', [LoginController::class, 'redirectToMicrosoft'])->name('auth.microsoft');
 Route::get('auth/microsoft/callback', [LoginController::class, 'handleMicrosoftCallback'])->middleware('throttle:10,1');
 
+// Public letter verification (QR code scan)
+Route::get('letters/verify/{token}', [\App\Http\Controllers\LetterController::class, 'verify'])
+    ->middleware('throttle:60,1')
+    ->name('letters.verify');
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
 
@@ -57,6 +62,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/notifications/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markRead'])->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('notifications.read');
     Route::post('/notifications/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('notifications.read_all');
     Route::post('/notifications/{id}/unread', [\App\Http\Controllers\NotificationController::class, 'markUnread'])->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('notifications.unread');
+    Route::post('/notifications/read-batch', [\App\Http\Controllers\NotificationController::class, 'markReadBatch'])->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('notifications.read_batch');
     Route::get('/notifications/recent', [\App\Http\Controllers\NotificationController::class, 'recent'])->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('notifications.recent');
 
     Route::get('/settings', function () {
@@ -237,6 +243,7 @@ Route::middleware(['auth'])->group(function () {
     // Admin Routes
     Route::prefix('admin')->name('admin.')->middleware('role:super_admin,admin_unit,admin_pusat')->group(function () {
         Route::resource('units', \App\Http\Controllers\Admin\OrganizationUnitController::class);
+
         Route::resource('members', \App\Http\Controllers\Admin\MemberController::class);
         Route::resource('union-positions', \App\Http\Controllers\Admin\UnionPositionController::class)->middleware('role:super_admin')->names('union_positions');
         Route::resource('roles', \App\Http\Controllers\Admin\RoleController::class)->middleware('role:super_admin');
@@ -245,6 +252,7 @@ Route::middleware(['auth'])->group(function () {
 
         // Admin Aspirations (Categories & Main)
         Route::resource('aspiration-categories', \App\Http\Controllers\Admin\AspirationCategoryController::class);
+        Route::resource('letter-categories', \App\Http\Controllers\Admin\LetterCategoryController::class)->middleware('role:super_admin');
         Route::get('aspirations', [\App\Http\Controllers\Admin\AspirationController::class, 'index'])->name('aspirations.index');
         Route::get('aspirations/{aspiration}', [\App\Http\Controllers\Admin\AspirationController::class, 'show'])->name('aspirations.show');
         Route::patch('aspirations/{aspiration}/status', [\App\Http\Controllers\Admin\AspirationController::class, 'updateStatus'])->name('aspirations.update_status');
@@ -349,6 +357,76 @@ Route::middleware(['auth'])->group(function () {
         Route::post('dues/mass-update', [\App\Http\Controllers\Finance\FinanceDuesController::class, 'massUpdate'])->name('dues.mass_update');
     });
 
+    // Letter Module Routes
+    Route::prefix('letters')->name('letters.')->group(function () {
+        // Inbox - all receiving roles
+        Route::get('inbox', [\App\Http\Controllers\LetterController::class, 'inbox'])
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->name('inbox');
+
+        // Approvals - for Ketua/Sekretaris
+        Route::get('approvals', [\App\Http\Controllers\LetterController::class, 'approvals'])
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->name('approvals');
+
+        // Outbox & Create/Edit - sender roles only
+        Route::middleware('role:admin_unit,admin_pusat,super_admin')->group(function () {
+            Route::get('outbox', [\App\Http\Controllers\LetterController::class, 'outbox'])->name('outbox');
+            Route::get('create', [\App\Http\Controllers\LetterController::class, 'create'])->name('create');
+            Route::post('/', [\App\Http\Controllers\LetterController::class, 'store'])->name('store');
+            Route::get('{letter}/edit', [\App\Http\Controllers\LetterController::class, 'edit'])->name('edit');
+            Route::put('{letter}', [\App\Http\Controllers\LetterController::class, 'update'])->name('update');
+            Route::delete('{letter}', [\App\Http\Controllers\LetterController::class, 'destroy'])->name('destroy');
+            Route::post('{letter}/submit', [\App\Http\Controllers\LetterController::class, 'submit'])->name('submit');
+            Route::post('{letter}/send', [\App\Http\Controllers\LetterController::class, 'send'])->name('send');
+            Route::post('{letter}/archive', [\App\Http\Controllers\LetterController::class, 'archive'])->name('archive');
+        });
+
+        // Approval actions - for Ketua/Sekretaris (policy check inside)
+        Route::post('{letter}/approve', [\App\Http\Controllers\LetterController::class, 'approve'])
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->name('approve');
+        Route::post('{letter}/revise', [\App\Http\Controllers\LetterController::class, 'revise'])
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->name('revise');
+        Route::post('{letter}/reject', [\App\Http\Controllers\LetterController::class, 'reject'])
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->name('reject');
+
+        // Preview - accessible by viewer (policy check)
+        Route::get('{letter}/preview', [\App\Http\Controllers\LetterController::class, 'preview'])
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->name('preview');
+
+        // QR code image for preview
+        Route::get('{letter}/qr.png', [\App\Http\Controllers\LetterController::class, 'qrCode'])
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->name('qr');
+
+        // Attachments
+        Route::post('{letter}/attachments', [\App\Http\Controllers\LetterController::class, 'storeAttachment'])
+            ->middleware('role:admin_unit,admin_pusat,super_admin')
+            ->name('attachments.store');
+        Route::get('{letter}/attachments/{attachment}', [\App\Http\Controllers\LetterController::class, 'downloadAttachment'])
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->name('attachments.download');
+
+        // PDF export
+        Route::get('{letter}/pdf', [\App\Http\Controllers\LetterController::class, 'pdf'])
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->name('pdf');
+
+        // Show - accessible by recipient/creator (policy check)
+        Route::get('{letter}', [\App\Http\Controllers\LetterController::class, 'show'])
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->name('show');
+    });
+
+    // Member search API for letter recipient autocomplete
+    Route::get('api/members/search', [\App\Http\Controllers\LetterController::class, 'searchMembers'])
+        ->middleware('role:admin_unit,admin_pusat,super_admin')
+        ->name('api.members.search');
+
     Route::get('/member/profile', [\App\Http\Controllers\Member\SelfProfileController::class, 'show'])->middleware('role:anggota,super_admin,admin_unit,bendahara')->name('member.profile');
     Route::get('/member/portal', [\App\Http\Controllers\Member\PortalController::class, 'show'])->middleware('role:anggota,super_admin,admin_unit,bendahara')->name('member.portal');
     Route::post('/member/portal/request-update', [\App\Http\Controllers\Member\PortalController::class, 'requestUpdate'])->middleware(['role:anggota', 'throttle:3,1'])->name('member.request_update');
@@ -363,10 +441,17 @@ Route::middleware(['auth'])->group(function () {
         ]);
         try {
             $request->user()->notify(new class extends \Illuminate\Notifications\Notification {
-                public function via($n){ return ['database']; }
-                public function toDatabase($n){ return ['message' => 'Permintaan export data tercatat', 'category' => 'security', 'link' => '/member/portal']; }
+                public function via($n)
+                {
+                    return ['database'];
+                }
+                public function toDatabase($n)
+                {
+                    return ['message' => 'Permintaan export data tercatat', 'category' => 'security', 'link' => '/member/portal'];
+                }
             });
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
         return back()->with('success', 'Permintaan export data tercatat');
     })->middleware('role:anggota')->name('member.data.export_request');
     Route::post('/member/data/delete-request', function (\Illuminate\Http\Request $request) {
@@ -379,10 +464,17 @@ Route::middleware(['auth'])->group(function () {
         ]);
         try {
             $request->user()->notify(new class extends \Illuminate\Notifications\Notification {
-                public function via($n){ return ['database']; }
-                public function toDatabase($n){ return ['message' => 'Permintaan penghapusan data tercatat', 'category' => 'security', 'link' => '/member/portal']; }
+                public function via($n)
+                {
+                    return ['database'];
+                }
+                public function toDatabase($n)
+                {
+                    return ['message' => 'Permintaan penghapusan data tercatat', 'category' => 'security', 'link' => '/member/portal'];
+                }
             });
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
         return back()->with('success', 'Permintaan penghapusan data tercatat');
     })->middleware('role:anggota')->name('member.data.delete_request');
     Route::get('/verify-card/{token}', [\App\Http\Controllers\Member\CardController::class, 'verify'])->name('member.card.verify');

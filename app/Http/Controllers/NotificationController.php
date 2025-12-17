@@ -75,6 +75,19 @@ class NotificationController extends Controller
         return back();
     }
 
+    public function markReadBatch(Request $request)
+    {
+        if (!Schema::hasTable('notifications')) return response()->json(['status' => 'ok']);
+        $ids = collect($request->input('ids', []))->filter()->values()->all();
+        if ($ids) {
+            DatabaseNotification::where('notifiable_type', \App\Models\User::class)
+                ->where('notifiable_id', Auth::id())
+                ->whereIn('id', $ids)
+                ->update(['read_at' => now()]);
+        }
+        return response()->json(['status' => 'ok']);
+    }
+
     public function recent()
     {
         if (!Schema::hasTable('notifications')) return response()->json(['items' => []]);

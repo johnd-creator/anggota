@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Letter;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -26,7 +28,129 @@ class DashboardController extends Controller
             'dues_summary' => $this->getDuesSummary($user),
             'unpaid_members' => $this->getUnpaidMembers($user),
             'finance' => $this->getFinanceData($user),
+            'letters' => $this->getLettersSummary($user),
         ]);
+    }
+
+    private function getLettersSummary($user)
+    {
+        if (!$user || !Schema::hasTable('letters')) {
+            return null;
+        }
+
+        $roleName = optional(optional($user)->role)->name;
+        if (!in_array($roleName, ['super_admin', 'admin_pusat', 'admin_unit', 'anggota', 'bendahara'], true)) {
+            return null;
+        }
+
+        $inboxBase = $this->getInboxBaseQuery($user);
+        if (!$inboxBase) {
+            return [
+                'unread' => 0,
+                'this_month' => 0,
+                'urgent' => 0,
+                'secret' => 0,
+                'drafts' => 0,
+                'approvals' => 0,
+            ];
+        }
+
+        $startMonth = now()->startOfMonth();
+        $endMonth = now()->endOfMonth();
+
+        $unread = 0;
+        if (Schema::hasTable('letter_reads')) {
+            $unread = (clone $inboxBase)->unreadFor($user)->count();
+        }
+
+        $thisMonth = (clone $inboxBase)
+            ->whereBetween('created_at', [$startMonth, $endMonth])
+            ->count();
+
+        $urgent = (clone $inboxBase)
+            ->whereIn('urgency', ['segera', 'kilat'])
+            ->count();
+
+        $secret = (clone $inboxBase)
+            ->where('confidentiality', 'rahasia')
+            ->count();
+
+        $drafts = 0;
+        if (in_array($roleName, ['super_admin', 'admin_unit', 'admin_pusat'], true)) {
+            $drafts = Letter::where('creator_user_id', $user->id)
+                ->whereIn('status', ['draft', 'revision'])
+                ->count();
+        }
+
+        $approvals = 0;
+        if ($roleName === 'super_admin') {
+            $approvals = Letter::needsApproval()->count();
+        } else {
+            $positionName = strtolower((string) $user->getUnionPositionName());
+            if (in_array($positionName, ['ketua', 'sekretaris'], true) && $user->organization_unit_id) {
+                $approvals = Letter::needsApproval()
+                    ->where('signer_type', $positionName)
+                    ->where('from_unit_id', $user->organization_unit_id)
+                    ->count();
+            }
+        }
+
+        return [
+            'unread' => (int) $unread,
+            'this_month' => (int) $thisMonth,
+            'urgent' => (int) $urgent,
+            'secret' => (int) $secret,
+            'drafts' => (int) $drafts,
+            'approvals' => (int) $approvals,
+        ];
+    }
+
+    private function getInboxBaseQuery($user)
+    {
+        if (!$user) {
+            return null;
+        }
+
+        $roleName = optional(optional($user)->role)->name;
+
+        $query = Letter::query()
+            ->whereIn('status', ['submitted', 'approved', 'sent', 'archived']);
+
+        if (in_array($roleName, ['anggota', 'bendahara'], true)) {
+            $hasAnyRecipient = (bool) ($user->member_id || $user->organization_unit_id);
+            if (!$hasAnyRecipient) {
+                return $query->whereRaw('1=0');
+            }
+
+            return $query->where(function ($q) use ($user) {
+                if ($user->member_id) {
+                    $q->orWhere(function ($sub) use ($user) {
+                        $sub->where('to_type', 'member')->where('to_member_id', $user->member_id);
+                    });
+                }
+
+                if ($user->organization_unit_id) {
+                    $q->orWhere(function ($sub) use ($user) {
+                        $sub->where('to_type', 'unit')->where('to_unit_id', $user->organization_unit_id);
+                    });
+                }
+            });
+        }
+
+        if ($roleName === 'admin_unit') {
+            if (!$user->organization_unit_id) {
+                return $query->whereRaw('1=0');
+            }
+
+            return $query->where('to_type', 'unit')->where('to_unit_id', $user->organization_unit_id);
+        }
+
+        // admin_pusat & super_admin: inbox is letters addressed to admin_pusat
+        if (in_array($roleName, ['admin_pusat', 'super_admin'], true)) {
+            return $query->where('to_type', 'admin_pusat');
+        }
+
+        return $query->whereRaw('1=0');
     }
 
     private function getMembersByUnit()

@@ -11,7 +11,8 @@ return new class extends Migration {
             $table->uuid('id')->primary();
             $table->string('type')->nullable();
             $table->morphs('notifiable');
-            $table->text('message');
+            // Keep compatible with Laravel DatabaseNotification (it doesn't fill `message`)
+            $table->text('message')->nullable();
             $table->json('data')->nullable();
             $table->timestamp('read_at')->nullable();
             $table->timestamps();
@@ -23,4 +24,3 @@ return new class extends Migration {
         Schema::dropIfExists('notifications');
     }
 };
-

@@ -20,6 +20,7 @@ class AuthServiceProvider extends ServiceProvider
         \App\Models\FinanceLedger::class => \App\Policies\FinanceLedgerPolicy::class,
         \App\Models\UserSession::class => \App\Policies\UserSessionPolicy::class,
         \App\Models\Aspiration::class => \App\Policies\AspirationPolicy::class,
+        \App\Models\Letter::class => \App\Policies\LetterPolicy::class,
     ];
 
     public function boot(): void
