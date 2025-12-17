@@ -43,10 +43,10 @@
             <StatCard v-if="lettersSummary && showApprovalsCard"
                 title="Perlu Persetujuan"
                 :value="lettersSummary.approvals || 0"
-                icon="refresh"
-                iconColor="amber"
+                icon="check"
+                iconColor="green"
                 badgeText="Menunggu tanda tangan"
-                badgeColor="amber"
+                badgeColor="green"
                 href="/letters/approvals"
             />
             <StatCard

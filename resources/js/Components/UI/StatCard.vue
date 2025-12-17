@@ -2,22 +2,25 @@
     <component
         :is="href ? Link : 'div'"
         :href="href"
-        class="bg-white overflow-hidden shadow-sm rounded-xl border border-neutral-100 p-6 flex items-start justify-between transition-all duration-200"
+        class="bg-white overflow-hidden shadow-sm rounded-xl border border-neutral-100 p-6 relative transition-all duration-200"
         :class="href ? 'hover:shadow-md hover:border-brand-primary-200 cursor-pointer group' : ''"
     >
-        <div>
-            <p class="text-sm font-medium text-neutral-500 mb-1">{{ title }}</p>
-            <h4 class="text-2xl font-bold text-neutral-900 group-hover:text-brand-primary-600 transition-colors">
+        <!-- Icon as background in bottom-right with 20% opacity -->
+        <div class="absolute bottom-4 right-4 opacity-20 pointer-events-none">
+            <component :is="iconComponent" :class="['w-20 h-20', iconColorClasses]" />
+        </div>
+
+        <!-- Content with full width -->
+        <div class="relative z-10">
+            <p class="text-sm font-medium text-neutral-500 mb-2">{{ title }}</p>
+            <h4 class="text-3xl font-bold text-neutral-900 group-hover:text-brand-primary-600 transition-colors mb-3">
                 {{ value }}
             </h4>
-            <div v-if="badgeText" class="mt-3">
-                <span :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-medium', badgeClasses]">
+            <div v-if="badgeText">
+                <span :class="['inline-flex items-center px-2.5 py-1 rounded text-xs font-medium', badgeClasses]">
                     {{ badgeText }}
                 </span>
             </div>
-        </div>
-        <div :class="['p-3 rounded-lg', iconBgClasses]">
-            <component :is="iconComponent" :class="['w-6 h-6', iconColorClasses]" />
         </div>
     </component>
 </template>
@@ -36,7 +39,8 @@ import {
     UserPlusIcon,
     ChatBubbleLeftRightIcon,
     ClockIcon,
-    IdentificationIcon
+    IdentificationIcon,
+    CheckCircleIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -66,7 +70,8 @@ const iconMap = {
     'user-plus': UserPlusIcon,
     'chat-alt': ChatBubbleLeftRightIcon,
     clock: ClockIcon,
-    'id-card': IdentificationIcon
+    'id-card': IdentificationIcon,
+    check: CheckCircleIcon
 };
 
 const iconComponent = computed(() => iconMap[props.icon] || BuildingOfficeIcon);
