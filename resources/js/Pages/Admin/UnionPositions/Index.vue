@@ -34,7 +34,7 @@
                 <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Nama</th>
                 <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Kode</th>
                 <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Deskripsi</th>
-                <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Aksi</th>
+                <th class="px-5 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Aksi</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-neutral-200 bg-white">
@@ -42,8 +42,8 @@
                 <td class="px-5 py-3 text-sm">{{ i.name }}</td>
                 <td class="px-5 py-3 text-sm">{{ i.code || '-' }}</td>
                 <td class="px-5 py-3 text-sm">{{ i.description || '-' }}</td>
-                <td class="px-5 py-3">
-                  <div class="flex items-center gap-2">
+                <td class="px-5 py-3 text-right">
+                  <div class="flex items-center justify-end gap-2">
                     <IconButton :aria-label="`Edit ${i.name}`" size="sm" @click="router.get(`/admin/union-positions/${i.id}/edit`)">
                       <svg class="w-5 h-5 text-brand-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />

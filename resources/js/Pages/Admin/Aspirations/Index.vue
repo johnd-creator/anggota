@@ -47,32 +47,67 @@
       <!-- Filters -->
       <CardContainer padding="sm">
         <div class="flex flex-wrap gap-3 items-center">
-          <input
-            v-model="localFilters.search"
-            type="text"
-            placeholder="Cari aspirasi..."
-            @keyup.enter="applyFilters"
-            class="border border-neutral-300 rounded-lg px-3 py-2 text-sm w-full md:w-64 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-          <select v-if="units.length" v-model="localFilters.unit_id" @change="applyFilters" class="border border-neutral-300 rounded-lg px-3 py-2 text-sm bg-white">
+          <!-- Search with icon and loading indicator -->
+          <div class="relative w-full md:w-64">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg v-if="!isFiltering" class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <svg v-else class="w-4 h-4 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <input
+              v-model="localFilters.search"
+              type="text"
+              placeholder="Cari aspirasi..."
+              @input="applyFilters"
+              class="pl-10 pr-3 py-2 border border-neutral-300 rounded-lg text-sm w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <select v-if="units.length" v-model="localFilters.unit_id" @change="applyFilters" class="border border-neutral-300 rounded-lg px-3 py-2 text-sm bg-white cursor-pointer hover:border-neutral-400 transition-colors">
             <option value="">Semua Unit</option>
             <option v-for="u in units" :key="u.id" :value="u.id">{{ u.name }}</option>
           </select>
-          <select v-model="localFilters.category_id" @change="applyFilters" class="border border-neutral-300 rounded-lg px-3 py-2 text-sm bg-white">
+          <select v-model="localFilters.category_id" @change="applyFilters" class="border border-neutral-300 rounded-lg px-3 py-2 text-sm bg-white cursor-pointer hover:border-neutral-400 transition-colors">
             <option value="">Semua Kategori</option>
             <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
           </select>
-          <select v-model="localFilters.status" @change="applyFilters" class="border border-neutral-300 rounded-lg px-3 py-2 text-sm bg-white">
+          <select v-model="localFilters.status" @change="applyFilters" class="border border-neutral-300 rounded-lg px-3 py-2 text-sm bg-white cursor-pointer hover:border-neutral-400 transition-colors">
             <option value="">Semua Status</option>
             <option value="new">Baru</option>
             <option value="in_progress">Diproses</option>
             <option value="resolved">Selesai</option>
           </select>
-          <label class="flex items-center gap-2 text-sm text-neutral-600">
-            <input type="checkbox" v-model="localFilters.show_merged" @change="applyFilters" class="rounded border-neutral-300" />
-            Tampilkan digabungkan
-          </label>
-          <button @click="resetFilters" class="px-3 py-2 text-sm text-neutral-600 hover:text-neutral-900">
+          <!-- Toggle Switch for Show Merged -->
+          <button
+            type="button"
+            @click="toggleShowMerged"
+            :class="[
+              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+              localFilters.show_merged ? 'bg-blue-600' : 'bg-neutral-200'
+            ]"
+            role="switch"
+            :aria-checked="localFilters.show_merged"
+          >
+            <span
+              :class="[
+                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                localFilters.show_merged ? 'translate-x-5' : 'translate-x-0'
+              ]"
+            />
+          </button>
+          <span class="text-sm text-neutral-600">Tampilkan digabungkan</span>
+          <!-- Reset Button with Icon -->
+          <button
+            v-if="hasActiveFilters"
+            @click="resetFilters"
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
             Reset
           </button>
         </div>
@@ -151,7 +186,7 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue';
+import { reactive, ref, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
@@ -164,40 +199,72 @@ const props = defineProps({
   units: Array,
 });
 
+const isFiltering = ref(false);
+
 const localFilters = reactive({
   search: props.filters.search || '',
-  category: props.filters.category || '',
-  unit: props.filters.unit || '',
+  category_id: props.filters.category_id || '',
+  unit_id: props.filters.unit_id || '',
   status: props.filters.status || '',
   sort: props.filters.sort || 'latest',
-  merged: props.filters.merged || false,
+  show_merged: props.filters.show_merged === 'true' || props.filters.show_merged === true,
 });
 
 let debounceTimeout = null;
 
+const hasActiveFilters = computed(() => {
+  return localFilters.search ||
+    localFilters.category_id ||
+    localFilters.unit_id ||
+    localFilters.status ||
+    localFilters.sort !== 'latest' ||
+    localFilters.show_merged;
+});
+
 function applyFilters() {
   if (debounceTimeout) clearTimeout(debounceTimeout);
+  
+  isFiltering.value = true;
   
   debounceTimeout = setTimeout(() => {
     router.get('/admin/aspirations', {
       search: localFilters.search || undefined,
-      category: localFilters.category || undefined,
-      unit: localFilters.unit || undefined,
+      category_id: localFilters.category_id || undefined,
+      unit_id: localFilters.unit_id || undefined,
       status: localFilters.status || undefined,
       sort: localFilters.sort !== 'latest' ? localFilters.sort : undefined,
-      merged: localFilters.merged ? 'true' : undefined,
-    }, { preserveState: true, replace: true });
-  }, 300);
+      show_merged: localFilters.show_merged ? 'true' : undefined,
+    }, { 
+      preserveState: true, 
+      replace: true,
+      onFinish: () => {
+        isFiltering.value = false;
+      }
+    });
+  }, 400);
+}
+
+function toggleShowMerged() {
+  localFilters.show_merged = !localFilters.show_merged;
+  applyFilters();
 }
 
 function resetFilters() {
   localFilters.search = '';
-  localFilters.unit = '';
-  localFilters.category = '';
+  localFilters.unit_id = '';
+  localFilters.category_id = '';
   localFilters.status = '';
   localFilters.sort = 'latest';
-  localFilters.merged = false;
-  applyFilters();
+  localFilters.show_merged = false;
+  
+  isFiltering.value = true;
+  router.get('/admin/aspirations', {}, { 
+    preserveState: true, 
+    replace: true,
+    onFinish: () => {
+      isFiltering.value = false;
+    }
+  });
 }
 
 function statusLabel(status) {

@@ -41,7 +41,7 @@
               <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">NIP</th>
               <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">Tanggal Lahir</th>
               <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">Jabatan Serikat</th>
-              <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">Aksi</th>
+              <th class="px-5 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wide">Aksi</th>
             </tr>
           </thead>
           <tbody v-if="members.data.length" class="divide-y divide-neutral-200 bg-white">
@@ -56,8 +56,8 @@
               <td class="px-5 py-3">{{ m.nip || '-' }}</td>
               <td class="px-5 py-3 text-sm">{{ formatDate(m.birth_date) }}</td>
               <td class="px-5 py-3">{{ m.union_position?.name || '-' }}</td>
-              <td class="px-5 py-3">
-                <div class="flex items-center justify-start gap-1.5">
+              <td class="px-5 py-3 text-right">
+                <div class="flex items-center justify-end gap-1.5">
                   <IconButton :aria-label="`Detail ${m.full_name}`" size="sm" @click="router.get(`/admin/members/${m.id}`)">
                     <svg class="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
