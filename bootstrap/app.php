@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\LogConflictResponses::class,
             \App\Http\Middleware\RequestIdMiddleware::class,
             \App\Http\Middleware\AuditRequestMiddleware::class,
+            \App\Http\Middleware\PrivilegedAccessAuditMiddleware::class,
             \App\Http\Middleware\SecurityHeadersMiddleware::class,
             \App\Http\Middleware\TrackUserSessionMiddleware::class,
         ]);

@@ -51,10 +51,7 @@ Route::middleware(['auth'])->group(function () {
             ->paginate(20)
             ->withQueryString();
 
-        // Log access to audit logs (audit viewing itself)
-        app(\App\Services\AuditService::class)->log('audit_log.viewed', [
-            'filters' => array_filter($filters),
-        ]);
+        // Access logging handled by PrivilegedAccessAuditMiddleware
 
         return Inertia::render('Admin/AuditLogs', [
             'logs' => $logs,

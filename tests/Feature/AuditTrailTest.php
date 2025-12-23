@@ -124,14 +124,14 @@ class AuditTrailTest extends TestCase
 
         AuditLog::truncate();
 
-        // Access audit-logs page which creates an 'audit_log.viewed' event
+        // Access audit-logs page which creates an 'audit_log.accessed' event via middleware
         $response = $this->actingAs($superAdmin)->get('/audit-logs');
         $response->assertStatus(200);
 
-        // Find the audit_log.viewed event
-        $auditLog = AuditLog::where('event', 'audit_log.viewed')->first();
+        // Find the audit_log.accessed event (created by PrivilegedAccessAuditMiddleware)
+        $auditLog = AuditLog::where('event', 'audit_log.accessed')->first();
 
-        $this->assertNotNull($auditLog, 'Audit log for audit_log.viewed should exist');
+        $this->assertNotNull($auditLog, 'Audit log for audit_log.accessed should exist');
         $this->assertNotNull($auditLog->status_code, 'status_code should be filled');
         $this->assertNotNull($auditLog->duration_ms, 'duration_ms should be filled');
         $this->assertEquals(200, $auditLog->status_code);

@@ -124,6 +124,10 @@ return [
             'row_count',
             'filters',
             'filename',
+            'action',
+            'route_name',
+            'letter_id',
+            'attachment_id',
         ],
         'auth_failed' => [
             'email',
@@ -135,6 +139,7 @@ return [
             'msg',
             'action',
             'count',
+            'route_name',
         ],
     ],
 
@@ -193,4 +198,36 @@ return [
     */
     'view_roles' => ['super_admin'],
     'export_roles' => ['super_admin'],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Privileged Routes
+    |--------------------------------------------------------------------------
+    |
+    | Routes that trigger audit log entries for access tracking.
+    | Maps route name to event name. Events are categorized via 'categories' config.
+    |
+    */
+    'privileged_routes' => [
+        // Report exports
+        'reports.export' => 'export.report',
+        'admin.members.export' => 'export.members',
+        'admin.admin.mutations.export' => 'export.mutations',
+        'finance.categories.export' => 'export.finance_categories',
+        'finance.ledgers.export' => 'export.finance_ledgers',
+
+        // Document downloads
+        'member.card.pdf' => 'document.member_card',
+        'letters.pdf' => 'document.letter',
+        'letters.attachments.show' => 'document.letter_attachment',
+
+        // Imports
+        'admin.members.import' => 'import.members',
+        'admin.members.import.template' => 'import.members_template',
+
+        // Admin access
+        'audit-logs' => 'audit_log.accessed',
+        'admin.sessions.index' => 'audit_log.sessions_viewed',
+        'admin.activity-logs.index' => 'audit_log.activity_viewed',
+    ],
 ];
