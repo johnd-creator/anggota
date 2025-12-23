@@ -40,19 +40,28 @@ Route::middleware(['auth'])->group(function () {
     })->name('itworks');
 
     Route::get('/audit-logs', function (\Illuminate\Http\Request $request) {
-        $filters = $request->only(['role', 'date_start', 'date_end']);
+        // Use Gate for policy-based authorization
+        \Illuminate\Support\Facades\Gate::authorize('viewAny', \App\Models\AuditLog::class);
 
-        $logs = \App\Models\AuditLog::with('user.role')
+        $filters = $request->only(['role', 'date_start', 'date_end', 'category', 'event', 'unit_id', 'request_id']);
+
+        $logs = \App\Models\AuditLog::with(['user.role', 'organizationUnit'])
             ->filter($filters)
             ->latest()
             ->paginate(20)
             ->withQueryString();
 
+        // Log access to audit logs (audit viewing itself)
+        app(\App\Services\AuditService::class)->log('audit_log.viewed', [
+            'filters' => array_filter($filters),
+        ]);
+
         return Inertia::render('Admin/AuditLogs', [
             'logs' => $logs,
             'filters' => $filters,
+            'categories' => ['auth', 'member', 'mutation', 'surat', 'iuran', 'export', 'system'],
         ]);
-    })->middleware('role:super_admin,admin_unit')->name('audit-logs');
+    })->middleware('auth')->name('audit-logs');
 
     Route::get('/ui/components', function () {
         return Inertia::render('UI/ComponentsGallery');
@@ -491,6 +500,14 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::post('/logout', function () {
+    // Log logout event before session is invalidated
+    $user = Auth::user();
+    if ($user) {
+        app(\App\Services\AuditService::class)->logAuth('logout', [
+            'email' => $user->email,
+        ]);
+    }
+
     Auth::logout();
     request()->session()->invalidate();
     request()->session()->regenerateToken();

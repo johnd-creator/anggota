@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
 use App\Models\ActivityLog;
 use App\Models\PendingMember;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -17,6 +17,11 @@ use Illuminate\Support\Str;
 
 class LoginController extends Controller
 {
+    public function __construct(
+        protected AuditService $auditService
+    ) {
+    }
+
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -40,12 +45,9 @@ class LoginController extends Controller
 
             $user = Auth::user();
 
-            AuditLog::create([
-                'user_id' => $user->id,
-                'event' => 'login_success',
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-                'payload' => ['email' => $credentials['email']],
+            $this->auditService->logAuth('login_success', [
+                'email' => $credentials['email'],
+                'provider' => 'password',
             ]);
 
             if ($user->role && $user->role->name === 'reguler') {
@@ -70,13 +72,10 @@ class LoginController extends Controller
             return redirect()->route('dashboard');
         }
 
-        AuditLog::create([
-            'user_id' => null,
-            'event' => 'login_failed',
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'payload' => ['email' => $credentials['email']],
-        ]);
+        $this->auditService->logAuth('login_failed', [
+            'email' => $credentials['email'],
+            'provider' => 'password',
+        ], null);
 
         return back()->withErrors(['email' => 'Email atau password salah']);
     }
@@ -159,12 +158,10 @@ class LoginController extends Controller
         Auth::login($user);
 
         // Audit Log
-        AuditLog::create([
-            'user_id' => $user->id,
-            'event' => 'login_success',
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'payload' => ['email' => $email, 'google_id' => $googleUser->getId()],
+        $this->auditService->logAuth('login_success', [
+            'email' => $email,
+            'provider' => 'google',
+            'google_id' => $googleUser->getId(),
         ]);
 
         // Redirect based on Role
@@ -274,12 +271,10 @@ class LoginController extends Controller
 
         Auth::login($user);
 
-        AuditLog::create([
-            'user_id' => $user->id,
-            'event' => 'login_success',
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'payload' => ['email' => $email, 'microsoft_id' => $msUser->getId(), 'msg' => 'via Microsoft SSO'],
+        $this->auditService->logAuth('login_success', [
+            'email' => $email,
+            'provider' => 'microsoft',
+            'microsoft_id' => $msUser->getId(),
         ]);
 
         // Redirect based on role

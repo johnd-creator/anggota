@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\LogConflictResponses::class,
             \App\Http\Middleware\RequestIdMiddleware::class,
+            \App\Http\Middleware\AuditRequestMiddleware::class,
             \App\Http\Middleware\SecurityHeadersMiddleware::class,
             \App\Http\Middleware\TrackUserSessionMiddleware::class,
         ]);
@@ -24,15 +25,16 @@ return Application::configure(basePath: dirname(__DIR__))
             'api_token' => \App\Http\Middleware\ApiTokenMiddleware::class,
         ]);
     })
-        ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
-            $schedule->command('backup:database')->dailyAt('02:00');
-            $schedule->command('kpi:weekly')->weeklyOn(1, '03:00');
-            $schedule->command('sla:remind-mutations')->dailyAt('08:00');
-            $schedule->command('sla:remind-onboarding')->dailyAt('09:00');
-            $schedule->command('sla:remind-updates')->dailyAt('09:30');
-            $schedule->command('notifications:digest')->dailyAt('18:00');
-            $schedule->command('sessions:cleanup')->daily();
-        })
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
+        $schedule->command('backup:database')->dailyAt('02:00');
+        $schedule->command('kpi:weekly')->weeklyOn(1, '03:00');
+        $schedule->command('sla:remind-mutations')->dailyAt('08:00');
+        $schedule->command('sla:remind-onboarding')->dailyAt('09:00');
+        $schedule->command('sla:remind-updates')->dailyAt('09:30');
+        $schedule->command('notifications:digest')->dailyAt('18:00');
+        $schedule->command('sessions:cleanup')->daily();
+        $schedule->command('audit:purge --force')->dailyAt('02:30');
+    })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();

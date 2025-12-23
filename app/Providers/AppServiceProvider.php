@@ -14,7 +14,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Register AuditService as singleton to maintain state across request lifecycle
+        $this->app->singleton(\App\Services\AuditService::class, function ($app) {
+            return new \App\Services\AuditService();
+        });
     }
 
     /**
