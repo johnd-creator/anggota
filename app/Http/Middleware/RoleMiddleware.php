@@ -9,6 +9,16 @@ use Symfony\Component\HttpFoundation\Response;
 class RoleMiddleware
 {
     /**
+     * Role hierarchy: roles that implicitly include other roles' privileges.
+     *
+     * Example: admin_unit/bendahara are still anggota (member) in business terms,
+     * so routes protected by `role:anggota` should also allow these roles.
+     */
+    private const IMPLIED_ROLES = [
+        'anggota' => ['admin_unit', 'bendahara'],
+    ];
+
+    /**
      * Handle an incoming request.
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
@@ -19,7 +29,8 @@ class RoleMiddleware
             return redirect()->route('login');
         }
 
-        if (in_array($request->user()->role->name, $roles)) {
+        $allowedRoles = $this->expandAllowedRoles($roles);
+        if (in_array($request->user()->role->name, $allowedRoles, true)) {
             return $next($request);
         }
 
@@ -29,5 +40,23 @@ class RoleMiddleware
         }
 
         abort(403, 'Unauthorized');
+    }
+
+    /**
+     * Expand role list using IMPLIED_ROLES mapping.
+     *
+     * @param array<int, string> $roles
+     * @return array<int, string>
+     */
+    private function expandAllowedRoles(array $roles): array
+    {
+        $expanded = [];
+        foreach ($roles as $role) {
+            $expanded[] = $role;
+            foreach (self::IMPLIED_ROLES[$role] ?? [] as $implied) {
+                $expanded[] = $implied;
+            }
+        }
+        return array_values(array_unique($expanded));
     }
 }

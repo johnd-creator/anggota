@@ -42,12 +42,17 @@
                 <td class="px-5 py-3 text-sm text-neutral-600">{{ cat.sort_order ?? 0 }}</td>
                 <td class="px-5 py-3 text-sm text-neutral-600">{{ cat.description || '-' }}</td>
                 <td class="px-5 py-3">
-                  <span :class="[
-                    'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                    cat.is_active ? 'bg-green-100 text-green-800' : 'bg-neutral-100 text-neutral-600'
-                  ]">
-                    {{ cat.is_active ? 'Aktif' : 'Nonaktif' }}
-                  </span>
+                  <div class="flex flex-wrap gap-1">
+                    <span :class="[
+                      'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                      cat.is_active ? 'bg-green-100 text-green-800' : 'bg-neutral-100 text-neutral-600'
+                    ]">
+                      {{ cat.is_active ? 'Aktif' : 'Nonaktif' }}
+                    </span>
+                    <span v-if="cat.template_subject || cat.template_body" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      Template
+                    </span>
+                  </div>
                 </td>
                 <td class="px-5 py-3 text-sm text-neutral-600">{{ cat.letters_count }}</td>
                 <td class="px-5 py-3 whitespace-nowrap text-right text-sm font-medium">

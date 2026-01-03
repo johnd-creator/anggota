@@ -8,7 +8,7 @@ use App\Models\Member;
 use App\Models\OrganizationUnit;
 use App\Models\ActivityLog;
 use App\Services\NraGenerator;
-use Illuminate\Support\Facades\Notification as NotificationFacade;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Notifications\MutationApprovedNotification;
@@ -18,23 +18,28 @@ class MutationController extends Controller
 {
     public function index(Request $request)
     {
+        Gate::authorize('viewAny', MutationRequest::class);
+
         $query = MutationRequest::with(['member', 'fromUnit', 'toUnit']);
         $user = $request->user();
-        // admin_unit sees only their unit; admin_pusat and super_admin see all
-        if ($user && $user->role && $user->role->name === 'admin_unit') {
-            if ($user->organization_unit_id) {
-                $query->where(function ($q) use ($user) {
-                    $q->where('from_unit_id', $user->organization_unit_id)
-                        ->orWhere('to_unit_id', $user->organization_unit_id);
+        $unitId = $user->currentUnitId();
+
+        // Apply unit scope via policy-based query filtering
+        if (!$user->hasGlobalAccess()) {
+            if ($unitId) {
+                $query->where(function ($q) use ($unitId) {
+                    $q->where('from_unit_id', $unitId)
+                        ->orWhere('to_unit_id', $unitId);
                 });
             } else {
                 $query->whereRaw('1=0');
             }
         }
-        // admin_pusat and super_admin have global access - no unit filter
-        if ($status = $request->get('status'))
+
+        if ($status = $request->get('status')) {
             $query->where('status', $status);
-            
+        }
+
         $items = $query->latest()->paginate(10)->withQueryString();
 
         return Inertia::render('Admin/Mutations/Index', [
@@ -50,20 +55,23 @@ class MutationController extends Controller
 
     public function create(Request $request)
     {
+        Gate::authorize('create', MutationRequest::class);
+
         $user = $request->user();
+        $unitId = $user->currentUnitId();
         $membersQuery = Member::select('id', 'full_name', 'nra', 'organization_unit_id')
             ->where('status', 'aktif');
-            
-        // admin_unit only sees members from their unit; admin_pusat/super_admin see all
-        if ($user && $user->role && $user->role->name === 'admin_unit') {
-            if ($user->organization_unit_id) {
-                $membersQuery->where('organization_unit_id', $user->organization_unit_id);
+
+        // Apply member scope
+        if (!$user->hasGlobalAccess()) {
+            if ($unitId) {
+                $membersQuery->where('organization_unit_id', $unitId);
             } else {
                 $membersQuery->whereRaw('1=0');
             }
         }
         $members = $membersQuery->orderBy('full_name')->get();
-        
+
         return Inertia::render('Admin/Mutations/Create', [
             'units' => OrganizationUnit::select('id', 'name', 'code')->orderBy('name')->get(),
             'members' => $members,
@@ -81,14 +89,10 @@ class MutationController extends Controller
         ]);
 
         $member = Member::findOrFail($validated['member_id']);
-        $user = $request->user();
-        // admin_unit can only mutate members from their own unit
-        if ($user && $user->role && $user->role->name === 'admin_unit') {
-            if (!$user->organization_unit_id || $user->organization_unit_id !== $member->organization_unit_id) {
-                abort(403);
-            }
-        }
-        // admin_pusat and super_admin can mutate any member
+
+        // Use policy to check if user can create mutation for this member
+        Gate::authorize('createFor', [MutationRequest::class, $member]);
+
         $path = $request->file('document') ? $request->file('document')->store('mutations', 'public') : null;
 
         $mutation = MutationRequest::create([
@@ -115,20 +119,16 @@ class MutationController extends Controller
 
     public function show(MutationRequest $mutation)
     {
+        Gate::authorize('view', $mutation);
+
         $mutation->load(['member', 'fromUnit', 'toUnit']);
-        $user = request()->user();
-        // admin_unit can only view mutations involving their unit
-        if ($user && $user->role && $user->role->name === 'admin_unit') {
-            if (!$user->organization_unit_id || ($mutation->from_unit_id !== $user->organization_unit_id && $mutation->to_unit_id !== $user->organization_unit_id)) {
-                abort(403);
-            }
-        }
-        // admin_pusat and super_admin can view any mutation
         return Inertia::render('Admin/Mutations/Show', ['mutation' => $mutation]);
     }
 
     public function approve(Request $request, MutationRequest $mutation)
     {
+        Gate::authorize('approve', $mutation);
+
         $mutation->status = 'approved';
         $mutation->approved_by = $request->user()->id;
         $mutation->save();
@@ -160,14 +160,18 @@ class MutationController extends Controller
 
     public function reject(Request $request, MutationRequest $mutation)
     {
+        Gate::authorize('reject', $mutation);
+
         $mutation->status = 'rejected';
         $mutation->save();
+
         ActivityLog::create([
             'actor_id' => $request->user()->id,
             'action' => 'mutation_rejected',
             'subject_type' => MutationRequest::class,
             'subject_id' => $mutation->id,
         ]);
+
         $owner = $mutation->member?->user_id ? \App\Models\User::find($mutation->member->user_id) : null;
         if ($owner) {
             try {

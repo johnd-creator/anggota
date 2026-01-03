@@ -22,13 +22,22 @@ class AspirationController extends Controller
         Gate::authorize('viewAnyAdmin', Aspiration::class);
 
         $user = $request->user();
+        $isGlobal = $user->hasGlobalAccess();
+        $unitId = $user->currentUnitId();
+
         $query = Aspiration::with(['category', 'member:id,full_name', 'unit:id,name']);
 
-        // Unit filtering based on role
-        if ($user->hasRole('admin_unit')) {
-            $query->byUnit($user->organization_unit_id);
-        } elseif ($unitId = $request->get('unit_id')) {
-            $query->byUnit($unitId);
+        // Unit filtering: non-global users always scoped to their unit
+        if (!$isGlobal) {
+            if (!$unitId) {
+                // No unit = empty result
+                $query->whereRaw('1=0');
+            } else {
+                $query->byUnit($unitId);
+            }
+        } elseif ($unitIdParam = $request->get('unit_id')) {
+            // Global users can filter by unit_id param
+            $query->byUnit($unitIdParam);
         }
 
         // Filters
@@ -65,15 +74,18 @@ class AspirationController extends Controller
 
         $aspirations = $query->paginate(15)->withQueryString();
 
+        // Stats - scoped to user's unit for non-global
+        $statsUnitId = $isGlobal ? null : $unitId;
+
         return Inertia::render('Admin/Aspirations/Index', [
             'aspirations' => $aspirations,
             'categories' => AspirationCategory::orderBy('name')->get(['id', 'name']),
-            'units' => $user->hasGlobalAccess() ? OrganizationUnit::orderBy('name')->get(['id', 'name']) : [],
+            'units' => $isGlobal ? OrganizationUnit::orderBy('name')->get(['id', 'name']) : [],
             'filters' => $request->only(['category_id', 'status', 'unit_id', 'search', 'sort', 'show_merged']),
             'stats' => [
-                'new' => Aspiration::notMerged()->byStatus('new')->when(!$user->hasGlobalAccess(), fn($q) => $q->byUnit($user->organization_unit_id))->count(),
-                'in_progress' => Aspiration::notMerged()->byStatus('in_progress')->when(!$user->hasGlobalAccess(), fn($q) => $q->byUnit($user->organization_unit_id))->count(),
-                'resolved' => Aspiration::notMerged()->byStatus('resolved')->when(!$user->hasGlobalAccess(), fn($q) => $q->byUnit($user->organization_unit_id))->count(),
+                'new' => Aspiration::notMerged()->byStatus('new')->when($statsUnitId, fn($q) => $q->byUnit($statsUnitId))->count(),
+                'in_progress' => Aspiration::notMerged()->byStatus('in_progress')->when($statsUnitId, fn($q) => $q->byUnit($statsUnitId))->count(),
+                'resolved' => Aspiration::notMerged()->byStatus('resolved')->when($statsUnitId, fn($q) => $q->byUnit($statsUnitId))->count(),
             ],
         ]);
     }

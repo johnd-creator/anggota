@@ -38,8 +38,22 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $hasMembersTable = Schema::hasTable('members');
+        $user = $request->user();
+        $memberExists = false;
+        if ($user && $hasMembersTable) {
+            // Prefer the direct relationship (members.user_id) which is used throughout the app (member portal/profile).
+            // Fall back to member_id when present.
+            $memberExists = (bool) ($user->member_id ?? false) || $user->member()->exists();
+        }
+
         return [
             ...parent::share($request),
+            'features' => [
+                'announcements' => (bool) config('features.announcements', true),
+                'letters' => (bool) config('features.letters', true),
+                'finance' => (bool) config('features.finance', true),
+            ],
             'auth' => [
                 'user' => $request->user() ? [
                     'id' => $request->user()->id,
@@ -53,7 +67,7 @@ class HandleInertiaRequests extends Middleware
                         'code' => $request->user()->organizationUnit->code,
                     ] : null,
                     'member_id' => $request->user()->member_id,
-                    'is_member' => !is_null($request->user()->member_id),
+                    'is_member' => $memberExists,
                     'role' => $request->user()->role ? [
                         'name' => $request->user()->role->name,
                         'label' => $request->user()->role->label,
@@ -124,30 +138,86 @@ class HandleInertiaRequests extends Middleware
 
                 $user = $request->user();
                 $roleName = $user?->role?->name;
-                $organizationUnitId = $user?->organization_unit_id ?: ($hasMembers ? optional($user?->member)->organization_unit_id : null);
-                $canViewUnitCount = in_array($roleName, ['admin_unit', 'bendahara', 'anggota']);
+                $isGlobal = $user?->hasGlobalAccess() ?? false;
+                $unitId = $user?->currentUnitId();
+
+                // Cache key suffix for scoped data
+                $cacheKeySuffix = $isGlobal ? 'global' : "unit:{$unitId}";
+
+                // For non-global users, show scoped totals
+                $membersTotal = 0;
+                $unitsTotal = 0;
+                if ($hasMembers) {
+                    if ($isGlobal) {
+                        $membersTotal = Cache::remember('metrics_members_total:global', 60, fn() => \App\Models\Member::count());
+                    } else if ($unitId) {
+                        $membersTotal = Cache::remember("metrics_members_total:unit:{$unitId}", 60, fn() => \App\Models\Member::where('organization_unit_id', $unitId)->count());
+                    }
+                }
+                if ($hasUnits) {
+                    if ($isGlobal) {
+                        $unitsTotal = Cache::remember('metrics_units_total:global', 60, fn() => \App\Models\OrganizationUnit::count());
+                    } else {
+                        $unitsTotal = 1; // Non-global sees only their own unit
+                    }
+                }
+
+                // Scoped pending mutations
+                $mutationsPending = 0;
+                if ($hasMutations) {
+                    if ($isGlobal) {
+                        $mutationsPending = Cache::remember('metrics_mutations_pending:global', 60, fn() => \App\Models\MutationRequest::where('status', 'pending')->count());
+                    } else if ($unitId) {
+                        $mutationsPending = Cache::remember("metrics_mutations_pending:unit:{$unitId}", 60, fn() => \App\Models\MutationRequest::where('status', 'pending')
+                            ->where(fn($q) => $q->where('from_unit_id', $unitId)->orWhere('to_unit_id', $unitId))
+                            ->count());
+                    }
+                }
+
+                // Scoped pending onboarding
+                $onboardingPending = 0;
+                if ($hasOnboarding) {
+                    if ($isGlobal) {
+                        $onboardingPending = Cache::remember('metrics_onboarding_pending:global', 60, fn() => \App\Models\PendingMember::where('status', 'pending')->count());
+                    } else if ($unitId) {
+                        $onboardingPending = Cache::remember("metrics_onboarding_pending:unit:{$unitId}", 60, fn() => \App\Models\PendingMember::where('status', 'pending')->where('organization_unit_id', $unitId)->count());
+                    }
+                }
+
+                // Scoped pending updates
+                $updatesPending = 0;
+                if ($hasUpdates) {
+                    if ($isGlobal) {
+                        $updatesPending = Cache::remember('metrics_updates_pending:global', 60, fn() => \App\Models\MemberUpdateRequest::where('status', 'pending')->count());
+                    } else if ($unitId) {
+                        $updatesPending = Cache::remember("metrics_updates_pending:unit:{$unitId}", 60, fn() => \App\Models\MemberUpdateRequest::where('status', 'pending')
+                            ->whereHas('member', fn($q) => $q->where('organization_unit_id', $unitId))
+                            ->count());
+                    }
+                }
 
                 return [
-                    'members_total' => $hasMembers ? Cache::remember('metrics_members_total', 60, fn() => \App\Models\Member::count()) : 0,
-                    'units_total' => $hasUnits ? Cache::remember('metrics_units_total', 60, fn() => \App\Models\OrganizationUnit::count()) : 0,
-                    'mutations_pending' => $hasMutations ? Cache::remember('metrics_mutations_pending', 60, fn() => \App\Models\MutationRequest::where('status', 'pending')->count()) : 0,
-                    'onboarding_pending' => $hasOnboarding ? Cache::remember('metrics_onboarding_pending', 60, fn() => \App\Models\PendingMember::where('status', 'pending')->count()) : 0,
-                    'updates_pending' => $hasUpdates ? Cache::remember('metrics_updates_pending', 60, fn() => \App\Models\MemberUpdateRequest::where('status', 'pending')->count()) : 0,
-                    'aspirations_pending' => Schema::hasTable('aspirations') ? function () use ($user, $roleName, $organizationUnitId) {
+                    'members_total' => $membersTotal,
+                    'units_total' => $unitsTotal,
+                    'mutations_pending' => $mutationsPending,
+                    'onboarding_pending' => $onboardingPending,
+                    'updates_pending' => $updatesPending,
+                    'aspirations_pending' => Schema::hasTable('aspirations') ? function () use ($user, $roleName, $unitId, $isGlobal) {
                         if (!$user)
                             return 0;
-                        if (in_array($roleName, ['super_admin', 'admin_pusat'])) {
+                        if ($isGlobal) {
                             return \App\Models\Aspiration::where('status', 'new')->notMerged()->count();
                         }
-                        if ($roleName === 'admin_unit' && $organizationUnitId) {
-                            return \App\Models\Aspiration::where('organization_unit_id', $organizationUnitId)->where('status', 'new')->notMerged()->count();
+                        if ($roleName === 'admin_unit' && $unitId) {
+                            return \App\Models\Aspiration::where('organization_unit_id', $unitId)->where('status', 'new')->notMerged()->count();
                         }
                         return 0;
                     } : 0,
                     'notifications_unread' => ($userId && $hasNotifications) ? optional($request->user())->unreadNotifications()->count() : 0,
-                    'members_unit_total' => ($hasMembers && $canViewUnitCount && $organizationUnitId)
-                        ? \App\Models\Member::where('organization_unit_id', $organizationUnitId)->count()
+                    'members_unit_total' => ($hasMembers && $unitId)
+                        ? \App\Models\Member::where('organization_unit_id', $unitId)->count()
                         : 0,
+                    'is_global' => $isGlobal,
                 ];
             },
             'kpi' => function () {

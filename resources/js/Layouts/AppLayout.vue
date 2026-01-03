@@ -20,6 +20,24 @@
           <span>Dashboard</span>
         </Link>
 
+
+
+        <!-- Public Announcements (All Users) -->
+        <Link v-if="$page.props.features?.announcements !== false" href="/announcements" :class="menuItemClass('/announcements')">
+          <MegaphoneIcon class="h-5 w-5" />
+          <span>Pengumuman</span>
+        </Link>
+
+        <!-- Admin Only Announcements -->
+        <template v-if="isAdminOrUnit && $page.props.features?.announcements !== false">
+          <Link href="/admin/announcements" :class="menuItemClass('/admin/announcements')">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            </svg>
+            <span>Kelola Pengumuman</span>
+          </Link>
+        </template>
+
         <!-- Admin Aspirations -->
         <template v-if="isAdminOrUnit">
           <Link href="/admin/aspirations" :class="menuItemClass('/admin/aspirations')">
@@ -86,11 +104,13 @@
           </button>
           <div v-show="expandedSections.members" class="ml-6 space-y-1">
             <Link href="/admin/members" :class="subMenuItemClass('/admin/members')">Daftar Anggota</Link>
+            <Link href="/admin/members/import" :class="subMenuItemClass('/admin/members/import')">Import Anggota</Link>
             <Link href="/admin/units" :class="subMenuItemClass('/admin/units')">Unit Pembangkit</Link>
             <Link v-if="isSuperAdmin" href="/admin/union-positions" :class="subMenuItemClass('/admin/union-positions')">Jabatan Serikat</Link>
             <Link v-if="isSuperAdmin" href="/admin/roles" :class="subMenuItemClass('/admin/roles')">Role & Access</Link>
             <Link v-if="isSuperAdmin" href="/admin/aspiration-categories" :class="subMenuItemClass('/admin/aspiration-categories')">Kategori Aspirasi</Link>
             <Link v-if="isSuperAdmin" href="/admin/letter-categories" :class="subMenuItemClass('/admin/letter-categories')">Kategori Surat</Link>
+            <Link v-if="isSuperAdmin || isAdminPusat" href="/admin/letter-approvers" :class="subMenuItemClass('/admin/letter-approvers')">Letter Approvers</Link>
           </div>
 
           <Link href="/admin/mutations" :class="menuItemClass('/admin/mutations')">
@@ -149,6 +169,14 @@
           </Link>
         </template>
 
+        <!-- Iuran Saya (All users when finance enabled) -->
+        <Link v-if="$page.props.features?.finance !== false" href="/member/dues" :class="menuItemClass('/member/dues')">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <span>Iuran Saya</span>
+        </Link>
+
         <!-- Settings Section -->
         <button @click="toggleSection('settings')" :class="sectionHeaderClass('settings')">
           <div class="flex items-center gap-3">
@@ -200,6 +228,19 @@
 	            </svg>
 	            <span>Dashboard</span>
 	          </Link>
+
+	          <Link v-if="$page.props.features?.announcements !== false" href="/announcements" :class="menuItemClass('/announcements')" @click="mobileMenuOpen = false">
+	            <MegaphoneIcon class="h-5 w-5" />
+	            <span>Pengumuman</span>
+	          </Link>
+
+	          <Link v-if="isAdminOrUnit && $page.props.features?.announcements !== false" href="/admin/announcements" :class="menuItemClass('/admin/announcements')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                </svg>
+	            <span>Kelola Pengumuman</span>
+	          </Link>
+
 	          <Link v-if="isAdminOrUnit" href="/admin/aspirations" :class="menuItemClass('/admin/aspirations')" @click="mobileMenuOpen = false">
 	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
@@ -361,10 +402,10 @@
                   <p class="text-xs text-neutral-500">{{ $page.props.auth.user.email }}</p>
                 </div>
                 <Link href="/settings" class="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">Pengaturan</Link>
-                <Link href="/member/profile" v-if="isMember || isTreasurer || hasMemberAssociation" class="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">Profil Saya</Link>
-                <Link href="/member/portal" v-if="isMember || isTreasurer || hasMemberAssociation" class="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">KTA Digital</Link>
+                <Link href="/member/profile" v-if="canAccessMemberSelf" class="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">Profil Saya</Link>
+                <Link href="/member/portal" v-if="canAccessMemberSelf" class="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">KTA Digital</Link>
                 <!-- Show unit badge for admins with unit association -->
-                <div v-if="hasMemberAssociation && userUnitName" class="px-4 py-2 border-t border-neutral-100 text-xs text-neutral-500">
+                <div v-if="canAccessMemberSelf && userUnitName" class="px-4 py-2 border-t border-neutral-100 text-xs text-neutral-500">
                   Anggota Unit: <span class="font-medium text-neutral-700">{{ userUnitName }}</span>
                 </div>
                 <button class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50" @click="doLogout">Logout</button>
@@ -406,6 +447,9 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import UserAvatar from '@/Components/UI/UserAvatar.vue';
+import {
+  MegaphoneIcon, 
+} from '@heroicons/vue/24/outline';
 
 defineProps({
   pageTitle: {
@@ -437,7 +481,7 @@ function toggleSection(section) {
 }
 
 function syncExpandedToRoute(path) {
-  expandedSections.value.members = /^\/admin\/(members|units|union-positions|roles|aspiration-categories|letter-categories)/.test(path);
+  expandedSections.value.members = /^\/admin\/(members|units|union-positions|roles|aspiration-categories|letter-categories|letter-approvers)/.test(path);
   expandedSections.value.financials = /^\/finance\//.test(path);
   expandedSections.value.reports = /^\/reports\//.test(path);
   expandedSections.value.letters = /^\/letters\//.test(path);
@@ -525,13 +569,15 @@ const isSuperAdmin = computed(() => roleName.value === 'super_admin');
 const isAdminUnit = computed(() => roleName.value === 'admin_unit');
 const isAdminPusat = computed(() => roleName.value === 'admin_pusat');
 const isTreasurer = computed(() => roleName.value === 'bendahara');
-const isMember = computed(() => roleName.value === 'anggota');
+const isMember = computed(() => ['anggota', 'admin_unit', 'bendahara'].includes(roleName.value));
 const unionPositionName = computed(() => (page.props?.auth?.user?.union_position?.name || '').toLowerCase());
 const canApproveLetters = computed(() => ['ketua', 'sekretaris'].includes(unionPositionName.value));
-// Check if admin has member association (for super_admin/admin_pusat who are also members)
-const hasMemberAssociation = computed(() => {
+// Member self-service availability (profile + KTA portal).
+// Some users may not have role `anggota` (e.g. admin_unit/bendahara, or global admins)
+// but still have an associated Member record.
+const canAccessMemberSelf = computed(() => {
   const user = page.props?.auth?.user;
-  return (isSuperAdmin.value || isAdminPusat.value) && user?.member_id;
+  return isMember.value || isTreasurer.value || !!user?.is_member;
 });
 const userUnitName = computed(() => page.props?.auth?.user?.organization_unit?.name || null);
 
@@ -558,7 +604,7 @@ function subMenuItemClass(path) {
 
 function sectionHeaderClass(section) {
   const hasActiveChild = {
-    members: ['/admin/members', '/admin/units', '/admin/union-positions', '/admin/roles', '/admin/aspiration-categories', '/admin/letter-categories'].some(p => page.url.startsWith(p)),
+    members: ['/admin/members', '/admin/units', '/admin/union-positions', '/admin/roles', '/admin/aspiration-categories', '/admin/letter-categories', '/admin/letter-approvers'].some(p => page.url.startsWith(p)),
     mutations: page.url.startsWith('/admin/mutations'),
     onboarding: page.url.startsWith('/admin/onboarding'),
     financials: ['/finance/categories', '/finance/ledgers', '/finance/dues'].some(p => page.url.startsWith(p)),

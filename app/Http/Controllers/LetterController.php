@@ -8,9 +8,11 @@ use App\Models\LetterCategory;
 use App\Models\LetterRead;
 use App\Models\LetterRevision;
 use App\Models\Member;
+use App\Models\NotificationPreference;
 use App\Models\OrganizationUnit;
 use App\Models\User;
 use App\Services\LetterNumberService;
+use App\Services\LetterTemplateRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\DB;
@@ -21,10 +23,12 @@ use Inertia\Inertia;
 class LetterController extends Controller
 {
     protected LetterNumberService $numberService;
+    protected LetterTemplateRenderer $templateRenderer;
 
-    public function __construct(LetterNumberService $numberService)
+    public function __construct(LetterNumberService $numberService, LetterTemplateRenderer $templateRenderer)
     {
         $this->numberService = $numberService;
+        $this->templateRenderer = $templateRenderer;
     }
 
     /**
@@ -33,6 +37,8 @@ class LetterController extends Controller
     public function inbox(Request $request)
     {
         $user = $request->user();
+        $unitId = $user->currentUnitId();
+
         $query = Letter::with(['category', 'creator', 'fromUnit', 'toUnit', 'toMember'])
             ->whereIn('status', ['submitted', 'approved', 'sent', 'archived']);
 
@@ -40,7 +46,7 @@ class LetterController extends Controller
         $roleName = $user->role?->name;
 
         if (in_array($roleName, ['anggota', 'bendahara'])) {
-            $query->where(function ($q) use ($user) {
+            $query->where(function ($q) use ($user, $unitId) {
                 // Letters sent to this member
                 if ($user->member_id) {
                     $q->orWhere(function ($sub) use ($user) {
@@ -49,19 +55,19 @@ class LetterController extends Controller
                     });
                 }
                 // Letters sent to user's unit
-                if ($user->organization_unit_id) {
-                    $q->orWhere(function ($sub) use ($user) {
+                if ($unitId) {
+                    $q->orWhere(function ($sub) use ($unitId) {
                         $sub->where('to_type', 'unit')
-                            ->where('to_unit_id', $user->organization_unit_id);
+                            ->where('to_unit_id', $unitId);
                     });
                 }
             });
         } elseif ($roleName === 'admin_unit') {
-            $query->where(function ($q) use ($user) {
+            $query->where(function ($q) use ($unitId) {
                 // Letters sent to user's unit
-                if ($user->organization_unit_id) {
+                if ($unitId) {
                     $q->where('to_type', 'unit')
-                        ->where('to_unit_id', $user->organization_unit_id);
+                        ->where('to_unit_id', $unitId);
                 }
             });
         } else {
@@ -131,11 +137,12 @@ class LetterController extends Controller
     public function approvals(Request $request)
     {
         $user = $request->user();
+        $unitId = $user->currentUnitId();
 
         $query = Letter::with(['category', 'creator', 'fromUnit'])
             ->needsApproval();
 
-        if (!$user->hasRole('super_admin')) {
+        if (!$user->hasGlobalAccess()) {
             // Only Ketua/Sekretaris can access approvals
             $positionName = $user->getUnionPositionName();
             $signerType = $positionName ? strtolower($positionName) : null;
@@ -146,11 +153,11 @@ class LetterController extends Controller
 
             $query->where('signer_type', $signerType);
 
-            // For sprint 3: approver scope is their own unit
-            if (!$user->organization_unit_id) {
+            // Approver scope is their own unit
+            if (!$unitId) {
                 abort(403);
             }
-            $query->where('from_unit_id', $user->organization_unit_id);
+            $query->where('from_unit_id', $unitId);
         }
 
         // Apply filters
@@ -160,19 +167,118 @@ class LetterController extends Controller
         if ($request->filled('category_id')) {
             $query->where('letter_category_id', $request->category_id);
         }
+        if ($request->filled('sla_status')) {
+            if ($request->sla_status === 'overdue') {
+                $query->where('sla_due_at', '<', now());
+            } elseif ($request->sla_status === 'ok') {
+                $query->where('sla_due_at', '>=', now());
+            }
+        }
 
         $letters = $query->latest('submitted_at')->paginate(15)->withQueryString();
         $categories = LetterCategory::active()->ordered()->get(['id', 'name', 'code']);
 
+        // SLA stats
+        $baseQuery = Letter::needsApproval();
+        if (!$user->hasGlobalAccess() && $unitId) {
+            $baseQuery->where('from_unit_id', $unitId);
+        }
+        $overdueCount = (clone $baseQuery)->where('sla_due_at', '<', now())->count();
+
         return Inertia::render('Letters/Approvals', [
             'letters' => $letters,
             'categories' => $categories,
-            'filters' => $request->only(['search', 'category_id']),
+            'filters' => $request->only(['search', 'category_id', 'sla_status']),
             'stats' => [
-                'pending' => (clone $query)->where('status', 'submitted')->count(),
-                'approved' => (clone $query)->where('status', 'approved')->where('approved_at', '>=', now()->startOfMonth())->count(),
-                'rejected' => (clone $query)->whereIn('status', ['rejected', 'revision'])->count(),
+                'pending' => (clone $baseQuery)->count(),
+                'overdue' => $overdueCount,
+                'approved' => Letter::where('status', 'approved')
+                    ->where('approved_at', '>=', now()->startOfMonth())
+                    ->when(!$user->hasGlobalAccess() && $unitId, fn($q) => $q->where('from_unit_id', $unitId))
+                    ->count(),
+                'rejected' => Letter::whereIn('status', ['rejected', 'revision'])
+                    ->when(!$user->hasGlobalAccess() && $unitId, fn($q) => $q->where('from_unit_id', $unitId))
+                    ->count(),
             ],
+        ]);
+    }
+
+    /**
+     * Render template for a category with context.
+     * Returns rendered subject, body, cc_text and defaults.
+     */
+    public function templateRender(Request $request)
+    {
+        $request->validate([
+            'category_id' => 'required|exists:letter_categories,id',
+            'to_type' => 'nullable|in:unit,member,admin_pusat,eksternal',
+            'to_unit_id' => 'nullable|exists:organization_units,id',
+            'to_member_id' => 'nullable|exists:members,id',
+        ]);
+
+        $category = LetterCategory::find($request->category_id);
+
+        if (!$category) {
+            return response()->json(['error' => 'Category not found'], 404);
+        }
+
+        // Build context with safe data
+        $user = $request->user();
+        $contextData = [
+            'creator' => ['name' => $user->name],
+        ];
+
+        // Add from_unit context (user's unit)
+        $unitId = $user->currentUnitId();
+        if ($unitId) {
+            $unit = OrganizationUnit::find($unitId);
+            if ($unit) {
+                $contextData['from_unit'] = [
+                    'name' => $unit->name,
+                    'code' => $unit->code,
+                ];
+            }
+        }
+
+        // Add recipient context (to_unit or to_member)
+        if ($request->to_unit_id) {
+            $toUnit = OrganizationUnit::find($request->to_unit_id);
+            if ($toUnit) {
+                $contextData['to_unit'] = ['name' => $toUnit->name];
+            }
+        }
+
+        if ($request->to_member_id) {
+            $toMember = Member::find($request->to_member_id);
+            if ($toMember) {
+                // Only include full_name, no PII like email/phone
+                $contextData['to_member'] = ['full_name' => $toMember->full_name];
+            }
+        }
+
+        $context = $this->templateRenderer->buildContext($contextData);
+
+        // Render templates
+        $subject = $category->template_subject
+            ? $this->templateRenderer->render($category->template_subject, $context)
+            : '';
+        $body = $category->template_body
+            ? $this->templateRenderer->render($category->template_body, $context)
+            : '';
+        $ccText = $category->template_cc_text
+            ? $this->templateRenderer->render($category->template_cc_text, $context)
+            : '';
+
+        return response()->json([
+            'subject' => $subject,
+            'body' => $body,
+            'cc_text' => $ccText,
+            'defaults' => [
+                'confidentiality' => $category->default_confidentiality,
+                'urgency' => $category->default_urgency,
+                'signer_type' => $category->default_signer_type,
+            ],
+            'has_template' => $category->hasTemplate(),
         ]);
     }
 
@@ -181,7 +287,11 @@ class LetterController extends Controller
      */
     public function create()
     {
-        $categories = LetterCategory::active()->ordered()->get(['id', 'name', 'code']);
+        // Include template data for categories
+        $categories = LetterCategory::active()
+            ->ordered()
+            ->get(['id', 'name', 'code', 'template_subject', 'template_body', 'template_cc_text', 'default_confidentiality', 'default_urgency', 'default_signer_type']);
+
         $units = OrganizationUnit::orderBy('code')->get(['id', 'name', 'code']);
 
         return Inertia::render('Letters/Form', [
@@ -203,13 +313,13 @@ class LetterController extends Controller
         // Determine from_unit_id based on role
         $fromUnitId = null;
         if ($user->hasRole('admin_unit')) {
-            $fromUnitId = $user->organization_unit_id;
+            $fromUnitId = $user->currentUnitId();
             if (!$fromUnitId) {
                 return back()->withErrors(['from_unit_id' => 'Admin unit harus memiliki unit terkait.']);
             }
         } else {
             // admin_pusat/super_admin - use their unit if available, otherwise null (Pusat)
-            $fromUnitId = $user->organization_unit_id;
+            $fromUnitId = $user->currentUnitId();
         }
 
         $letter = Letter::create([
@@ -253,17 +363,28 @@ class LetterController extends Controller
         $user = request()->user();
         $canApprove = $user->can('approve', $letter);
 
-        // Mark as read for recipients (best-effort, safe if migration not yet run)
-        if ($user && Schema::hasTable('letter_reads') && $this->isRecipientUser($letter, $user)) {
-            LetterRead::updateOrCreate(
-                ['letter_id' => $letter->id, 'user_id' => $user->id],
-                ['read_at' => now()]
-            );
+        // Mark as read if user is a recipient
+        $this->markAsReadIfRecipient($letter, $user);
+
+        // Load read receipts only for authorized users (creator, approver, global)
+        $reads = [];
+        if ($this->canViewReadReceipts($letter, $user)) {
+            $reads = $letter->reads()
+                ->with('user:id,name')
+                ->orderByDesc('read_at')
+                ->get()
+                ->map(fn($r) => [
+                    'id' => $r->id,
+                    'user_name' => $r->user?->name ?? 'Unknown',
+                    'read_at' => $r->read_at?->format('d M Y H:i'),
+                ]);
         }
 
         return Inertia::render('Letters/Show', [
             'letter' => $letter,
             'canApprove' => $canApprove,
+            'reads' => $reads,
+            'canViewReads' => $this->canViewReadReceipts($letter, $user),
         ]);
     }
 
@@ -276,14 +397,9 @@ class LetterController extends Controller
 
         $letter->load(['category', 'creator', 'fromUnit', 'toUnit', 'toMember', 'approvedBy', 'rejectedBy', 'revisions.actor', 'attachments']);
 
-        // Mark as read for recipients (same as show)
+        // Mark as read for recipients
         $user = request()->user();
-        if ($user && Schema::hasTable('letter_reads') && $this->isRecipientUser($letter, $user)) {
-            LetterRead::updateOrCreate(
-                ['letter_id' => $letter->id, 'user_id' => $user->id],
-                ['read_at' => now()]
-            );
-        }
+        $this->markAsReadIfRecipient($letter, $user);
 
         // Ensure verification token exists
         if (!$letter->verification_token) {
@@ -292,22 +408,28 @@ class LetterController extends Controller
 
         $verifyUrl = route('letters.verify', $letter->verification_token);
 
-        // Embed QR as base64 to avoid separate auth-dependent image request
+        // Only generate QR for final (approved/sent/archived) letters
+        $finalStatuses = ['approved', 'sent', 'archived'];
+        $isFinal = in_array($letter->status, $finalStatuses);
+
         $qrBase64 = null;
-        try {
-            $qrPng = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('png')
-                ->size(150)
-                ->margin(1)
-                ->generate($verifyUrl);
-            $qrBase64 = base64_encode($qrPng);
-        } catch (\Throwable $e) {
-            // Fallback: qrBase64 remains null, UI will show verify link
+        if ($isFinal) {
+            try {
+                $qrPng = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('png')
+                    ->size(150)
+                    ->margin(1)
+                    ->generate($verifyUrl);
+                $qrBase64 = base64_encode($qrPng);
+            } catch (\Throwable $e) {
+                // Fallback: qrBase64 remains null, UI will show verify link
+            }
         }
 
         return Inertia::render('Letters/Preview', [
             'letter' => $letter,
             'verifyUrl' => $verifyUrl,
             'qrBase64' => $qrBase64,
+            'isFinal' => $isFinal,
         ]);
     }
 
@@ -369,6 +491,12 @@ class LetterController extends Controller
     {
         $this->authorize('view', $letter);
 
+        // Only generate QR for final letters
+        $finalStatuses = ['approved', 'sent', 'archived'];
+        if (!in_array($letter->status, $finalStatuses)) {
+            abort(403, 'QR hanya tersedia untuk surat yang sudah disetujui.');
+        }
+
         // Ensure verification token exists
         if (!$letter->verification_token) {
             $letter->update(['verification_token' => (string) \Illuminate\Support\Str::uuid()]);
@@ -384,7 +512,7 @@ class LetterController extends Controller
                 ->generate($verifyUrl);
 
             return response($qrCode)->header('Content-Type', 'image/png');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // Fallback: return a simple 1x1 transparent PNG
             $img = imagecreatetruecolor(150, 150);
             $white = imagecolorallocate($img, 255, 255, 255);
@@ -446,9 +574,12 @@ class LetterController extends Controller
             abort(404);
         }
 
+        // Mark as read when downloading attachment
+        $this->markAsReadIfRecipient($letter, request()->user());
+
         abort_unless(\Illuminate\Support\Facades\Storage::disk('local')->exists($attachment->path), 404, 'File tidak ditemukan.');
 
-        return \Illuminate\Support\Facades\Storage::disk('local')->download($attachment->path, $attachment->original_name);
+        return response()->download(storage_path('app/' . $attachment->path), $attachment->original_name);
     }
 
     /**
@@ -463,6 +594,9 @@ class LetterController extends Controller
         if (!in_array($letter->status, $finalStatuses)) {
             abort(403, 'PDF hanya tersedia untuk surat yang sudah disetujui/terkirim.');
         }
+
+        // Mark as read when downloading PDF
+        $this->markAsReadIfRecipient($letter, request()->user());
 
         $letter->load(['category', 'creator', 'fromUnit', 'toUnit', 'toMember', 'approvedBy']);
 
@@ -510,11 +644,57 @@ class LetterController extends Controller
         }
 
         if ($letter->to_type === 'unit') {
-            return (bool) ($user->organization_unit_id && $letter->to_unit_id && $user->organization_unit_id === $letter->to_unit_id);
+            $unitId = $user->currentUnitId();
+            return (bool) ($unitId && $letter->to_unit_id && $unitId === $letter->to_unit_id);
         }
 
         if ($letter->to_type === 'admin_pusat') {
             return in_array($user->role?->name, ['admin_pusat', 'super_admin'], true);
+        }
+
+        return false;
+    }
+
+    /**
+     * Mark letter as read if user is a recipient.
+     * Used for show, preview, pdf, downloadAttachment.
+     */
+    protected function markAsReadIfRecipient(Letter $letter, User $user): void
+    {
+        if (!Schema::hasTable('letter_reads')) {
+            return;
+        }
+
+        // Only mark if user is a recipient (not just creator or approver viewing)
+        if (!$this->isRecipientUser($letter, $user)) {
+            return;
+        }
+
+        LetterRead::updateOrCreate(
+            ['letter_id' => $letter->id, 'user_id' => $user->id],
+            ['read_at' => now()]
+        );
+    }
+
+    /**
+     * Check if user can see read receipts.
+     * Only creator, approver, or global users.
+     */
+    protected function canViewReadReceipts(Letter $letter, User $user): bool
+    {
+        // Global access can view
+        if ($user->hasGlobalAccess()) {
+            return true;
+        }
+
+        // Creator can view
+        if ($letter->creator_user_id === $user->id) {
+            return true;
+        }
+
+        // Approver for this letter can view
+        if ($user->can('approve', $letter)) {
+            return true;
         }
 
         return false;
@@ -586,9 +766,14 @@ class LetterController extends Controller
     {
         $this->authorize('submit', $letter);
 
+        $submittedAt = now();
+        $slaHours = Letter::getSlaHours($letter->urgency);
+
         $letter->update([
             'status' => 'submitted',
-            'submitted_at' => now(),
+            'submitted_at' => $submittedAt,
+            'sla_due_at' => $submittedAt->copy()->addHours($slaHours),
+            'sla_status' => 'ok',
         ]);
 
         $this->notifyApprover($letter);
@@ -699,28 +884,63 @@ class LetterController extends Controller
 
     /**
      * Search members for autocomplete.
+     * Scoped by unit for non-global users; email excluded from results for admin_unit.
      */
     public function searchMembers(Request $request)
     {
         $query = $request->get('q', '');
+        $user = $request->user();
 
         if (strlen($query) < 2) {
             return response()->json([]);
         }
 
-        $members = Member::where(function ($q) use ($query) {
-            $q->where('full_name', 'like', "%{$query}%")
-                ->orWhere('email', 'like', "%{$query}%")
-                ->orWhere('nra', 'like', "%{$query}%");
-        })
-            ->where('status', 'aktif')
-            ->limit(20)
-            ->get(['id', 'full_name', 'email', 'nra']);
+        $isGlobal = $user?->hasGlobalAccess() ?? false;
+        $unitId = $user?->currentUnitId();
 
-        return response()->json($members->map(fn($m) => [
-            'id' => $m->id,
-            'label' => "{$m->full_name} ({$m->nra}) - {$m->email}",
-        ]));
+        // Non-global users must have a unit
+        if (!$isGlobal && !$unitId) {
+            return response()->json([]);
+        }
+
+        $membersQuery = Member::query()
+            ->where('status', 'aktif');
+
+        // Scope to user's unit if not global
+        if (!$isGlobal) {
+            $membersQuery->where('organization_unit_id', $unitId);
+        }
+
+        // Global users can search by email, non-global only by name/nra
+        if ($isGlobal) {
+            $membersQuery->where(function ($q) use ($query) {
+                $q->where('full_name', 'like', "%{$query}%")
+                    ->orWhere('email', 'like', "%{$query}%")
+                    ->orWhere('nra', 'like', "%{$query}%");
+            });
+        } else {
+            $membersQuery->where(function ($q) use ($query) {
+                $q->where('full_name', 'like', "%{$query}%")
+                    ->orWhere('nra', 'like', "%{$query}%");
+            });
+        }
+
+        // Select only needed fields - no email for non-global
+        $selectFields = $isGlobal
+            ? ['id', 'full_name', 'email', 'nra']
+            : ['id', 'full_name', 'nra'];
+
+        $members = $membersQuery->limit(20)->get($selectFields);
+
+        return response()->json($members->map(function ($m) use ($isGlobal) {
+            $label = $isGlobal
+                ? "{$m->full_name} ({$m->nra}) - {$m->email}"
+                : "{$m->full_name} ({$m->nra})";
+            return [
+                'id' => $m->id,
+                'label' => $label,
+            ];
+        }));
     }
 
     /**
@@ -740,6 +960,11 @@ class LetterController extends Controller
                 ->get();
 
             foreach ($approvers as $approver) {
+                // Check letter notification preference
+                if (!NotificationPreference::isChannelEnabled($approver->id, 'letters')) {
+                    continue;
+                }
+
                 $exists = DatabaseNotification::where('notifiable_type', User::class)
                     ->where('notifiable_id', $approver->id)
                     ->where('type', \App\Notifications\LetterSubmittedNotification::class)
@@ -762,6 +987,11 @@ class LetterController extends Controller
         try {
             $creator = User::find($letter->creator_user_id);
             if ($creator) {
+                // Check letter notification preference
+                if (!NotificationPreference::isChannelEnabled($creator->id, 'letters')) {
+                    return;
+                }
+
                 $exists = DatabaseNotification::where('notifiable_type', User::class)
                     ->where('notifiable_id', $creator->id)
                     ->where('type', \App\Notifications\LetterStatusUpdatedNotification::class)
@@ -795,6 +1025,11 @@ class LetterController extends Controller
                 $users = collect();
             }
             foreach ($users as $u) {
+                // Check letter notification preference
+                if (!NotificationPreference::isChannelEnabled($u->id, 'letters')) {
+                    continue;
+                }
+
                 $exists = DatabaseNotification::where('notifiable_type', User::class)
                     ->where('notifiable_id', $u->id)
                     ->where('type', \App\Notifications\LetterStatusUpdatedNotification::class)

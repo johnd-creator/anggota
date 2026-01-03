@@ -24,6 +24,8 @@ class FinanceDuesController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', DuesPayment::class);
+
         $user = Auth::user();
         $period = $request->input('period', now()->format('Y-m'));
         $search = $request->input('search', '');
@@ -36,7 +38,7 @@ class FinanceDuesController extends Controller
             $unitScope = $unitId ? [(int) $unitId] : null;
         } else {
             // Bendahara/admin_unit can only see their unit
-            $unitScope = [$user->organization_unit_id];
+            $unitScope = [$user->currentUnitId()];
         }
 
         // Build query: members with left join to dues_payments
@@ -127,7 +129,7 @@ class FinanceDuesController extends Controller
         }
 
         // Get recurring categories for quick action
-        $userUnitId = $user->hasRole('super_admin') ? null : $user->organization_unit_id;
+        $userUnitId = $user->hasGlobalAccess() ? null : $user->currentUnitId();
         $recurringCategories = FinanceCategory::query()
             ->recurring()
             ->where('type', 'income')
@@ -150,7 +152,7 @@ class FinanceDuesController extends Controller
                 'unpaid' => $totalMembers - $paidCount,
             ],
             'units' => $units,
-            'canSelectUnit' => $user->hasRole('super_admin'),
+            'canSelectUnit' => $user->hasGlobalAccess(),
             'recurringCategories' => $recurringCategories,
         ]);
     }
@@ -174,6 +176,16 @@ class FinanceDuesController extends Controller
             }
         }
 
+        // Authorization: check if user can update dues for this member
+        $member = Member::findOrFail($validated['member_id']);
+        $this->authorize('updateForMember', [DuesPayment::class, $member]);
+
+        // Get existing payment for status_before
+        $existingPayment = DuesPayment::where('member_id', $validated['member_id'])
+            ->where('period', $validated['period'])
+            ->first();
+        $statusBefore = $existingPayment?->status ?? 'unpaid';
+
         $success = $this->duesService->recordSinglePayment(
             $validated['member_id'],
             $validated['period'],
@@ -186,6 +198,21 @@ class FinanceDuesController extends Controller
         if (!$success) {
             abort(403, 'Anda tidak memiliki akses ke anggota unit ini');
         }
+
+        // Audit log
+        $auditEvent = $validated['status'] === 'paid' ? 'dues.mark_paid' : 'dues.mark_unpaid';
+        app(\App\Services\AuditService::class)->log(
+            $auditEvent,
+            [
+                'period' => $validated['period'],
+                'status_before' => $statusBefore,
+                'status_after' => $validated['status'],
+                'amount' => $validated['amount'] ?? null,
+            ],
+            $member,
+            $user->id,
+            $member->organization_unit_id
+        );
 
         return back()->with('success', $validated['status'] === 'paid'
             ? 'Status iuran berhasil diperbarui menjadi Sudah Bayar'
@@ -208,6 +235,23 @@ class FinanceDuesController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
+        // Authorization: validate all members belong to user's unit (for non-global)
+        $members = Member::whereIn('id', $validated['member_ids'])->get();
+
+        if (!$user->hasGlobalAccess()) {
+            $userUnitId = $user->currentUnitId();
+            foreach ($members as $member) {
+                if ($member->organization_unit_id !== $userUnitId) {
+                    abort(403, 'Anda tidak memiliki akses untuk mengubah iuran anggota dari unit lain');
+                }
+            }
+        }
+
+        // Verify policy allows update for each member
+        foreach ($members as $member) {
+            $this->authorize('updateForMember', [DuesPayment::class, $member]);
+        }
+
         $result = $this->duesService->recordPaymentBatch(
             $validated['member_ids'],
             $validated['period'],
@@ -215,6 +259,23 @@ class FinanceDuesController extends Controller
             $validated['amount'],
             $validated['notes'] ?? null,
             $user
+        );
+
+        // Audit log
+        $unitId = $user->hasGlobalAccess() ? null : $user->currentUnitId();
+        app(\App\Services\AuditService::class)->log(
+            'dues.batch_mark_paid',
+            [
+                'period' => $validated['period'],
+                'member_count_success' => $result['success'],
+                'member_count_skipped' => $result['skipped'],
+                'amount' => $validated['amount'],
+                'category_id' => $validated['category_id'],
+                'ledger_id' => $result['ledger_id'] ?? null,
+            ],
+            null,
+            $user->id,
+            $unitId
         );
 
         $message = "{$result['success']} anggota berhasil ditandai sudah bayar";

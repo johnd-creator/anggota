@@ -22,6 +22,12 @@ class AuthServiceProvider extends ServiceProvider
         \App\Models\Aspiration::class => \App\Policies\AspirationPolicy::class,
         \App\Models\Letter::class => \App\Policies\LetterPolicy::class,
         \App\Models\AuditLog::class => \App\Policies\AuditLogPolicy::class,
+        \App\Models\MutationRequest::class => \App\Policies\MutationRequestPolicy::class,
+        \App\Models\MemberUpdateRequest::class => \App\Policies\MemberUpdateRequestPolicy::class,
+        \App\Models\DuesPayment::class => \App\Policies\DuesPaymentPolicy::class,
+        \App\Models\LetterAttachment::class => \App\Policies\LetterAttachmentPolicy::class,
+        \App\Models\Announcement::class => \App\Policies\AnnouncementPolicy::class,
+        \App\Models\AnnouncementAttachment::class => \App\Policies\AnnouncementAttachmentPolicy::class,
     ];
 
     public function boot(): void

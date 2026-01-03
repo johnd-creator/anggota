@@ -16,12 +16,26 @@ class LetterCategory extends Model
         'color',
         'sort_order',
         'is_active',
+        'template_subject',
+        'template_body',
+        'template_cc_text',
+        'default_confidentiality',
+        'default_urgency',
+        'default_signer_type',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];
+
+    /**
+     * Check if category has a template.
+     */
+    public function hasTemplate(): bool
+    {
+        return $this->template_subject || $this->template_body;
+    }
 
     /**
      * Get all letters in this category.

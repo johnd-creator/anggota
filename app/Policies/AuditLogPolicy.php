@@ -77,7 +77,7 @@ class AuditLogPolicy
         }
 
         // Must match organization unit
-        $userUnitId = $user->organization_unit_id ?? $user->member?->organization_unit_id;
+        $userUnitId = $user->currentUnitId();
         if (!$userUnitId || $auditLog->organization_unit_id !== $userUnitId) {
             return false;
         }

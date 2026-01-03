@@ -37,6 +37,9 @@ class Letter extends Model
         'sequence',
         'letter_number',
         'verification_token',
+        'sla_due_at',
+        'sla_status',
+        'sla_marked_at',
     ];
 
     protected $casts = [
@@ -46,7 +49,75 @@ class Letter extends Model
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'sla_due_at' => 'datetime',
+        'sla_marked_at' => 'datetime',
     ];
+
+    protected $appends = ['is_overdue', 'age_hours'];
+
+    /**
+     * Get SLA hours based on urgency level.
+     */
+    public static function getSlaHours(string $urgency): int
+    {
+        return config("letters.sla_hours_by_urgency.{$urgency}", config('letters.default_sla_hours', 72));
+    }
+
+    /**
+     * Calculate and set SLA due date based on urgency.
+     */
+    public function calculateSlaDueAt(): void
+    {
+        if ($this->submitted_at && $this->urgency) {
+            $hours = self::getSlaHours($this->urgency);
+            $this->sla_due_at = $this->submitted_at->copy()->addHours($hours);
+            $this->sla_status = 'ok';
+        }
+    }
+
+    /**
+     * Check if the letter is overdue.
+     */
+    public function getIsOverdueAttribute(): bool
+    {
+        if (!$this->sla_due_at || $this->status !== 'submitted') {
+            return false;
+        }
+        return now()->greaterThan($this->sla_due_at);
+    }
+
+    /**
+     * Get age in hours since submission.
+     */
+    public function getAgeHoursAttribute(): ?int
+    {
+        if (!$this->submitted_at) {
+            return null;
+        }
+        return (int) $this->submitted_at->diffInHours(now());
+    }
+
+    /**
+     * Get remaining hours until SLA breach.
+     */
+    public function getRemainingHoursAttribute(): ?int
+    {
+        if (!$this->sla_due_at) {
+            return null;
+        }
+        $diff = now()->diffInHours($this->sla_due_at, false);
+        return max(0, (int) $diff);
+    }
+
+    /**
+     * Mark as SLA breached.
+     */
+    public function markSlaBreach(): void
+    {
+        $this->sla_status = 'breach';
+        $this->sla_marked_at = now();
+        $this->save();
+    }
 
     /**
      * Get the user who created this letter.

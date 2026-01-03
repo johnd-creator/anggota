@@ -1,5 +1,43 @@
 <template>
     <AppLayout page-title="Dashboard">
+        <!-- Pinned Announcements -->
+        <div v-if="$page.props.features?.announcements !== false && $page.props.announcements_pinned && $page.props.announcements_pinned.length > 0" class="mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">Pengumuman Penting</h3>
+                <Link href="/announcements" class="text-sm text-indigo-600 hover:text-indigo-900">Lihat Semua</Link>
+            </div>
+            <div class="space-y-4">
+                <div v-for="item in $page.props.announcements_pinned" :key="item.id" class="bg-white overflow-hidden shadow-sm sm:rounded-lg border-l-4 border-indigo-500 p-6">
+                    <div class="flex justify-between items-start">
+                        <div class="w-full">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span v-if="item.scope_type === 'global_all'" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 uppercase">Global</span>
+                                <span v-else-if="item.scope_type === 'global_officers'" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">Pengurus</span>
+                                <span v-else-if="item.scope_type === 'unit'" class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800 uppercase">
+                                    {{ item.organization_unit_name || 'Unit' }}
+                                </span>
+                                <span class="text-xs text-gray-500">{{ new Date(item.created_at).toLocaleDateString('id-ID') }}</span>
+                            </div>
+                            <h4 class="font-bold text-gray-800 text-lg">{{ item.title }}</h4>
+                            <p class="text-sm text-gray-600 mt-2">{{ item.body_snippet }}</p>
+                            
+                            <div v-if="item.attachments && item.attachments.length > 0" class="mt-4 flex flex-wrap gap-2">
+                                <a 
+                                    v-for="file in item.attachments" 
+                                    :key="file.id" 
+                                    :href="file.download_url" 
+                                    class="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-gray-50 border border-gray-200 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                                >
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                    {{ file.original_name }}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- KPI Stat Cards Row -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
             <StatCard
@@ -117,7 +155,7 @@
             />
         </div>
 
-	        <div v-if="isMemberRole" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+	        <div v-if="isMemberRole" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
 	            <div class="bg-white rounded-xl shadow-sm border border-neutral-100 p-6 flex flex-col gap-2">
 	                <p class="text-sm text-neutral-500">Kartu Digital</p>
 	                <h3 class="text-lg font-semibold text-neutral-900">Akses KTA Digital</h3>
@@ -140,7 +178,39 @@
                     </svg>
                 </Link>
             </div>
+            <!-- Personal Dues Card -->
+            <div v-if="myDues && $page.props.features?.finance !== false" class="bg-white rounded-xl shadow-sm border border-neutral-100 p-6 flex flex-col gap-2">
+                <p class="text-sm text-neutral-500">Iuran Saya</p>
+                <h3 class="text-lg font-semibold text-neutral-900">
+                    <span :class="myDues.current_status === 'paid' ? 'text-green-600' : 'text-red-600'">
+                        {{ myDues.current_status === 'paid' ? 'Sudah Bayar ✓' : 'Belum Bayar' }}
+                    </span>
+                </h3>
+                <div class="text-sm text-neutral-500">
+                    <template v-if="myDues.unpaid_count > 0">
+                        <div class="mb-1">{{ myDues.unpaid_count }} bulan tunggakan:</div>
+                         <div class="flex flex-wrap gap-1">
+                            <span v-for="p in myDues.unpaid_periods" :key="p" class="px-2 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 border border-red-200">
+                                {{ new Date(p + '-01').toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }) }}
+                            </span>
+                             <span v-if="myDues.unpaid_count > myDues.unpaid_periods.length" class="px-2 py-0.5 rounded text-[10px] text-neutral-500">
+                                +{{ myDues.unpaid_count - myDues.unpaid_periods.length }} lainnya
+                            </span>
+                        </div>
+                    </template>
+                    <template v-else>
+                        Tidak ada tunggakan
+                    </template>
+                </div>
+                <Link href="/member/dues" class="inline-flex items-center gap-2 text-sm font-semibold text-brand-primary-600 hover:underline mt-2">
+                    Lihat Riwayat
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                </Link>
+            </div>
         </div>
+
 
         <!-- Main Content Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6" v-if="showAdminQueues">
@@ -452,7 +522,7 @@ const page = usePage();
 const pg = page.props || {};
 
 const roleName = computed(() => pg.auth?.user?.role?.name || '');
-const isMemberRole = computed(() => roleName.value === 'anggota');
+const isMemberRole = computed(() => ['anggota', 'admin_unit', 'bendahara'].includes(roleName.value));
 const isSuperAdmin = computed(() => roleName.value === 'super_admin');
 const showAdminQueues = computed(() => ['super_admin', 'admin_unit', 'admin_pusat'].includes(roleName.value));
 const canOpenTotalMembers = computed(() => !['anggota', 'bendahara'].includes(roleName.value));
@@ -466,6 +536,7 @@ const currentPeriod = new Date().toISOString().slice(0, 7);
 		const finance = computed(() => pg.finance || null);
 		const employmentInfo = computed(() => pg.auth?.user?.employment_info || null);
 	    const lettersSummary = computed(() => pg.letters || null);
+		const myDues = computed(() => pg.my_dues || null);
 
 // Chart helpers
 const maxChartValue = computed(() => {

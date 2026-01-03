@@ -72,7 +72,13 @@
             <div class="flex items-center gap-3">
               <ToggleSwitch v-model="digestDaily" aria-label="Digest Harian" />
               <span class="text-xs text-neutral-600">Ringkasan harian via email</span>
-              <PrimaryButton class="ml-auto" @click="savePrefs">Simpan</PrimaryButton>
+            </div>
+            <div class="flex items-center gap-3 mt-4 border-t pt-4">
+              <ToggleSwitch v-model="lettersEnabled" aria-label="Notifikasi Surat" />
+              <span class="text-sm text-neutral-700">Notifikasi Surat (persetujuan, status, dll)</span>
+            </div>
+            <div class="flex justify-end mt-4">
+              <PrimaryButton @click="savePrefs">Simpan</PrimaryButton>
             </div>
             <div class="text-xs text-neutral-500">Terakhir diubah: {{ prefsUpdatedAt || '-' }}</div>
           </div>
@@ -237,14 +243,33 @@ const prefs = reactive({
   security: { email:true, inapp:true, wa:false },
 });
 const digestDaily = ref(false);
+const lettersEnabled = ref(true);
 const prefsUpdatedAt = ref('');
 if (page.props.notification_prefs) {
   const np = page.props.notification_prefs;
-  if (np.channels) Object.assign(prefs, np.channels);
+  if (np.channels) {
+    Object.assign(prefs, np.channels);
+    lettersEnabled.value = np.channels.letters !== false;
+  }
   digestDaily.value = !!np.digest_daily;
   prefsUpdatedAt.value = np.updated_at || '';
 }
-async function savePrefs(){ try{ const res = await fetch('/settings/notifications', { method:'PATCH', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ channels: prefs, digest_daily: digestDaily.value }) }); if (res.ok){ const j = await res.json(); prefsUpdatedAt.value = j.updated_at || new Date().toISOString(); } }catch(e){} }
+async function savePrefs(){
+  try {
+    const res = await fetch('/settings/notifications', {
+      method:'PATCH',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        channels: { ...prefs, letters: lettersEnabled.value },
+        digest_daily: digestDaily.value
+      })
+    });
+    if (res.ok) {
+      const j = await res.json();
+      prefsUpdatedAt.value = j.updated_at || new Date().toISOString();
+    }
+  } catch(e) {}
+}
 
 const requestId = page.props.request_id || 'unknown';
 const mfa = ref(false);

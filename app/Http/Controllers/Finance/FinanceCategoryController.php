@@ -19,20 +19,24 @@ class FinanceCategoryController extends Controller
         Gate::authorize('viewAny', FinanceCategory::class);
 
         $user = Auth::user();
-        $isSuper = $user->hasRole('super_admin');
+        $isGlobal = $user->hasGlobalAccess();
+        $unitId = $user->currentUnitId();
+
         $query = FinanceCategory::query()->with(['organizationUnit', 'creator']);
 
         $type = $request->query('type');
         $search = $request->query('search');
         $unitParam = $request->query('unit_id');
 
-        if (!$isSuper) {
-            $unitId = $user->organization_unit_id;
+        if (!$isGlobal) {
+            // Non-global: see global categories (null) + their unit's categories
+            // Ignore any unit_id param in request
             $query->where(function ($q) use ($unitId) {
                 $q->whereNull('organization_unit_id')
                     ->orWhere('organization_unit_id', $unitId);
             });
         } else {
+            // Global users can filter by unit_id
             if ($unitParam === 'null') {
                 $query->whereNull('organization_unit_id');
             } elseif ($unitParam) {
@@ -50,7 +54,7 @@ class FinanceCategoryController extends Controller
 
         $categories = $query->orderBy('name')->paginate(10)->withQueryString();
 
-        $units = $isSuper ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
+        $units = $isGlobal ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
 
         return Inertia::render('Finance/Categories/Index', [
             'categories' => $categories,
@@ -64,7 +68,7 @@ class FinanceCategoryController extends Controller
         Gate::authorize('create', FinanceCategory::class);
 
         $user = Auth::user();
-        $units = $user->hasRole('super_admin') ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
+        $units = $user->hasGlobalAccess() ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
 
         return Inertia::render('Finance/Categories/Form', [
             'units' => $units,
@@ -77,11 +81,20 @@ class FinanceCategoryController extends Controller
         Gate::authorize('create', FinanceCategory::class);
 
         $user = Auth::user();
-        $isSuper = $user->hasRole('super_admin');
+        $isGlobal = $user->hasGlobalAccess();
 
         $type = $request->input('type');
         $name = $request->input('name');
-        $unitId = $isSuper ? ($request->input('organization_unit_id') ? (int) $request->input('organization_unit_id') : null) : (int) $user->organization_unit_id;
+
+        // Non-global: force to their unit, ignore request param
+        $unitId = $isGlobal
+            ? ($request->input('organization_unit_id') ? (int) $request->input('organization_unit_id') : null)
+            : $user->currentUnitId();
+
+        // Non-global without unit = error
+        if (!$isGlobal && !$unitId) {
+            return back()->withErrors(['organization_unit_id' => 'Anda tidak memiliki unit organisasi.']);
+        }
 
         $validated = $request->validate([
             'name' => [
@@ -125,7 +138,7 @@ class FinanceCategoryController extends Controller
         Gate::authorize('update', $category);
 
         $user = Auth::user();
-        $units = $user->hasRole('super_admin') ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
+        $units = $user->hasGlobalAccess() ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
 
         return Inertia::render('Finance/Categories/Form', [
             'units' => $units,
@@ -138,11 +151,20 @@ class FinanceCategoryController extends Controller
         Gate::authorize('update', $category);
 
         $user = Auth::user();
-        $isSuper = $user->hasRole('super_admin');
+        $isGlobal = $user->hasGlobalAccess();
 
         $type = $request->input('type');
         $name = $request->input('name');
-        $unitId = $isSuper ? ($request->input('organization_unit_id') ? (int) $request->input('organization_unit_id') : null) : (int) $user->organization_unit_id;
+
+        // Non-global: force to their unit, ignore request param
+        $unitId = $isGlobal
+            ? ($request->input('organization_unit_id') ? (int) $request->input('organization_unit_id') : null)
+            : $user->currentUnitId();
+
+        // Non-global without unit = error
+        if (!$isGlobal && !$unitId) {
+            return back()->withErrors(['organization_unit_id' => 'Anda tidak memiliki unit organisasi.']);
+        }
 
         $validated = $request->validate([
             'name' => [
@@ -155,7 +177,7 @@ class FinanceCategoryController extends Controller
             ],
             'type' => ['required', Rule::in(['income', 'expense'])],
             'description' => ['nullable', 'string'],
-            'organization_unit_id' => [$isSuper ? 'nullable' : 'required'],
+            'organization_unit_id' => [$isGlobal ? 'nullable' : 'required'],
             'is_recurring' => ['boolean'],
             'default_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
@@ -206,15 +228,18 @@ class FinanceCategoryController extends Controller
         Gate::authorize('viewAny', FinanceCategory::class);
 
         $user = Auth::user();
-        $isSuper = $user->hasRole('super_admin');
+        $isGlobal = $user->hasGlobalAccess();
+        $unitId = $user->currentUnitId();
+
         $query = FinanceCategory::query()->with(['organizationUnit', 'creator']);
 
         $type = $request->query('type');
         $search = $request->query('search');
         $unitParam = $request->query('unit_id');
 
-        if (!$isSuper) {
-            $query->where('organization_unit_id', $user->organization_unit_id);
+        if (!$isGlobal) {
+            // Non-global: scoped to their unit only (no global categories in export)
+            $query->where('organization_unit_id', $unitId);
         } else {
             if ($unitParam === 'null') {
                 $query->whereNull('organization_unit_id');
@@ -231,11 +256,14 @@ class FinanceCategoryController extends Controller
             $query->where('name', 'like', "%{$search}%");
         }
 
+        $rowCount = (clone $query)->count();
         $filename = 'finance_categories_' . now()->format('Ymd_His') . '.csv';
-        return response()->streamDownload(function () use ($query) {
+        \App\Services\ExportScopeHelper::auditExport($user, 'finance.categories', $unitId, $rowCount);
+        return response()->streamDownload(function () use ($query, $user, $unitId) {
             $out = fopen('php://output', 'w');
             fputcsv($out, ['Nama', 'Tipe', 'Unit', 'Dibuat Oleh']);
-            $query->orderBy('name')->chunk(500, function ($rows) use (&$out) {
+            $count = 0;
+            $query->orderBy('name')->chunk(500, function ($rows) use (&$out, &$count) {
                 foreach ($rows as $c) {
                     fputcsv($out, [
                         $c->name,
@@ -243,6 +271,7 @@ class FinanceCategoryController extends Controller
                         $c->organizationUnit?->name ?? 'Global',
                         $c->creator?->name ?? '-',
                     ]);
+                    $count++;
                 }
             });
             fclose($out);

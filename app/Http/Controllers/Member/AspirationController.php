@@ -23,8 +23,8 @@ class AspirationController extends Controller
         $user = $request->user();
         $member = $user->member;
 
-        // If not member, determine unit from user
-        $unitId = $member ? $member->organization_unit_id : $user->organization_unit_id;
+        // Use currentUnitId() for consistent unit resolution
+        $unitId = $user->currentUnitId();
 
         // Global admins (super_admin, admin_pusat) might not have unit, show all?
         // But this is "Member View". Maybe show all if global admin?
@@ -67,14 +67,17 @@ class AspirationController extends Controller
 
         // Add support status for current member
         $aspirationIds = $aspirations->pluck('id');
-        $supportedIds = AspirationSupport::where('member_id', $member->id)
-            ->whereIn('aspiration_id', $aspirationIds)
-            ->pluck('aspiration_id')
-            ->toArray();
+        $supportedIds = [];
+        if ($member) {
+            $supportedIds = AspirationSupport::where('member_id', $member->id)
+                ->whereIn('aspiration_id', $aspirationIds)
+                ->pluck('aspiration_id')
+                ->toArray();
+        }
 
         $aspirations->getCollection()->transform(function ($aspiration) use ($supportedIds, $member) {
-            $aspiration->setAttribute('is_supported', in_array($aspiration->id, $supportedIds));
-            $aspiration->setAttribute('is_own', $aspiration->member_id === $member->id);
+            $aspiration->setAttribute('is_supported', in_array($aspiration->id, $supportedIds, true));
+            $aspiration->setAttribute('is_own', $member ? ($aspiration->member_id === $member->id) : false);
             return $aspiration;
         });
 
@@ -117,14 +120,18 @@ class AspirationController extends Controller
             }
             // For admin_pusat/super_admin, they might not have a unit. If so, require unit selection or default?
             // User requirement: "ke 3 role ini seharusnya dapat menyampaikan".
-            // If super_admin has no unit, we default to null? But OrganizationUnitId is required in database.
-            // Let's rely on $user->organization_unit_id. If missing, we block or default.
-            if (!$user->organization_unit_id && !$user->hasGlobalAccess()) {
+            // Use currentUnitId() which handles both organization_unit_id and member->organization_unit_id
+            $unitId = $user->currentUnitId();
+            if (!$unitId && !$user->hasGlobalAccess()) {
                 return back()->withErrors(['unit' => 'Unit organisasi tidak ditemukan']);
             }
+            // Global admins without unit cannot create aspirations in member view
+            if (!$unitId) {
+                return back()->withErrors(['unit' => 'Pilih unit terlebih dahulu untuk membuat aspirasi']);
+            }
+        } else {
+            $unitId = $user->currentUnitId();
         }
-
-        $unitId = $member ? $member->organization_unit_id : ($user->organization_unit_id ?? \App\Models\OrganizationUnit::first()->id); // Fallback for global admins if no unit assigned
 
         $aspiration = DB::transaction(function () use ($validated, $member, $user, $unitId) {
             $aspiration = Aspiration::create([

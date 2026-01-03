@@ -56,6 +56,11 @@ class Aspiration extends Model
         return $this->hasMany(AspirationSupport::class);
     }
 
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function supporters()
     {
         return $this->belongsToMany(Member::class, 'aspiration_supports', 'aspiration_id', 'member_id')

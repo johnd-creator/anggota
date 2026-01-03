@@ -8,6 +8,7 @@ This file is committed to the repo so any AI agent (and humans) can follow the s
    - `development-notes/backend.md` (backend changes)
    - `development-notes/ux.md` (UI/UX changes)
    - `development-notes/security.md` (security/review notes)
+   - `development-notes/testing.md` (local testing commands/issues)
    If these files do not exist locally, create them (they are intentionally ignored by git).
 2. After completing work, append a short entry to every relevant note.
 3. Never write secrets or sensitive data into notes:
@@ -32,3 +33,4 @@ Use this template in each relevant note:
 - `development-notes/backend.md`: Laravel, DB/migrations/seed, APIs, jobs/queue, config, tooling.
 - `development-notes/ux.md`: views/components, styling, copy, flows, accessibility, performance UX.
 - `development-notes/security.md`: auth/roles/permissions, data exposure, validation, dependencies, configs, threat notes.
+- `development-notes/testing.md`: local commands, known test issues, how to reproduce.

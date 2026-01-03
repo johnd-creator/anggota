@@ -16,37 +16,45 @@ class OnboardingController extends Controller
 {
     public function index(Request $request)
     {
-        Gate::authorize('viewAny', PendingMember::class); // allow super_admin, admin_unit via middleware
+        Gate::authorize('viewAny', PendingMember::class);
 
-        $query = PendingMember::query()->with('unit')->where('status', 'pending');
         $user = $request->user();
-        // admin_unit sees only their unit; admin_pusat and super_admin see all
-        if ($user && $user->role && $user->role->name === 'admin_unit') {
-            if ($user->organization_unit_id) {
-                $query->where('organization_unit_id', $user->organization_unit_id);
+        $unitId = $user->currentUnitId();
+
+        // Build base query with unit scope for non-global users
+        $baseQuery = PendingMember::query();
+        if (!$user->hasGlobalAccess()) {
+            if ($unitId) {
+                $baseQuery->where('organization_unit_id', $unitId);
             } else {
-                $query->whereRaw('1=0');
+                $baseQuery->whereRaw('1=0');
             }
         }
-        // admin_pusat and super_admin have global access - no unit filter
 
+        // Query for pending items
+        $query = (clone $baseQuery)->with('unit')->where('status', 'pending');
         $pendings = $query->latest()->paginate(10)->withQueryString();
+
+        // Stats from scoped base query (not global)
+        $statsQuery = clone $baseQuery;
 
         return Inertia::render('Admin/Onboarding/Index', [
             'items' => $pendings,
             'units' => \App\Models\OrganizationUnit::select('id', 'name', 'code')->orderBy('name')->get(),
             'positions' => \App\Models\UnionPosition::orderBy('name')->get(['id', 'name']),
             'stats' => [
-                'total' => PendingMember::count(),
-                'pending' => PendingMember::where('status', 'pending')->count(),
-                'approved' => PendingMember::where('status', 'approved')->count(),
-                'rejected' => PendingMember::where('status', 'rejected')->count(),
+                'total' => (clone $statsQuery)->count(),
+                'pending' => (clone $statsQuery)->where('status', 'pending')->count(),
+                'approved' => (clone $statsQuery)->where('status', 'approved')->count(),
+                'rejected' => (clone $statsQuery)->where('status', 'rejected')->count(),
             ],
         ]);
     }
 
     public function approve(Request $request, PendingMember $pending)
     {
+        Gate::authorize('approve', $pending);
+
         $validated = $request->validate([
             'full_name' => 'required|string|max:255',
             'email' => 'required|email|unique:members,email',
@@ -57,9 +65,12 @@ class OnboardingController extends Controller
         ]);
 
         $user = $request->user();
-        // admin_unit approves to their own unit; admin_pusat/super_admin can approve to any unit
-        if ($user && $user->role && $user->role->name === 'admin_unit' && $user->organization_unit_id) {
-            $validated['organization_unit_id'] = $user->organization_unit_id;
+        // admin_unit approves to their own unit; global users can approve to any unit
+        if (!$user->hasGlobalAccess()) {
+            $userUnitId = $user->currentUnitId();
+            if ($userUnitId) {
+                $validated['organization_unit_id'] = $userUnitId;
+            }
         }
 
         $joinYear = (int) date('Y', strtotime($validated['join_date']));
@@ -114,6 +125,8 @@ class OnboardingController extends Controller
 
     public function reject(Request $request, PendingMember $pending)
     {
+        Gate::authorize('reject', $pending);
+
         $validated = $request->validate([
             'reason' => 'required|string|min:5',
         ]);

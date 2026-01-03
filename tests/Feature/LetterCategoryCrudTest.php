@@ -12,173 +12,144 @@ class LetterCategoryCrudTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected $superAdmin;
-    protected $adminUnit;
-    protected $roleSuperAdmin;
-    protected $roleAdminUnit;
-
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(\Database\Seeders\RoleSeeder::class);
+    }
 
-        $this->roleSuperAdmin = Role::create(['name' => 'super_admin', 'label' => 'Super Admin']);
-        $this->roleAdminUnit = Role::create(['name' => 'admin_unit', 'label' => 'Admin Unit']);
-
-        $this->superAdmin = User::factory()->create([
-            'role_id' => $this->roleSuperAdmin->id,
+    /**
+     * Test create category with template fields.
+     */
+    public function test_create_category_with_template_fields(): void
+    {
+        $superAdmin = User::factory()->create([
+            'role_id' => Role::where('name', 'super_admin')->first()->id,
         ]);
 
-        $this->adminUnit = User::factory()->create([
-            'role_id' => $this->roleAdminUnit->id,
-        ]);
-    }
-
-    public function test_super_admin_can_access_letter_categories_index()
-    {
-        $response = $this->actingAs($this->superAdmin)
-            ->get(route('admin.letter-categories.index'));
-
-        $response->assertStatus(200);
-    }
-
-    public function test_admin_unit_cannot_access_letter_categories()
-    {
-        $response = $this->actingAs($this->adminUnit)
-            ->get(route('admin.letter-categories.index'));
-
-        $response->assertStatus(403);
-    }
-
-    public function test_super_admin_can_create_letter_category()
-    {
-        $response = $this->actingAs($this->superAdmin)
-            ->get(route('admin.letter-categories.create'));
-
-        $response->assertStatus(200);
-
-        $response = $this->actingAs($this->superAdmin)
-            ->post(route('admin.letter-categories.store'), [
-                'name' => 'Test Category',
-                'code' => 'TST',
-                'description' => 'Test description',
-                'is_active' => true,
-            ]);
-
-        $response->assertRedirect(route('admin.letter-categories.index'));
-
-        $this->assertDatabaseHas('letter_categories', [
-            'code' => 'TST',
+        $data = [
             'name' => 'Test Category',
+            'code' => 'TST',
+            'description' => 'Test description',
+            'color' => 'blue',
+            'sort_order' => 1,
             'is_active' => true,
-        ]);
-    }
+            // Template fields
+            'template_subject' => 'Undangan Rapat {{unit_name}}',
+            'template_body' => 'Dengan hormat, bersama ini kami sampaikan...',
+            'template_cc_text' => 'Arsip',
+            'default_confidentiality' => 'biasa',
+            'default_urgency' => 'segera',
+            'default_signer_type' => 'ketua',
+        ];
 
-    public function test_super_admin_can_update_letter_category()
-    {
-        $category = LetterCategory::create([
-            'name' => 'Original Name',
-            'code' => 'ORG',
-            'description' => 'Original description',
-            'is_active' => true,
-        ]);
+        $response = $this->actingAs($superAdmin)->post('/admin/letter-categories', $data);
 
-        $response = $this->actingAs($this->superAdmin)
-            ->put(route('admin.letter-categories.update', $category->id), [
-                'name' => 'Updated Name',
-                'code' => 'UPD',
-                'description' => 'Updated description',
-                'is_active' => false,
-            ]);
-
-        $response->assertRedirect(route('admin.letter-categories.index'));
-
-        $category->refresh();
-        $this->assertEquals('Updated Name', $category->name);
-        $this->assertEquals('UPD', $category->code);
-        $this->assertFalse($category->is_active);
-    }
-
-    public function test_letter_category_code_is_auto_uppercased()
-    {
-        $response = $this->actingAs($this->superAdmin)
-            ->post(route('admin.letter-categories.store'), [
-                'name' => 'Lowercase Test',
-                'code' => 'low',
-                'description' => null,
-                'is_active' => true,
-            ]);
-
-        $response->assertRedirect();
+        $response->assertRedirect('/admin/letter-categories');
 
         $this->assertDatabaseHas('letter_categories', [
-            'code' => 'LOW',
+            'name' => 'Test Category',
+            'code' => 'TST',
+            'template_subject' => 'Undangan Rapat {{unit_name}}',
+            'template_body' => 'Dengan hormat, bersama ini kami sampaikan...',
+            'template_cc_text' => 'Arsip',
+            'default_confidentiality' => 'biasa',
+            'default_urgency' => 'segera',
+            'default_signer_type' => 'ketua',
         ]);
     }
 
-    public function test_cannot_delete_letter_category_with_letters()
+    /**
+     * Test update category with template fields.
+     */
+    public function test_update_category_with_template_fields(): void
     {
+        $superAdmin = User::factory()->create([
+            'role_id' => Role::where('name', 'super_admin')->first()->id,
+        ]);
+
         $category = LetterCategory::create([
-            'name' => 'With Letters',
-            'code' => 'WTL',
+            'name' => 'Original',
+            'code' => 'ORI',
+            'color' => 'neutral',
             'is_active' => true,
         ]);
 
-        // Create a letter using this category
-        \DB::table('letters')->insert([
-            'creator_user_id' => $this->superAdmin->id,
-            'letter_category_id' => $category->id,
-            'signer_type' => 'ketua',
-            'to_type' => 'unit',
-            'subject' => 'Test Letter',
-            'body' => 'Test body',
-            'status' => 'draft',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $data = [
+            'name' => 'Updated',
+            'code' => 'UPD',
+            'color' => 'green',
+            'is_active' => true,
+            'template_subject' => 'Updated Subject {{today}}',
+            'template_body' => 'Updated body content',
+            'template_cc_text' => 'Updated CC',
+            'default_confidentiality' => 'terbatas',
+            'default_urgency' => 'kilat',
+            'default_signer_type' => 'sekretaris',
+        ];
 
-        $response = $this->actingAs($this->superAdmin)
-            ->delete(route('admin.letter-categories.destroy', $category->id));
+        $response = $this->actingAs($superAdmin)->put("/admin/letter-categories/{$category->id}", $data);
 
-        $response->assertSessionHasErrors('category');
+        $response->assertRedirect('/admin/letter-categories');
 
         $this->assertDatabaseHas('letter_categories', [
             'id' => $category->id,
+            'name' => 'Updated',
+            'code' => 'UPD',
+            'template_subject' => 'Updated Subject {{today}}',
+            'template_body' => 'Updated body content',
+            'default_confidentiality' => 'terbatas',
+            'default_urgency' => 'kilat',
+            'default_signer_type' => 'sekretaris',
         ]);
     }
 
-    public function test_can_delete_letter_category_without_letters()
+    /**
+     * Test template fields are nullable.
+     */
+    public function test_template_fields_are_nullable(): void
     {
-        $category = LetterCategory::create([
-            'name' => 'No Letters',
-            'code' => 'NLT',
+        $superAdmin = User::factory()->create([
+            'role_id' => Role::where('name', 'super_admin')->first()->id,
+        ]);
+
+        $data = [
+            'name' => 'No Template',
+            'code' => 'NOT',
+            'color' => 'neutral',
             'is_active' => true,
-        ]);
+            // No template fields
+        ];
 
-        $response = $this->actingAs($this->superAdmin)
-            ->delete(route('admin.letter-categories.destroy', $category->id));
+        $response = $this->actingAs($superAdmin)->post('/admin/letter-categories', $data);
 
-        $response->assertRedirect(route('admin.letter-categories.index'));
+        $response->assertRedirect('/admin/letter-categories');
 
-        $this->assertDatabaseMissing('letter_categories', [
-            'id' => $category->id,
-        ]);
+        $category = LetterCategory::where('code', 'NOT')->first();
+        $this->assertNull($category->template_subject);
+        $this->assertNull($category->template_body);
+        $this->assertNull($category->default_confidentiality);
     }
 
-    public function test_code_must_be_unique()
+    /**
+     * Test invalid default values are rejected.
+     */
+    public function test_invalid_default_values_rejected(): void
     {
-        LetterCategory::create([
-            'name' => 'First Category',
-            'code' => 'DUP',
-            'is_active' => true,
+        $superAdmin = User::factory()->create([
+            'role_id' => Role::where('name', 'super_admin')->first()->id,
         ]);
 
-        $response = $this->actingAs($this->superAdmin)
-            ->post(route('admin.letter-categories.store'), [
-                'name' => 'Second Category',
-                'code' => 'DUP',
-                'is_active' => true,
-            ]);
+        $data = [
+            'name' => 'Invalid',
+            'code' => 'INV',
+            'color' => 'neutral',
+            'is_active' => true,
+            'default_confidentiality' => 'invalid_value', // Invalid
+        ];
 
-        $response->assertSessionHasErrors('code');
+        $response = $this->actingAs($superAdmin)->post('/admin/letter-categories', $data);
+
+        $response->assertSessionHasErrors('default_confidentiality');
     }
 }

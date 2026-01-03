@@ -4,6 +4,24 @@ export default {
     "./resources/**/*.blade.php",
     "./resources/**/*.js",
     "./resources/**/*.vue",
+    "./resources/forum/**/*.css",
+    "./vendor/teamteatime/laravel-forum/resources/**/*.blade.php",
+    "./vendor/teamteatime/laravel-forum/resources/**/*.js",
+  ],
+  safelist: [
+    // Forum slate colors used in forum.css
+    'text-slate-300',
+    'text-slate-400',
+    'text-slate-600',
+    'text-slate-900',
+    'bg-slate-100',
+    'bg-slate-200',
+    'bg-slate-800',
+    'border-slate-300',
+    'hover:text-slate-900',
+    'hover:text-white',
+    'border-green-500',
+    'outline-green-500',
   ],
   darkMode: 'class', // Enable dark mode with class strategy
   theme: {
@@ -13,6 +31,20 @@ export default {
         mono: ['JetBrains Mono', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
       },
       colors: {
+        // Slate colors for forum preset
+        slate: {
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          900: '#0f172a',
+          950: '#020617',
+        },
         brand: {
           primary: {
             50: '#eff6ff',

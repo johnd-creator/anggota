@@ -18,18 +18,54 @@ class DashboardController extends Controller
             return redirect()->route('itworks');
         }
 
+        $isGlobal = $user?->hasGlobalAccess() ?? false;
+        $unitId = $user?->currentUnitId();
+
         return Inertia::render('Dashboard', [
             'dashboard' => [
-                'members_by_unit' => $this->getMembersByUnit(),
-                'growth_last_12' => $this->getGrowthStats(),
-                'mutations' => $this->getMutationStats(),
+                'members_by_unit' => $this->getMembersByUnit($user, $isGlobal, $unitId),
+                'growth_last_12' => $this->getGrowthStats($user, $isGlobal, $unitId),
+                'mutations' => $this->getMutationStats($user, $isGlobal, $unitId),
             ],
-            'alerts' => $this->getAlerts(),
+            'alerts' => $this->getAlerts($user, $isGlobal, $unitId),
             'dues_summary' => $this->getDuesSummary($user),
             'unpaid_members' => $this->getUnpaidMembers($user),
             'finance' => $this->getFinanceData($user),
             'letters' => $this->getLettersSummary($user),
+            'announcements_pinned' => $this->getPinnedAnnouncements($user),
+            'my_dues' => $this->getMyDuesSummary($user),
         ]);
+    }
+
+    private function getPinnedAnnouncements($user)
+    {
+        // Skip query if announcements feature is disabled
+        if (!config('features.announcements', true)) {
+            return collect([]);
+        }
+
+        return \App\Models\Announcement::query()
+            ->visibleTo($user)
+            ->where('pin_to_dashboard', true)
+            ->with(['organizationUnit', 'attachments'])
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($announcement) {
+                return [
+                    'id' => $announcement->id,
+                    'title' => $announcement->title,
+                    'body_snippet' => \Illuminate\Support\Str::limit($announcement->body, 150),
+                    'scope_type' => $announcement->scope_type,
+                    'organization_unit_name' => $announcement->organizationUnit?->name,
+                    'created_at' => $announcement->created_at,
+                    'attachments' => $announcement->attachments->map(fn($file) => [
+                        'id' => $file->id,
+                        'original_name' => $file->original_name,
+                        'download_url' => $file->download_url,
+                    ]),
+                ];
+            });
     }
 
     private function getLettersSummary($user)
@@ -87,10 +123,11 @@ class DashboardController extends Controller
             $approvals = Letter::needsApproval()->count();
         } else {
             $positionName = strtolower((string) $user->getUnionPositionName());
-            if (in_array($positionName, ['ketua', 'sekretaris'], true) && $user->organization_unit_id) {
+            $unitId = $user->currentUnitId();
+            if (in_array($positionName, ['ketua', 'sekretaris'], true) && $unitId) {
                 $approvals = Letter::needsApproval()
                     ->where('signer_type', $positionName)
-                    ->where('from_unit_id', $user->organization_unit_id)
+                    ->where('from_unit_id', $unitId)
                     ->count();
             }
         }
@@ -112,37 +149,38 @@ class DashboardController extends Controller
         }
 
         $roleName = optional(optional($user)->role)->name;
+        $unitId = $user->currentUnitId();
 
         $query = Letter::query()
             ->whereIn('status', ['submitted', 'approved', 'sent', 'archived']);
 
         if (in_array($roleName, ['anggota', 'bendahara'], true)) {
-            $hasAnyRecipient = (bool) ($user->member_id || $user->organization_unit_id);
+            $hasAnyRecipient = (bool) ($user->member_id || $unitId);
             if (!$hasAnyRecipient) {
                 return $query->whereRaw('1=0');
             }
 
-            return $query->where(function ($q) use ($user) {
+            return $query->where(function ($q) use ($user, $unitId) {
                 if ($user->member_id) {
                     $q->orWhere(function ($sub) use ($user) {
                         $sub->where('to_type', 'member')->where('to_member_id', $user->member_id);
                     });
                 }
 
-                if ($user->organization_unit_id) {
-                    $q->orWhere(function ($sub) use ($user) {
-                        $sub->where('to_type', 'unit')->where('to_unit_id', $user->organization_unit_id);
+                if ($unitId) {
+                    $q->orWhere(function ($sub) use ($unitId) {
+                        $sub->where('to_type', 'unit')->where('to_unit_id', $unitId);
                     });
                 }
             });
         }
 
         if ($roleName === 'admin_unit') {
-            if (!$user->organization_unit_id) {
+            if (!$unitId) {
                 return $query->whereRaw('1=0');
             }
 
-            return $query->where('to_type', 'unit')->where('to_unit_id', $user->organization_unit_id);
+            return $query->where('to_type', 'unit')->where('to_unit_id', $unitId);
         }
 
         // admin_pusat & super_admin: inbox is letters addressed to admin_pusat
@@ -153,59 +191,116 @@ class DashboardController extends Controller
         return $query->whereRaw('1=0');
     }
 
-    private function getMembersByUnit()
+    private function getMembersByUnit($user, bool $isGlobal, ?int $unitId)
     {
-        return Cache::remember('dash_members_by_unit', 300, function () {
+        if ($isGlobal) {
+            return Cache::remember('dash_members_by_unit:global', 300, function () {
+                return \App\Models\OrganizationUnit::select('id', 'name')
+                    ->withCount([
+                        'members as active_members_count' => function ($q) {
+                            $q->where('status', 'aktif');
+                        }
+                    ])
+                    ->orderByDesc('active_members_count')
+                    ->limit(10)
+                    ->get();
+            });
+        }
+
+        // Non-global: only their own unit
+        if (!$unitId) {
+            return collect([]);
+        }
+
+        return Cache::remember("dash_members_by_unit:unit:{$unitId}", 300, function () use ($unitId) {
             return \App\Models\OrganizationUnit::select('id', 'name')
+                ->where('id', $unitId)
                 ->withCount([
                     'members as active_members_count' => function ($q) {
                         $q->where('status', 'aktif');
                     }
                 ])
-                ->orderByDesc('active_members_count')
-                ->limit(10)
                 ->get();
         });
     }
 
-    private function getGrowthStats()
+    private function getGrowthStats($user, bool $isGlobal, ?int $unitId)
     {
         $months = collect(range(0, 11))->map(function ($i) {
             return now()->subMonths(11 - $i)->format('Y-m');
         });
-        return Cache::remember('dash_growth_last_12', 300, function () use ($months) {
-            return $months->map(function ($m) {
+
+        $cacheKey = $isGlobal ? 'dash_growth_last_12:global' : "dash_growth_last_12:unit:{$unitId}";
+
+        return Cache::remember($cacheKey, 300, function () use ($months, $isGlobal, $unitId) {
+            return $months->map(function ($m) use ($isGlobal, $unitId) {
                 $date = \Carbon\Carbon::createFromFormat('Y-m', $m);
                 $start = $date->copy()->startOfMonth()->toDateString();
                 $end = $date->copy()->endOfMonth()->toDateString();
-                $count = \App\Models\Member::whereDate('join_date', '>=', $start)
-                    ->whereDate('join_date', '<=', $end)
-                    ->count();
-                return ['label' => $m, 'value' => (int) $count];
+
+                $query = \App\Models\Member::whereDate('join_date', '>=', $start)
+                    ->whereDate('join_date', '<=', $end);
+
+                if (!$isGlobal && $unitId) {
+                    $query->where('organization_unit_id', $unitId);
+                }
+
+                return ['label' => $m, 'value' => (int) $query->count()];
             });
         });
     }
 
-    private function getMutationStats()
+    private function getMutationStats($user, bool $isGlobal, ?int $unitId)
     {
-        return Cache::remember('dash_mutations_stats', 300, function () {
+        $cacheKey = $isGlobal ? 'dash_mutations_stats:global' : "dash_mutations_stats:unit:{$unitId}";
+
+        return Cache::remember($cacheKey, 300, function () use ($isGlobal, $unitId) {
+            $baseQuery = \App\Models\MutationRequest::query();
+
+            if (!$isGlobal && $unitId) {
+                $baseQuery->where(fn($q) => $q->where('from_unit_id', $unitId)->orWhere('to_unit_id', $unitId));
+            }
+
             return [
-                'pending' => \App\Models\MutationRequest::where('status', 'pending')->count(),
-                'approved' => \App\Models\MutationRequest::where('status', 'approved')->count(),
-                'breach' => \App\Models\MutationRequest::where('sla_status', 'breach')->count(),
+                'pending' => (clone $baseQuery)->where('status', 'pending')->count(),
+                'approved' => (clone $baseQuery)->where('status', 'approved')->count(),
+                'breach' => (clone $baseQuery)->where('sla_status', 'breach')->count(),
             ];
         });
     }
 
-    private function getAlerts()
+    private function getAlerts($user, bool $isGlobal, ?int $unitId)
     {
-        return Cache::remember('dash_alerts', 300, function () {
-            $docMissing = \App\Models\Member::whereNull('photo_path')->orWhereNull('documents')->count();
-            $loginFailSameIp = \App\Models\AuditLog::where('event', 'login_failed')
-                ->select(DB::raw('ip_address'), DB::raw('count(*) as c'))
-                ->groupBy('ip_address')->having(DB::raw('count(*)'), '>=', 5)->count();
-            $slaBreached = \App\Models\MutationRequest::where('sla_status', 'breach')->count();
-            return ['documents_missing' => $docMissing, 'login_fail_same_ip' => $loginFailSameIp, 'mutations_sla_breach' => $slaBreached];
+        $cacheKey = $isGlobal ? 'dash_alerts:global' : "dash_alerts:unit:{$unitId}";
+
+        return Cache::remember($cacheKey, 300, function () use ($isGlobal, $unitId) {
+            // Documents missing - scoped
+            $docQuery = \App\Models\Member::query();
+            if (!$isGlobal && $unitId) {
+                $docQuery->where('organization_unit_id', $unitId);
+            }
+            $docMissing = (clone $docQuery)->where(fn($q) => $q->whereNull('photo_path')->orWhereNull('documents'))->count();
+
+            // Login fail alerts - only for global users (security-wide metric)
+            $loginFailSameIp = 0;
+            if ($isGlobal) {
+                $loginFailSameIp = \App\Models\AuditLog::where('event', 'login_failed')
+                    ->select(DB::raw('ip_address'), DB::raw('count(*) as c'))
+                    ->groupBy('ip_address')->having(DB::raw('count(*)'), '>=', 5)->count();
+            }
+
+            // Mutations SLA breach - scoped
+            $slaQuery = \App\Models\MutationRequest::where('sla_status', 'breach');
+            if (!$isGlobal && $unitId) {
+                $slaQuery->where(fn($q) => $q->where('from_unit_id', $unitId)->orWhere('to_unit_id', $unitId));
+            }
+            $slaBreached = $slaQuery->count();
+
+            return [
+                'documents_missing' => $docMissing,
+                'login_fail_same_ip' => $loginFailSameIp,
+                'mutations_sla_breach' => $slaBreached,
+            ];
         });
     }
 
@@ -213,7 +308,7 @@ class DashboardController extends Controller
     {
         $roleName = optional(optional($user)->role)->name;
         if (in_array($roleName, ['admin_unit', 'bendahara'], true)) {
-            $unitId = $user->organization_unit_id;
+            $unitId = $user->currentUnitId();
             return \App\Http\Controllers\Finance\FinanceDuesController::getDashboardSummary($unitId);
         } elseif (in_array($roleName, ['super_admin', 'admin_pusat'], true)) {
             return \App\Http\Controllers\Finance\FinanceDuesController::getDashboardSummary();
@@ -225,7 +320,7 @@ class DashboardController extends Controller
     {
         $roleName = optional(optional($user)->role)->name;
         if (in_array($roleName, ['admin_unit', 'bendahara'], true)) {
-            $unitId = $user->organization_unit_id;
+            $unitId = $user->currentUnitId();
             return \App\Http\Controllers\Finance\FinanceDuesController::getUnpaidMembers($unitId, null, 20);
         } elseif (in_array($roleName, ['super_admin', 'admin_pusat'], true)) {
             return \App\Http\Controllers\Finance\FinanceDuesController::getUnpaidMembers(null, null, 20);
@@ -240,7 +335,7 @@ class DashboardController extends Controller
             return null;
         }
 
-        $financeUnitId = ($roleName === 'super_admin') ? null : $user->organization_unit_id;
+        $financeUnitId = ($roleName === 'super_admin') ? null : $user->currentUnitId();
 
         // 1. Current Balance
         $balance = \App\Models\FinanceLedger::query()
@@ -294,4 +389,54 @@ class DashboardController extends Controller
             'unit_name' => $financeUnitId ? optional(\App\Models\OrganizationUnit::find($financeUnitId))->name : 'Global',
         ];
     }
+
+    /**
+     * Get personal dues summary for user's dashboard.
+     */
+    private function getMyDuesSummary($user)
+    {
+        // Skip if finance feature is disabled
+        if (!config('features.finance', true)) {
+            return null;
+        }
+
+        $memberId = $user?->member_id;
+        if (!$memberId) {
+            return null;
+        }
+
+        $member = \App\Models\Member::find($memberId);
+        $joinDate = $member && $member->join_date ? \Carbon\Carbon::parse($member->join_date)->startOfMonth() : null;
+
+        $currentPeriod = now()->format('Y-m');
+        $periods = collect(range(0, 5))->map(fn($i) => now()->subMonths($i)->format('Y-m'))
+            ->filter(function ($period) use ($joinDate) {
+                if (!$joinDate)
+                    return true;
+                return \Carbon\Carbon::createFromFormat('Y-m', $period)->endOfMonth()->gte($joinDate);
+            })
+            ->values()
+            ->toArray();
+
+        $payments = \App\Models\DuesPayment::where('member_id', $memberId)
+            ->whereIn('period', $periods)
+            ->get()
+            ->keyBy('period');
+
+        $unpaidPeriods = collect($periods)->filter(fn($p) => !$payments->has($p) || $payments->get($p)->status !== 'paid')->values();
+
+        $currentStatus = 'unpaid';
+        if ($payments->has($currentPeriod) && $payments->get($currentPeriod)->status === 'paid') {
+            $currentStatus = 'paid';
+        }
+
+        return [
+            'current_period' => $currentPeriod,
+            'current_status' => $currentStatus,
+            'unpaid_count' => $unpaidPeriods->count(),
+            'unpaid_periods' => $unpaidPeriods->take(3)->values(),
+        ];
+    }
+
 }
+

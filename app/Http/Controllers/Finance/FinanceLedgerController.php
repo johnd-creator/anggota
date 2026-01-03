@@ -22,8 +22,9 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('viewAny', FinanceLedger::class);
         $user = Auth::user();
-        $isSuper = $user && $user->role && $user->role->name === 'super_admin';
-        $isAdminUnit = $user && $user->role && $user->role->name === 'admin_unit';
+        $unitId = $user->currentUnitId();
+        $isGlobal = $user->hasGlobalAccess();
+        $isAdminUnit = $user->hasRole('admin_unit');
         $workflowEnabled = FinanceLedger::workflowEnabled();
 
         $query = FinanceLedger::query()->with(['category', 'organizationUnit', 'creator', 'approvedBy']);
@@ -36,11 +37,13 @@ class FinanceLedgerController extends Controller
         $search = $request->query('search');
         $unitParam = $request->query('unit_id');
 
-        if (!$isSuper) {
-            $query->where('organization_unit_id', $user->organization_unit_id);
+        // Apply unit scope
+        if (!$isGlobal) {
+            $query->where('organization_unit_id', $unitId);
         } else {
-            if ($unitParam)
+            if ($unitParam) {
                 $query->where('organization_unit_id', (int) $unitParam);
+            }
         }
 
         if ($dateStart)
@@ -58,19 +61,19 @@ class FinanceLedgerController extends Controller
 
         $ledgers = $query->orderByDesc('date')->orderByDesc('id')->paginate(10)->withQueryString();
 
-        $units = $isSuper ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
+        $units = $isGlobal ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
         $categories = FinanceCategory::select('id', 'name', 'type', 'organization_unit_id')
-            ->when(!$isSuper, function ($q) use ($user) {
-                $q->where(function ($qq) use ($user) {
-                    $qq->whereNull('organization_unit_id')->orWhere('organization_unit_id', $user->organization_unit_id);
+            ->when(!$isGlobal, function ($q) use ($unitId) {
+                $q->where(function ($qq) use ($unitId) {
+                    $qq->whereNull('organization_unit_id')->orWhere('organization_unit_id', $unitId);
                 });
             })
             ->orderBy('name')->get();
 
-        // Saldo calculation - only approved if workflow enabled
+        // Saldo calculation - scoped to unit
         $saldoQuery = FinanceLedger::query();
-        if (!$isSuper) {
-            $saldoQuery->where('organization_unit_id', $user->organization_unit_id);
+        if (!$isGlobal) {
+            $saldoQuery->where('organization_unit_id', $unitId);
         } elseif ($unitParam) {
             $saldoQuery->where('organization_unit_id', (int) $unitParam);
         }
@@ -84,10 +87,10 @@ class FinanceLedgerController extends Controller
         ];
         $saldo['balance'] = $saldo['income'] - $saldo['expense'];
 
-        // Monthly summary - only approved if workflow enabled
+        // Monthly summary - scoped to unit
         $monthStart = now()->startOfMonth()->toDateString();
         $monthQuery = FinanceLedger::query()
-            ->when(!$isSuper, fn($q) => $q->where('organization_unit_id', $user->organization_unit_id));
+            ->when(!$isGlobal, fn($q) => $q->where('organization_unit_id', $unitId));
         if ($workflowEnabled) {
             $monthQuery->where('status', 'approved');
         }
@@ -95,10 +98,10 @@ class FinanceLedgerController extends Controller
         $monthIncome = (float) (clone $monthQuery)->where('type', 'income')->whereDate('date', '>=', $monthStart)->sum('amount');
         $monthExpense = (float) (clone $monthQuery)->where('type', 'expense')->whereDate('date', '>=', $monthStart)->sum('amount');
 
-        // Count pending approvals for admin_unit
+        // Count pending approvals for admin_unit - scoped to unit
         $pendingCount = 0;
-        if ($isAdminUnit && $workflowEnabled) {
-            $pendingCount = FinanceLedger::where('organization_unit_id', $user->organization_unit_id)
+        if ($isAdminUnit && $workflowEnabled && $unitId) {
+            $pendingCount = FinanceLedger::where('organization_unit_id', $unitId)
                 ->where('status', 'submitted')
                 ->count();
         }
@@ -120,12 +123,14 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('create', FinanceLedger::class);
         $user = Auth::user();
-        $isSuper = $user && $user->role && $user->role->name === 'super_admin';
-        $units = $isSuper ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
+        $unitId = $user->currentUnitId();
+        $isGlobal = $user->hasGlobalAccess();
+
+        $units = $isGlobal ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
         $categories = FinanceCategory::select('id', 'name', 'type', 'organization_unit_id')
-            ->when(!$isSuper, function ($q) use ($user) {
-                $q->where(function ($qq) use ($user) {
-                    $qq->whereNull('organization_unit_id')->orWhere('organization_unit_id', $user->organization_unit_id);
+            ->when(!$isGlobal, function ($q) use ($unitId) {
+                $q->where(function ($qq) use ($unitId) {
+                    $qq->whereNull('organization_unit_id')->orWhere('organization_unit_id', $unitId);
                 });
             })
             ->orderBy('name')->get();
@@ -142,8 +147,8 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('create', FinanceLedger::class);
         $user = Auth::user();
-        $isSuper = $user && $user->role && $user->role->name === 'super_admin';
-        $unitId = $isSuper ? (int) $request->input('organization_unit_id') : (int) $user->organization_unit_id;
+        $isGlobal = $user->hasGlobalAccess();
+        $unitId = $isGlobal ? (int) $request->input('organization_unit_id') : $user->currentUnitId();
         $workflowEnabled = FinanceLedger::workflowEnabled();
 
         $validated = $request->validate([
@@ -152,13 +157,14 @@ class FinanceLedgerController extends Controller
             'type' => ['required', Rule::in(['income', 'expense'])],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'description' => ['nullable', 'string'],
-            'organization_unit_id' => [$isSuper ? 'required' : 'nullable'],
+            'organization_unit_id' => [$isGlobal ? 'required' : 'nullable'],
             'attachment' => ['nullable', 'file', 'mimetypes:image/jpeg,image/png,application/pdf', 'max:5120'],
         ]);
 
+        // Validate category belongs to unit or is global
         $category = FinanceCategory::findOrFail((int) $validated['finance_category_id']);
-        if (!$isSuper) {
-            if (!is_null($category->organization_unit_id) && (int) $category->organization_unit_id !== (int) $unitId) {
+        if (!$isGlobal) {
+            if (!is_null($category->organization_unit_id) && (int) $category->organization_unit_id !== $unitId) {
                 return back()->withErrors(['finance_category_id' => 'Kategori tidak valid untuk unit']);
             }
         }
@@ -168,9 +174,7 @@ class FinanceLedgerController extends Controller
             $attachmentPath = $request->file('attachment')->store('finance/attachments', 'public');
         }
 
-        // Default status based on workflow setting
         $defaultStatus = FinanceLedger::defaultStatus();
-        $approvedBy = null;
 
         $ledger = FinanceLedger::create([
             'organization_unit_id' => $unitId,
@@ -181,7 +185,7 @@ class FinanceLedgerController extends Controller
             'description' => $validated['description'] ?? null,
             'attachment_path' => $attachmentPath,
             'status' => $defaultStatus,
-            'approved_by' => $approvedBy,
+            'approved_by' => null,
             'created_by' => $user->id,
         ]);
 
@@ -204,12 +208,14 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('update', $ledger);
         $user = Auth::user();
-        $isSuper = $user && $user->role && $user->role->name === 'super_admin';
-        $units = $isSuper ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
+        $unitId = $user->currentUnitId();
+        $isGlobal = $user->hasGlobalAccess();
+
+        $units = $isGlobal ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
         $categories = FinanceCategory::select('id', 'name', 'type', 'organization_unit_id')
-            ->when(!$isSuper, function ($q) use ($user) {
-                $q->where(function ($qq) use ($user) {
-                    $qq->whereNull('organization_unit_id')->orWhere('organization_unit_id', $user->organization_unit_id);
+            ->when(!$isGlobal, function ($q) use ($unitId) {
+                $q->where(function ($qq) use ($unitId) {
+                    $qq->whereNull('organization_unit_id')->orWhere('organization_unit_id', $unitId);
                 });
             })
             ->orderBy('name')->get();
@@ -226,8 +232,8 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('update', $ledger);
         $user = Auth::user();
-        $isSuper = $user && $user->role && $user->role->name === 'super_admin';
-        $unitId = $isSuper ? (int) $request->input('organization_unit_id') : (int) $user->organization_unit_id;
+        $isGlobal = $user->hasGlobalAccess();
+        $unitId = $isGlobal ? (int) $request->input('organization_unit_id') : $user->currentUnitId();
 
         $validated = $request->validate([
             'date' => ['required', 'date'],
@@ -235,13 +241,13 @@ class FinanceLedgerController extends Controller
             'type' => ['required', Rule::in(['income', 'expense'])],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'description' => ['nullable', 'string'],
-            'organization_unit_id' => [$isSuper ? 'required' : 'nullable'],
+            'organization_unit_id' => [$isGlobal ? 'required' : 'nullable'],
             'attachment' => ['nullable', 'file', 'mimetypes:image/jpeg,image/png,application/pdf', 'max:5120'],
         ]);
 
         $category = FinanceCategory::findOrFail((int) $validated['finance_category_id']);
-        if (!$isSuper) {
-            if (!is_null($category->organization_unit_id) && (int) $category->organization_unit_id !== (int) $unitId) {
+        if (!$isGlobal) {
+            if (!is_null($category->organization_unit_id) && (int) $category->organization_unit_id !== $unitId) {
                 return back()->withErrors(['finance_category_id' => 'Kategori tidak valid untuk unit']);
             }
         }
@@ -330,7 +336,10 @@ class FinanceLedgerController extends Controller
 
         $creator = $ledger->creator;
         if ($creator) {
-            try { $creator->notify(new FinanceLedgerApprovedNotification($ledger)); } catch (\Throwable $e) {}
+            try {
+                $creator->notify(new FinanceLedgerApprovedNotification($ledger));
+            } catch (\Throwable $e) {
+            }
         }
 
         return back()->with('success', 'Transaksi berhasil disetujui');
@@ -370,7 +379,10 @@ class FinanceLedgerController extends Controller
 
         $creator = $ledger->creator;
         if ($creator) {
-            try { $creator->notify(new FinanceLedgerRejectedNotification($ledger, $validated['rejected_reason'])); } catch (\Throwable $e) {}
+            try {
+                $creator->notify(new FinanceLedgerRejectedNotification($ledger, $validated['rejected_reason']));
+            } catch (\Throwable $e) {
+            }
         }
 
         return back()->with('success', 'Transaksi ditolak');
@@ -380,7 +392,9 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('viewAny', FinanceLedger::class);
         $user = Auth::user();
-        $isSuper = $user && $user->role && $user->role->name === 'super_admin';
+        $unitId = $user->currentUnitId();
+        $isGlobal = $user->hasGlobalAccess();
+
         $query = FinanceLedger::query()->with(['category', 'organizationUnit', 'creator']);
 
         $dateStart = $request->query('date_start');
@@ -391,12 +405,14 @@ class FinanceLedgerController extends Controller
         $search = $request->query('search');
         $unitParam = $request->query('unit_id');
 
-        if (!$isSuper) {
-            $query->where('organization_unit_id', $user->organization_unit_id);
+        // Apply unit scope
+        if (!$isGlobal) {
+            $query->where('organization_unit_id', $unitId);
         } else {
             if ($unitParam)
                 $query->where('organization_unit_id', (int) $unitParam);
         }
+
         if ($dateStart)
             $query->whereDate('date', '>=', $dateStart);
         if ($dateEnd)
@@ -410,12 +426,15 @@ class FinanceLedgerController extends Controller
         if ($search)
             $query->where('description', 'like', "%{$search}%");
 
+        $rowCount = (clone $query)->count();
         $filename = 'ledgers_' . now()->format('Ymd_His') . '.csv';
+        \App\Services\ExportScopeHelper::auditExport($user, 'finance.ledgers', $unitId, $rowCount);
 
-        return response()->streamDownload(function () use ($query) {
+        return response()->streamDownload(function () use ($query, $user, $unitId) {
             $out = fopen('php://output', 'w');
             fputcsv($out, ['Tanggal', 'Kategori', 'Tipe', 'Nominal', 'Deskripsi', 'Unit', 'Dibuat Oleh', 'Status']);
-            $query->orderBy('date', 'desc')->chunk(500, function ($rows) use (&$out) {
+            $count = 0;
+            $query->orderBy('date', 'desc')->chunk(500, function ($rows) use (&$out, &$count) {
                 foreach ($rows as $l) {
                     fputcsv($out, [
                         $l->date instanceof \Carbon\Carbon ? $l->date->format('Y-m-d') : $l->date,
@@ -427,6 +446,7 @@ class FinanceLedgerController extends Controller
                         $l->creator?->name ?? '-',
                         $l->status ?? 'submitted',
                     ]);
+                    $count++;
                 }
             });
             fclose($out);

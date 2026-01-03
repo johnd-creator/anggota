@@ -3,30 +3,278 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Member;
+use App\Services\MemberImportService;
 use App\Services\NraGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\UploadedFile;
+use Inertia\Inertia;
 
 class MemberImportController extends Controller
 {
+    protected MemberImportService $importService;
+
+    public function __construct(MemberImportService $importService)
+    {
+        $this->importService = $importService;
+    }
+
+    /**
+     * Show the import page.
+     */
+    public function index()
+    {
+        Gate::authorize('create', Member::class);
+        return Inertia::render('Admin/Members/Import');
+    }
+
     public function template(Request $request)
     {
         return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\MembersTemplateExport, 'members_import_template.xlsx');
     }
 
+    /**
+     * Preview import without committing.
+     */
+    public function preview(Request $request)
+    {
+        Gate::authorize('create', Member::class);
+
+        $user = $request->user();
+
+        // Determine effective unit ID (admin_unit forced to own unit)
+        $unitId = null;
+        if ($user->hasRole('admin_unit')) {
+            $unitId = $user->currentUnitId();
+            if (!$unitId) {
+                return back()->withErrors(['file' => 'Akun admin unit belum memiliki unit organisasi']);
+            }
+        } elseif ($user->hasRole('super_admin') || $user->hasRole('admin_pusat')) {
+            // Global admins can optionally specify unit
+            $unitId = $request->input('organization_unit_id') ?: null;
+        } else {
+            abort(403);
+        }
+
+        $request->validate([
+            'file' => 'required|file|mimes:csv,xlsx,xls|max:5120',
+        ]);
+
+        $file = $request->file('file');
+
+        // Run preview
+        $batch = $this->importService->preview($file, $unitId, $user);
+
+        // Audit log (no PII)
+        AuditLog::create([
+            'user_id' => $user->id,
+            'organization_unit_id' => $unitId,
+            'event' => 'import.members.preview',
+            'event_category' => 'export',
+            'subject_type' => 'import_batch',
+            'subject_id' => $batch->id,
+            'payload' => [
+                'batch_id' => $batch->id,
+                'unit_id' => $unitId,
+                'total_rows' => $batch->total_rows,
+                'valid_rows' => $batch->valid_rows,
+                'invalid_rows' => $batch->invalid_rows,
+            ],
+        ]);
+
+        // Get first 20 errors for display
+        $errorSample = $batch->errors()
+            ->orderBy('row_number')
+            ->limit(20)
+            ->get()
+            ->map(fn($e) => [
+                'row' => $e->row_number,
+                'errors' => $e->errors_json,
+            ]);
+
+        return response()->json([
+            'batch' => [
+                'id' => $batch->id,
+                'status' => $batch->status,
+                'original_filename' => $batch->original_filename,
+                'total_rows' => $batch->total_rows,
+                'valid_rows' => $batch->valid_rows,
+                'invalid_rows' => $batch->invalid_rows,
+            ],
+            'errors' => $errorSample,
+        ]);
+    }
+
+    /**
+     * Commit/execute an import batch.
+     */
+    public function commit(Request $request, \App\Models\ImportBatch $batch)
+    {
+        $user = $request->user();
+
+        // Authorization: only actor or super_admin can commit
+        if ($batch->actor_user_id !== $user->id && !$user->hasRole('super_admin')) {
+            abort(403, 'Anda tidak memiliki akses untuk commit batch ini.');
+        }
+
+        // Idempotency check
+        if ($batch->committed_at) {
+            return response()->json([
+                'error' => 'Batch sudah di-commit sebelumnya.',
+                'committed_at' => $batch->committed_at->toIso8601String(),
+            ], 409);
+        }
+
+        // Must be in previewed status
+        if ($batch->status !== 'previewed') {
+            return response()->json([
+                'error' => 'Batch harus dalam status previewed.',
+                'current_status' => $batch->status,
+            ], 422);
+        }
+
+        // Mark as processing
+        $batch->markProcessing();
+
+        // Audit log: commit start
+        AuditLog::create([
+            'user_id' => $user->id,
+            'organization_unit_id' => $batch->organization_unit_id,
+            'event' => 'import.members.commit',
+            'event_category' => 'export',
+            'subject_type' => 'import_batch',
+            'subject_id' => $batch->id,
+            'payload' => [
+                'batch_id' => $batch->id,
+                'total_rows' => $batch->total_rows,
+            ],
+        ]);
+
+        try {
+            // Execute import
+            $result = $this->importService->commit($batch);
+
+            // Update batch with results
+            $batch->update([
+                'status' => 'completed',
+                'committed_at' => now(),
+                'finished_at' => now(),
+                'created_count' => $result['created_count'],
+                'updated_count' => $result['updated_count'],
+            ]);
+
+            // Audit log: completed
+            AuditLog::create([
+                'user_id' => $user->id,
+                'organization_unit_id' => $batch->organization_unit_id,
+                'event' => 'import.members.completed',
+                'event_category' => 'export',
+                'subject_type' => 'import_batch',
+                'subject_id' => $batch->id,
+                'payload' => [
+                    'batch_id' => $batch->id,
+                    'created_count' => $result['created_count'],
+                    'updated_count' => $result['updated_count'],
+                    'error_count' => $result['error_count'],
+                ],
+            ]);
+
+            return response()->json([
+                'status' => 'completed',
+                'batch_id' => $batch->id,
+                'created_count' => $result['created_count'],
+                'updated_count' => $result['updated_count'],
+                'error_count' => $result['error_count'],
+            ]);
+        } catch (\Exception $e) {
+            $batch->markFailed();
+
+            // Audit log: failed
+            AuditLog::create([
+                'user_id' => $user->id,
+                'organization_unit_id' => $batch->organization_unit_id,
+                'event' => 'import.members.failed',
+                'event_category' => 'export',
+                'subject_type' => 'import_batch',
+                'subject_id' => $batch->id,
+                'payload' => [
+                    'batch_id' => $batch->id,
+                    'error' => $e->getMessage(),
+                ],
+            ]);
+
+            return response()->json([
+                'status' => 'failed',
+                'error' => 'Import gagal: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Download error report as CSV.
+     */
+    public function downloadErrors(Request $request, \App\Models\ImportBatch $batch)
+    {
+        $user = $request->user();
+
+        // Authorization: only actor or super_admin
+        if ($batch->actor_user_id !== $user->id && !$user->hasRole('super_admin')) {
+            abort(403);
+        }
+
+        // Recompute errors from stored file to ensure the report is complete (not limited to preview sample).
+        // If the stored file is not available (e.g. synthetic test batches), fall back to stored preview errors.
+        $rows = $this->importService->parseStoredFile($batch->stored_path);
+        $errors = collect();
+        if (!empty($rows)) {
+            $errors = collect($this->importService->collectValidationErrors($rows, $batch->organization_unit_id))
+                ->sortBy('row_number')
+                ->values();
+        } elseif ($batch->errors()->exists()) {
+            $errors = $batch->errors()
+                ->orderBy('row_number')
+                ->get()
+                ->map(fn($e) => ['row_number' => $e->row_number, 'errors' => $e->errors_json])
+                ->values();
+        }
+
+        $filename = "import_errors_batch_{$batch->id}.csv";
+
+        return response()->streamDownload(function () use ($errors) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['row_number', 'errors']);
+
+            foreach ($errors as $error) {
+                $messages = is_array($error['errors'] ?? null) ? implode('; ', $error['errors']) : (string) ($error['errors'] ?? '');
+                fputcsv($out, [$error['row_number'] ?? '', $messages]);
+            }
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * Legacy import endpoint - now uses batch flow for audit and idempotency.
+     * 
+     * @deprecated Use preview() + commit() flow for new implementations.
+     */
     public function store(Request $request)
     {
         Gate::authorize('create', Member::class);
         $user = $request->user();
+
         if (!$user || !$user->role || $user->role->name !== 'admin_unit') {
             abort(403);
         }
-        if (!$user->organization_unit_id) {
+
+        $userUnitId = $user->currentUnitId();
+        if (!$userUnitId) {
             return redirect()->route('admin.members.index')->with('error', 'Akun admin unit belum memiliki unit organisasi');
         }
+
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls,csv|max:5120',
         ]);
@@ -34,64 +282,96 @@ class MemberImportController extends Controller
         $file = $request->file('file');
 
         try {
-            $array = $this->readSpreadsheetToArray($file);
-        } catch (\Exception $e) {
-            return redirect()->route('admin.members.index')->with('error', 'Gagal membaca file Excel: ' . $e->getMessage());
-        }
+            // Use batch flow: preview first
+            $batch = $this->importService->preview($file, $userUnitId, $user);
 
-        if (count($array) === 0) {
-            return redirect()->route('admin.members.index')->with('error', 'File kosong.');
-        }
+            // Audit log: preview (same as new flow)
+            AuditLog::create([
+                'user_id' => $user->id,
+                'organization_unit_id' => $userUnitId,
+                'event' => 'import.members.preview',
+                'event_category' => 'export',
+                'subject_type' => 'import_batch',
+                'subject_id' => $batch->id,
+                'payload' => [
+                    'batch_id' => $batch->id,
+                    'unit_id' => $userUnitId,
+                    'total_rows' => $batch->total_rows,
+                    'valid_rows' => $batch->valid_rows,
+                    'invalid_rows' => $batch->invalid_rows,
+                    'source' => 'legacy_store',
+                ],
+            ]);
 
-        $sheet = $array[0]; // First sheet
-        if (count($sheet) < 2) {
-            return redirect()->route('admin.members.index')->with('error', 'File tidak memiliki data (hanya header atau kosong).');
-        }
-
-        $header = array_map('trim', $sheet[0]);
-        // Remove BOM if exists in first header
-        if (isset($header[0]) && str_starts_with($header[0], "\xEF\xBB\xBF")) {
-            $header[0] = substr($header[0], 3);
-        }
-
-        $data = [];
-        for ($i = 1; $i < count($sheet); $i++) {
-            $row = $sheet[$i];
-            // Pad row if needed
-            if (count($row) < count($header)) {
-                $row = array_pad($row, count($header), null);
-            }
-            // Skip empty rows (join all cols)
-            if (!trim(implode('', $row)))
-                continue;
-
-            $mapped = [];
-            foreach ($header as $idx => $key) {
-                // Ensure key exists in header
-                if ($key) {
-                    $mapped[$key] = $row[$idx];
+            // Check if there are valid rows to commit
+            if ($batch->valid_rows === 0) {
+                $msg = "Import gagal. Tidak ada data valid.";
+                if ($batch->invalid_rows > 0) {
+                    $msg .= " {$batch->invalid_rows} baris error.";
                 }
+                return redirect()->route('admin.members.index')->with('error', $msg);
             }
-            $data[] = $mapped;
-        }
 
-        $success = 0;
-        $failed = 0;
-        $errors = [];
+            // Auto-commit for legacy flow
+            $batch->markProcessing();
 
-        foreach ($data as $index => $item) {
-            $this->importRow($item, $user, $success, $failed, $errors, $index + 2);
-        }
+            // Audit log: commit
+            AuditLog::create([
+                'user_id' => $user->id,
+                'organization_unit_id' => $userUnitId,
+                'event' => 'import.members.commit',
+                'event_category' => 'export',
+                'subject_type' => 'import_batch',
+                'subject_id' => $batch->id,
+                'payload' => [
+                    'batch_id' => $batch->id,
+                    'total_rows' => $batch->total_rows,
+                    'source' => 'legacy_store',
+                ],
+            ]);
 
-        if ($failed > 0) {
-            $msg = "Import selesai. Sukses: {$success}, Gagal: {$failed}.";
-            if (count($errors) > 0) {
-                $msg .= " Error pertama: " . $errors[0]['message'] . " (Baris " . $errors[0]['row'] . ")";
+            // Execute import
+            $result = $this->importService->commit($batch);
+
+            // Update batch
+            $batch->update([
+                'status' => 'completed',
+                'committed_at' => now(),
+                'finished_at' => now(),
+                'created_count' => $result['created_count'],
+                'updated_count' => $result['updated_count'],
+            ]);
+
+            // Audit log: completed
+            AuditLog::create([
+                'user_id' => $user->id,
+                'organization_unit_id' => $userUnitId,
+                'event' => 'import.members.completed',
+                'event_category' => 'export',
+                'subject_type' => 'import_batch',
+                'subject_id' => $batch->id,
+                'payload' => [
+                    'batch_id' => $batch->id,
+                    'created_count' => $result['created_count'],
+                    'updated_count' => $result['updated_count'],
+                    'error_count' => $result['error_count'],
+                    'source' => 'legacy_store',
+                ],
+            ]);
+
+            $total = $result['created_count'] + $result['updated_count'];
+            if ($result['error_count'] > 0) {
+                return redirect()->route('admin.members.index')
+                    ->with('warning', "Import selesai. Sukses: {$total}, Gagal: {$result['error_count']}.");
             }
-            return redirect()->route('admin.members.index')->with('warning', $msg);
-        }
 
-        return redirect()->route('admin.members.index')->with('success', "Berhasil mengimpor {$success} anggota.");
+            return redirect()->route('admin.members.index')
+                ->with('success', "Berhasil mengimpor {$total} anggota.");
+
+        } catch (\Exception $e) {
+            return redirect()->route('admin.members.index')
+                ->with('error', 'Import gagal: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -272,7 +552,7 @@ class MemberImportController extends Controller
             DB::beginTransaction();
 
             $joinYear = $joinDate ? (int) date('Y', strtotime($joinDate)) : (int) now()->year;
-            $unitId = (int) $user->organization_unit_id; // Forced to admin's unit
+            $unitId = (int) $user->currentUnitId(); // Forced to admin's unit via currentUnitId()
 
             // Resolve Union Position
             $unionPosId = null;

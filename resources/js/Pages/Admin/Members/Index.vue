@@ -7,9 +7,9 @@
           <p class="text-sm text-neutral-500">Kelola daftar anggota serikat.</p>
         </div>
         <div class="flex flex-wrap gap-3">
-          <SecondaryButton v-if="$page.props.auth.user.role?.name==='admin_unit'" @click="uploadOpen=true">
+          <SecondaryButton v-if="$page.props.auth.user.role?.name==='admin_unit'" href="/admin/members/import">
             <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 9l5-5 5 5M12 4v12"/></svg>
-            Upload Anggota
+            Import Anggota
           </SecondaryButton>
           <CtaButton href="/admin/members/create">
             <template #icon>
@@ -92,41 +92,6 @@
     </CardContainer>
   </div>
   </AppLayout>
-  <ModalBase v-model:show="uploadOpen" title="Upload Anggota" size="md">
-    <div class="space-y-4 text-sm text-neutral-700">
-      <div class="flex items-center justify-between">
-        <div>Gunakan template resmi untuk mengimpor anggota.</div>
-        <a href="/admin/members/import/template" target="_blank" class="inline-flex items-center px-3 py-1.5 border rounded text-xs">Unduh Template XLSX</a>
-      </div>
-      <div>
-        <input type="file" @change="onFileChange" accept=".csv,.xlsx,.xls" />
-        <div class="mt-2 text-xs text-neutral-500">
-          Template mencakup data personal & organisasi. 
-          * <strong>personal_email</strong>: Email Google (opsional).
-          * <strong>company_email</strong>: Wajib untuk SSO Microsoft (@plnipservices.co.id).
-          * <strong>personal_gender</strong>: L / P.
-          * <strong>personal_phone</strong>: Format +62... (contoh: +628123456789).
-          * <strong>Unit Organisasi</strong>: Otomatis mengikuti akun Admin Unit.
-        </div>
-      </div>
-    </div>
-    <template #footer>
-      <div class="flex justify-end gap-3">
-        <SecondaryButton @click="uploadOpen=false">Batal</SecondaryButton>
-        <PrimaryButton :disabled="!uploadFile || uploading" @click="doUpload">{{ uploading ? 'Mengunggah...' : 'Upload' }}</PrimaryButton>
-      </div>
-    </template>
-  </ModalBase>
-  <Toast v-if="toast.show" :message="toast.message" :type="toast.type" position="top-center" @close="toast.show=false" />
-  <div v-if="$page.props.flash?.import_summary" class="mt-3 p-3 border rounded bg-emerald-50 text-emerald-800 text-sm">
-    Upload selesai: {{ $page.props.flash.import_summary.success }} sukses, {{ $page.props.flash.import_summary.failed }} gagal.
-  </div>
-  <div v-if="$page.props.flash?.import_errors?.length" class="mt-2 p-3 border rounded bg-amber-50 text-amber-800 text-sm">
-    Beberapa baris gagal diimpor:
-    <ul class="list-disc ml-5">
-      <li v-for="e in $page.props.flash.import_errors.slice(0,10)" :key="e.row">Baris {{ e.row }}: {{ e.message }}</li>
-    </ul>
-  </div>
 </template>
 
  <script setup>
@@ -142,8 +107,6 @@ import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import AlertBanner from '@/Components/UI/AlertBanner.vue';
 import Badge from '@/Components/UI/Badge.vue';
 import Chip from '@/Components/UI/Chip.vue';
-import ModalBase from '@/Components/UI/ModalBase.vue';
-import Toast from '@/Components/UI/Toast.vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, reactive, ref, watch } from 'vue';
 
@@ -159,10 +122,6 @@ const search = ref(page.props.search || initialFilters.search || '');
 const selectedUnit = ref('');
 const sort = reactive({ key: initialFilters.sort || 'name', dir: initialFilters.dir || 'asc' });
 const redirectingId = ref(null);
-const uploadOpen = ref(false);
-const uploadFile = ref(null);
-const toast = reactive({ show:false, message:'', type:'info' });
-const uploading = ref(false);
 
 let t = null;
 watch(search, (val) => {
@@ -231,19 +190,6 @@ function formatDate(d){
     const dt = new Date(d);
     return dt.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
   } catch { return '-'; }
-}
-function onFileChange(e){ uploadFile.value = e.target.files[0] || null; }
-function doUpload(){
-  if (!uploadFile.value) return;
-  const fd = new FormData();
-  fd.append('file', uploadFile.value);
-  router.post('/admin/members/import', fd, {
-    forceFormData: true,
-    onStart(){ uploading.value = true; },
-    onFinish(){ uploading.value = false; },
-    onSuccess(){ uploadOpen.value=false; uploadFile.value=null; toast.message='Upload berhasil diproses'; toast.type='success'; toast.show=true; reload(); },
-    onError(){ toast.message='Upload gagal. Periksa format file dan isian.'; toast.type='danger'; toast.show=true; }
-  });
 }
 </script>
  

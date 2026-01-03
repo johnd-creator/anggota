@@ -15,7 +15,7 @@ class LetterPolicy
     public function view(User $user, Letter $letter): bool
     {
         // Super admin can view all
-        if ($user->hasRole('super_admin')) {
+        if ($user->hasGlobalAccess()) {
             return true;
         }
 
@@ -117,7 +117,7 @@ class LetterPolicy
      */
     public function send(User $user, Letter $letter): bool
     {
-        if ($user->hasRole('super_admin')) {
+        if ($user->hasGlobalAccess()) {
             return true;
         }
         if ($letter->creator_user_id !== $user->id) {
@@ -131,7 +131,7 @@ class LetterPolicy
      */
     public function archive(User $user, Letter $letter): bool
     {
-        if ($user->hasRole(['super_admin', 'admin_pusat'])) {
+        if ($user->hasGlobalAccess()) {
             return true;
         }
         if ($letter->creator_user_id !== $user->id) {
@@ -142,35 +142,49 @@ class LetterPolicy
 
     /**
      * Check if user can approve this letter based on signer_type and unit.
+     * Uses letter_approvers delegation table with union position fallback.
+     * Uses currentUnitId() for consistent unit scoping.
      */
     protected function canApprove(User $user, Letter $letter): bool
     {
-        // Super admin can approve all
-        if ($user->hasRole('super_admin')) {
+        // Global access can approve all
+        if ($user->hasGlobalAccess()) {
             return true;
         }
 
-        // User must have matching union position (Ketua/Sekretaris)
-        if (!$user->canApproveSignerType($letter->signer_type)) {
-            return false;
-        }
+        $signerType = $letter->signer_type;
+        $letterUnitId = $letter->from_unit_id;
 
-        // User must be in the same unit as the letter's from_unit
-        // For Pusat letters (from_unit_id = null), allow admin_pusat
-        if ($letter->from_unit_id === null) {
+        // For Pusat letters (from_unit_id = null), only admin_pusat/super_admin
+        if ($letterUnitId === null) {
             return $user->hasRole(['admin_pusat', 'super_admin']);
         }
 
-        return $user->organization_unit_id === $letter->from_unit_id;
+        // User must be in the same unit as the letter's from_unit
+        $userUnitId = $user->currentUnitId();
+        if ($userUnitId === null || $userUnitId !== $letterUnitId) {
+            return false;
+        }
+
+        // Check 1: User is in letter_approvers for this unit + signer_type
+        if (\App\Models\LetterApprover::isApprover($letterUnitId, $signerType, $user->id)) {
+            return true;
+        }
+
+        // Check 2: Fallback to union position matching signer_type
+        if ($user->canApproveSignerType($signerType)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
      * Check if user is a recipient of the letter.
+     * Uses currentUnitId() for consistent unit scoping.
      */
     protected function isRecipient(User $user, Letter $letter): bool
     {
-        $roleName = $user->role?->name;
-
         switch ($letter->to_type) {
             case 'member':
                 // User's member_id matches
@@ -178,7 +192,8 @@ class LetterPolicy
 
             case 'unit':
                 // User belongs to the destination unit
-                return $user->organization_unit_id && $letter->to_unit_id === $user->organization_unit_id;
+                $userUnitId = $user->currentUnitId();
+                return $userUnitId !== null && $letter->to_unit_id === $userUnitId;
 
             case 'admin_pusat':
                 // Only admin_pusat or super_admin can see these
@@ -192,6 +207,7 @@ class LetterPolicy
     /**
      * Check if user is a specific recipient of rahasia letter.
      * More restrictive: only direct member recipient or admin of target unit.
+     * Uses currentUnitId() for consistent unit scoping.
      */
     protected function isSpecificRecipient(User $user, Letter $letter): bool
     {
@@ -205,7 +221,8 @@ class LetterPolicy
                 if (!$user->hasRole(['admin_unit', 'admin_pusat'])) {
                     return false;
                 }
-                return $user->organization_unit_id && $letter->to_unit_id === $user->organization_unit_id;
+                $userUnitId = $user->currentUnitId();
+                return $userUnitId !== null && $letter->to_unit_id === $userUnitId;
 
             case 'admin_pusat':
                 return $user->hasRole(['admin_pusat', 'super_admin']);

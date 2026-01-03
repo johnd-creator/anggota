@@ -77,14 +77,21 @@
           <p class="text-sm">{{ cityDateLine }}</p>
           <p class="text-sm font-semibold mt-1">{{ signerTitle }}</p>
 
-          <!-- QR as approval stamp between title & name -->
-          <div class="mt-2 flex justify-center">
-            <img :src="qrSrc" alt="QR" class="w-20 h-20" @error="qrError = true" />
-          </div>
-          <p v-if="qrError" class="mt-1 text-xs text-neutral-500">
-            <a :href="verifyUrl" class="underline text-brand-primary-600">Verify Link</a>
-          </p>
-          <p v-else class="mt-1 text-[10px] text-neutral-400">Scan untuk verifikasi</p>
+          <!-- QR as approval stamp (only for final letters) -->
+          <template v-if="isFinal">
+            <div class="mt-2 flex justify-center">
+              <img :src="qrSrc" alt="QR" class="w-20 h-20 block bg-white" @error="qrError = true" />
+            </div>
+            <p v-if="qrError" class="mt-1 text-xs text-neutral-500">
+              <a :href="verifyUrl" class="underline text-blue-600">Link Verifikasi</a>
+            </p>
+            <p v-else class="mt-1 text-[10px] text-neutral-400">Scan untuk verifikasi</p>
+          </template>
+          <template v-else>
+            <div class="mt-2 h-20 flex items-center justify-center">
+              <span class="text-xs text-neutral-400 italic">Menunggu Persetujuan</span>
+            </div>
+          </template>
 
           <p class="mt-2 text-sm font-semibold underline">{{ signerName }}</p>
         </div>
@@ -131,6 +138,7 @@ const props = defineProps({
   letter: Object,
   verifyUrl: String,
   qrBase64: String,
+  isFinal: Boolean,
 })
 
 const qrError = ref(false)
@@ -232,10 +240,6 @@ const signerName = computed(() => {
     return props.letter.approved_by?.name || '(nama)'
   }
   return '(Menunggu Persetujuan)'
-})
-
-const isFinal = computed(() => {
-  return ['approved', 'sent', 'archived'].includes(props.letter.status)
 })
 
 const attachmentsLabel = computed(() => {

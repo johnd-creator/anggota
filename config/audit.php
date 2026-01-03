@@ -210,11 +210,11 @@ return [
     */
     'privileged_routes' => [
         // Report exports
-        'reports.export' => 'export.report',
-        'admin.members.export' => 'export.members',
-        'admin.admin.mutations.export' => 'export.mutations',
-        'finance.categories.export' => 'export.finance_categories',
-        'finance.ledgers.export' => 'export.finance_ledgers',
+        'reports.export' => 'export.reports.access',
+        'admin.members.export' => 'export.members.access',
+        'admin.admin.mutations.export' => 'export.mutations.access',
+        'finance.categories.export' => 'export.finance.categories.access',
+        'finance.ledgers.export' => 'export.finance.ledgers.access',
 
         // Document downloads
         'member.card.pdf' => 'document.member_card',

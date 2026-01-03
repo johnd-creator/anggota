@@ -71,6 +71,13 @@ class LetterCategoryController extends Controller
             'color' => ['nullable', Rule::in($this->allowedColors)],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
             'is_active' => 'boolean',
+            // Template fields
+            'template_subject' => 'nullable|string|max:5000',
+            'template_body' => 'nullable|string|max:20000',
+            'template_cc_text' => 'nullable|string|max:5000',
+            'default_confidentiality' => ['nullable', Rule::in(['biasa', 'terbatas', 'rahasia'])],
+            'default_urgency' => ['nullable', Rule::in(['biasa', 'segera', 'kilat'])],
+            'default_signer_type' => ['nullable', Rule::in(['ketua', 'sekretaris'])],
         ], [
             'code.regex' => 'Kode hanya boleh berisi huruf kapital, angka, dan underscore.',
             'code.unique' => 'Kode sudah digunakan.',
@@ -120,6 +127,13 @@ class LetterCategoryController extends Controller
             'color' => ['nullable', Rule::in($this->allowedColors)],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
             'is_active' => 'boolean',
+            // Template fields
+            'template_subject' => 'nullable|string|max:5000',
+            'template_body' => 'nullable|string|max:20000',
+            'template_cc_text' => 'nullable|string|max:5000',
+            'default_confidentiality' => ['nullable', Rule::in(['biasa', 'terbatas', 'rahasia'])],
+            'default_urgency' => ['nullable', Rule::in(['biasa', 'segera', 'kilat'])],
+            'default_signer_type' => ['nullable', Rule::in(['ketua', 'sekretaris'])],
         ], [
             'code.regex' => 'Kode hanya boleh berisi huruf kapital, angka, dan underscore.',
             'code.unique' => 'Kode sudah digunakan.',

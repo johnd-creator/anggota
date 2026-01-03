@@ -63,7 +63,7 @@ class User extends Authenticatable
         return $this->role && $this->role->name === $roleName;
     }
 
-    public function hasRole($roles)
+    public function hasRole($roles): bool
     {
         if (is_array($roles)) {
             return $this->role && in_array($this->role->name, $roles);
@@ -111,6 +111,22 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the user's effective organization unit ID.
+     * Source of truth for unit scoping in policies and queries.
+     * Priority: user.organization_unit_id > member.organization_unit_id
+     */
+    public function currentUnitId(): ?int
+    {
+        if ($this->organization_unit_id) {
+            return (int) $this->organization_unit_id;
+        }
+
+        // Fallback to member's unit
+        $member = $this->member_id ? Member::find($this->member_id) : null;
+        return $member?->organization_unit_id ? (int) $member->organization_unit_id : null;
+    }
+
+    /**
      * Get the member linked to this user via member_id.
      */
     public function linkedMember()
@@ -148,5 +164,29 @@ class User extends Authenticatable
 
         $member = Member::with('unionPosition')->find($this->member_id);
         return $member?->unionPosition?->name;
+    }
+
+    /**
+     * Check if user is an "Officer/Pengurus" based on union_position.
+     * 
+     * An officer is someone whose union_position.name is NOT "Anggota" (case-insensitive).
+     * Super admin and admin_pusat always return true for operational/verification purposes.
+     */
+    public function isOfficer(): bool
+    {
+        // Global admins can always view officer content for operational purposes
+        if ($this->hasRole(['super_admin', 'admin_pusat'])) {
+            return true;
+        }
+
+        $positionName = $this->getUnionPositionName();
+
+        // If no union position, not an officer
+        if (!$positionName) {
+            return false;
+        }
+
+        // Officer = any position except "Anggota"
+        return strtolower(trim($positionName)) !== 'anggota';
     }
 }

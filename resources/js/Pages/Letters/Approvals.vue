@@ -11,8 +11,9 @@
       </div>
 
       <!-- Stats -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <SummaryCard title="Menunggu Persetujuan" :value="stats.pending" color="yellow" icon="clock" />
+        <SummaryCard title="SLA Overdue" :value="stats.overdue || 0" color="red" icon="exclamation" />
         <SummaryCard title="Disetujui Bulan Ini" :value="stats.approved" color="green" icon="check" />
         <SummaryCard title="Perlu Revisi / Ditolak" :value="stats.rejected" color="red" icon="x" />
       </div>
@@ -29,6 +30,13 @@
               <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.code }} - {{ cat.name }}</option>
             </select>
           </div>
+          <div>
+            <select v-model="slaStatus" class="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700">
+              <option value="">Semua SLA</option>
+              <option value="overdue">Overdue</option>
+              <option value="ok">On Track</option>
+            </select>
+          </div>
         </div>
       </CardContainer>
 
@@ -43,6 +51,7 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Dari</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Penandatangan</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Diajukan</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Batas SLA</th>
                 <th class="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Aksi</th>
               </tr>
             </thead>
@@ -61,6 +70,15 @@
                 <td class="px-6 py-4 text-sm text-neutral-600">{{ letter.from_unit?.name || 'Pusat' }}</td>
                 <td class="px-6 py-4 text-sm text-neutral-600 capitalize">{{ letter.signer_type }}</td>
                 <td class="px-6 py-4 text-sm text-neutral-600">{{ formatDate(letter.submitted_at) }}</td>
+                <td class="px-6 py-4 text-sm">
+                  <span v-if="letter.sla_due_at" :class="[
+                    'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                    isOverdue(letter) ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                  ]">
+                    {{ isOverdue(letter) ? '⚠️ Overdue' : formatDate(letter.sla_due_at) }}
+                  </span>
+                  <span v-else class="text-neutral-400 text-xs">-</span>
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div class="flex justify-end space-x-2">
                     <Link :href="`/letters/${letter.id}`" class="text-brand-primary-600 hover:text-brand-primary-700">Detail</Link>
@@ -71,7 +89,7 @@
                 </td>
               </tr>
               <tr v-if="letters.data.length === 0">
-                <td colspan="6" class="px-6 py-10 text-center text-neutral-500">Tidak ada surat yang menunggu persetujuan.</td>
+                <td colspan="7" class="px-6 py-10 text-center text-neutral-500">Tidak ada surat yang menunggu persetujuan.</td>
               </tr>
             </tbody>
           </table>
@@ -155,6 +173,7 @@ const props = defineProps({
 
 const search = ref(props.filters?.search || '')
 const categoryId = ref(props.filters?.category_id || '')
+const slaStatus = ref(props.filters?.sla_status || '')
 
 const showApprove = ref(false)
 const showRevision = ref(false)
@@ -164,13 +183,18 @@ const revisionNote = ref('')
 const rejectNote = ref('')
 const processing = ref(false)
 
-watch([search, categoryId], ([s, cat]) => {
-  router.get('/letters/approvals', { search: s, category_id: cat }, { preserveState: true, replace: true })
+watch([search, categoryId, slaStatus], ([s, cat, sla]) => {
+  router.get('/letters/approvals', { search: s, category_id: cat, sla_status: sla }, { preserveState: true, replace: true })
 })
 
 function formatDate(dateStr) {
   if (!dateStr) return '-'
   return new Date(dateStr).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function isOverdue(letter) {
+  if (!letter.sla_due_at) return false
+  return new Date(letter.sla_due_at) < new Date()
 }
 
 function approveModal(letter) {

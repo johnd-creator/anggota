@@ -98,6 +98,7 @@ Route::middleware(['auth'])->group(function () {
             'channels.updates' => ['array'],
             'channels.onboarding' => ['array'],
             'channels.security' => ['array'],
+            'channels.letters' => ['nullable', 'boolean'],
             'digest_daily' => ['boolean'],
         ]);
         $pref = \App\Models\NotificationPreference::updateOrCreate(
@@ -118,8 +119,16 @@ Route::middleware(['auth'])->group(function () {
         Route::get('mutations', [\App\Http\Controllers\ReportController::class, 'mutations'])->name('reports.mutations');
         Route::get('documents', [\App\Http\Controllers\ReportController::class, 'documents'])->name('reports.documents');
         Route::post('{type}/export', function (\Illuminate\Http\Request $request, string $type) {
+            $user = Auth::user();
+            $requestedUnitId = $request->filled('unit_id') ? (int) $request->input('unit_id') : null;
+
+            // Enforce unit scope: non-global users are forced to their own unit
+            $unitId = \App\Services\ExportScopeHelper::getEffectiveUnitId($user, $requestedUnitId);
+            $maskPii = \App\Services\ExportScopeHelper::shouldMaskPii($user);
+
             if ($type === 'growth') {
-                $unitId = (int) $request->input('unit_id');
+                Gate::authorize('export', \App\Models\Member::class);
+
                 $dateStart = $request->input('date_start');
                 $dateEnd = $request->input('date_end');
                 $query = \App\Models\Member::query();
@@ -130,6 +139,10 @@ Route::middleware(['auth'])->group(function () {
                 if ($dateEnd)
                     $query->whereDate('join_date', '<=', $dateEnd);
                 $filename = 'report_growth_' . now()->format('Ymd_His') . '.csv';
+                \App\Services\ExportScopeHelper::auditExport($user, 'reports.growth', $unitId, 12, [
+                    'date_start' => $dateStart,
+                    'date_end' => $dateEnd,
+                ]);
                 return \App\Services\ReportExporter::streamCsv($filename, ['Month', 'Count'], function ($out) use ($query) {
                     $months = collect(range(0, 11))->map(fn($i) => now()->subMonths(11 - $i)->format('Y-m'));
                     $rows = $query->select(DB::raw("strftime('%Y-%m', join_date) as ym"), DB::raw('count(*) as c'))->groupBy('ym')->get()->keyBy('ym');
@@ -137,7 +150,8 @@ Route::middleware(['auth'])->group(function () {
                         fputcsv($out, [$m, (int) optional($rows->get($m))->c]);
                 });
             } elseif ($type === 'mutations') {
-                $unitId = (int) $request->input('unit_id');
+                Gate::authorize('viewAny', \App\Models\MutationRequest::class);
+
                 $status = $request->input('status');
                 $dateStart = $request->input('date_start');
                 $dateEnd = $request->input('date_end');
@@ -153,6 +167,12 @@ Route::middleware(['auth'])->group(function () {
                 if ($dateEnd)
                     $query->whereDate('effective_date', '<=', $dateEnd);
                 $filename = 'report_mutations_' . now()->format('Ymd_His') . '.csv';
+                $rowCount = (clone $query)->count();
+                \App\Services\ExportScopeHelper::auditExport($user, 'reports.mutations', $unitId, $rowCount, [
+                    'status' => $status,
+                    'date_start' => $dateStart,
+                    'date_end' => $dateEnd,
+                ]);
                 return \App\Services\ReportExporter::streamCsv($filename, ['ID', 'Anggota', 'Asal', 'Tujuan', 'Status', 'Tanggal Efektif'], function ($out) use ($query) {
                     $query->orderBy('id')->chunk(500, function ($rows) use (&$out) {
                         foreach ($rows as $r)
@@ -160,18 +180,32 @@ Route::middleware(['auth'])->group(function () {
                     });
                 });
             } elseif ($type === 'documents') {
-                $unitId = (int) $request->input('unit_id');
+                Gate::authorize('export', \App\Models\Member::class);
+
                 $status = $request->input('status');
-                $query = \App\Models\Member::query()->select('id', 'full_name', 'email', 'organization_unit_id', 'photo_path', 'documents', 'kta_number', 'nip', 'union_position_id')->with(['unit', 'unionPosition']);
+                $query = \App\Models\Member::query()->select('id', 'full_name', 'organization_unit_id', 'photo_path', 'documents', 'kta_number', 'nip', 'union_position_id')->with(['unit', 'unionPosition']);
                 if ($unitId)
                     $query->where('organization_unit_id', $unitId);
                 if ($status)
                     $query->where('status', $status);
                 $filename = 'report_documents_' . now()->format('Ymd_His') . '.csv';
-                return \App\Services\ReportExporter::streamCsv($filename, ['ID', 'Nama', 'Email', 'KTA', 'NIP', 'Jabatan', 'Unit', 'Foto', 'Dokumen'], function ($out) use ($query) {
-                    $query->orderBy('id')->chunk(500, function ($rows) use (&$out) {
+                $rowCount = (clone $query)->count();
+                \App\Services\ExportScopeHelper::auditExport($user, 'reports.documents', $unitId, $rowCount, [
+                    'status' => $status,
+                ]);
+                return \App\Services\ReportExporter::streamCsv($filename, ['ID', 'Nama', 'KTA', 'NIP', 'Jabatan', 'Unit', 'Foto', 'Dokumen'], function ($out) use ($query, $maskPii) {
+                    $query->orderBy('id')->chunk(500, function ($rows) use (&$out, $maskPii) {
                         foreach ($rows as $m)
-                            fputcsv($out, [$m->id, $m->full_name, $m->email, $m->kta_number, $m->nip, optional($m->unionPosition)->name, optional($m->unit)->name, $m->photo_path ? 'YA' : 'TIDAK', $m->documents ? 'ADA' : 'TIDAK']);
+                            fputcsv($out, [
+                                $m->id,
+                                $m->full_name,
+                                $m->kta_number,
+                                $maskPii ? \App\Services\ExportScopeHelper::maskPii($m->nip, 'nip') : $m->nip,
+                                optional($m->unionPosition)->name,
+                                optional($m->unit)->name,
+                                $m->photo_path ? 'YA' : 'TIDAK',
+                                $m->documents ? 'ADA' : 'TIDAK',
+                            ]);
                     });
                 });
             }
@@ -257,8 +291,10 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('roles/{role}/users/{user}', [\App\Http\Controllers\Admin\RoleController::class, 'removeUser'])->middleware('role:super_admin')->name('roles.remove_user');
 
         // Admin Aspirations (Categories & Main)
-        Route::resource('aspiration-categories', \App\Http\Controllers\Admin\AspirationCategoryController::class);
+        Route::resource('aspiration-categories', \App\Http\Controllers\Admin\AspirationCategoryController::class)->middleware('role:super_admin');
         Route::resource('letter-categories', \App\Http\Controllers\Admin\LetterCategoryController::class)->middleware('role:super_admin');
+        Route::resource('letter-approvers', \App\Http\Controllers\Admin\LetterApproverController::class)->middleware('role:super_admin,admin_pusat');
+        Route::post('letter-approvers/{letter_approver}/toggle-active', [\App\Http\Controllers\Admin\LetterApproverController::class, 'toggleActive'])->middleware('role:super_admin,admin_pusat')->name('letter-approvers.toggle-active');
         Route::get('aspirations', [\App\Http\Controllers\Admin\AspirationController::class, 'index'])->name('aspirations.index');
         Route::get('aspirations/{aspiration}', [\App\Http\Controllers\Admin\AspirationController::class, 'show'])->name('aspirations.show');
         Route::patch('aspirations/{aspiration}/status', [\App\Http\Controllers\Admin\AspirationController::class, 'updateStatus'])->name('aspirations.update_status');
@@ -272,7 +308,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('activity-logs', function () {
             $logs = \App\Models\ActivityLog::latest()->paginate(20)->withQueryString();
             return Inertia::render('Admin/ActivityLogs', ['logs' => $logs]);
-        })->name('activity-logs.index');
+        })->middleware('role:super_admin')->name('activity-logs.index');
         Route::get('onboarding', [\App\Http\Controllers\Admin\OnboardingController::class, 'index'])->name('onboarding.index');
         Route::post('onboarding/{pending}/approve', [\App\Http\Controllers\Admin\OnboardingController::class, 'approve'])->name('onboarding.approve');
         Route::post('onboarding/{pending}/reject', [\App\Http\Controllers\Admin\OnboardingController::class, 'reject'])->name('onboarding.reject');
@@ -286,23 +322,32 @@ Route::middleware(['auth'])->group(function () {
         Route::post('mutations/{mutation}/reject', [\App\Http\Controllers\Admin\MutationController::class, 'reject'])->middleware(['role:super_admin', 'throttle:10,1'])->name('mutations.reject');
 
         Route::get('members-export', function (\Illuminate\Http\Request $request) {
+            Gate::authorize('export', \App\Models\Member::class);
+
             $user = Auth::user();
-            $unitId = (int) $request->query('unit_id');
-            if ($user && $user->role && $user->role->name === 'admin_unit') {
-                $unitId = (int) ($user->organization_unit_id ?? 0);
-            }
+            $requestedUnitId = $request->filled('unit_id') ? (int) $request->query('unit_id') : null;
+
+            // Enforce unit scope: non-global users are forced to their own unit
+            $unitId = \App\Services\ExportScopeHelper::getEffectiveUnitId($user, $requestedUnitId);
+            $maskPii = \App\Services\ExportScopeHelper::shouldMaskPii($user);
+
             $query = \App\Models\Member::query()->select(['id', 'full_name', 'email', 'phone', 'status', 'organization_unit_id', 'nra', 'kta_number', 'nip', 'union_position_id', 'join_date'])->with(['unit', 'unionPosition']);
             if ($unitId)
                 $query->where('organization_unit_id', $unitId);
+            $rowCount = (clone $query)->count();
             $filename = 'members_export_' . now()->format('Ymd_His') . '.csv';
             Cache::put('export:members:' . $user->id, ['status' => 'started', 'time' => now()->toISOString()], 300);
-            return response()->streamDownload(function () use ($query, $user) {
+            \App\Services\ExportScopeHelper::auditExport($user, 'members', $unitId, $rowCount);
+            return response()->streamDownload(function () use ($query, $user, $unitId, $maskPii) {
                 $out = fopen('php://output', 'w');
                 fputcsv($out, ['ID', 'Nama', 'Email', 'Telepon', 'Status', 'Unit', 'NRA', 'KTA', 'NIP', 'Jabatan Serikat', 'Join Date']);
                 $count = 0;
-                $query->orderBy('id')->chunk(500, function ($rows) use (&$out, &$count) {
+                $query->orderBy('id')->chunk(500, function ($rows) use (&$out, &$count, $maskPii) {
                     foreach ($rows as $m) {
-                        fputcsv($out, [$m->id, $m->full_name, $m->email, $m->phone, $m->status, $m->unit?->name, $m->nra, $m->kta_number, $m->nip, optional($m->unionPosition)->name, $m->join_date]);
+                        $email = $maskPii ? \App\Services\ExportScopeHelper::maskPii($m->email, 'email') : $m->email;
+                        $phone = $maskPii ? \App\Services\ExportScopeHelper::maskPii($m->phone, 'phone') : $m->phone;
+                        $nip = $maskPii ? \App\Services\ExportScopeHelper::maskPii($m->nip, 'nip') : $m->nip;
+                        fputcsv($out, [$m->id, $m->full_name, $email, $phone, $m->status, $m->unit?->name, $m->nra, $m->kta_number, $nip, optional($m->unionPosition)->name, $m->join_date]);
                         $count++;
                     }
                 });
@@ -311,24 +356,38 @@ Route::middleware(['auth'])->group(function () {
             }, $filename, ['Content-Type' => 'text/csv']);
         })->name('members.export');
 
-        Route::get('members/import/template', [\App\Http\Controllers\Admin\MemberImportController::class, 'template'])->middleware('role:admin_unit')->name('members.import.template');
+        Route::get('members/import', [\App\Http\Controllers\Admin\MemberImportController::class, 'index'])->middleware('role:super_admin,admin_unit,admin_pusat')->name('members.import.index');
+        Route::get('members/import/template', [\App\Http\Controllers\Admin\MemberImportController::class, 'template'])->middleware('role:super_admin,admin_unit,admin_pusat')->name('members.import.template');
+        Route::post('members/import/preview', [\App\Http\Controllers\Admin\MemberImportController::class, 'preview'])->middleware('role:super_admin,admin_unit,admin_pusat')->name('members.import.preview');
+        Route::post('members/import/{batch}/commit', [\App\Http\Controllers\Admin\MemberImportController::class, 'commit'])->middleware('role:super_admin,admin_unit,admin_pusat')->name('members.import.commit');
+        Route::get('members/import/{batch}/errors', [\App\Http\Controllers\Admin\MemberImportController::class, 'downloadErrors'])->middleware('role:super_admin,admin_unit,admin_pusat')->name('members.import.errors');
         Route::post('members/import', [\App\Http\Controllers\Admin\MemberImportController::class, 'store'])->middleware('role:admin_unit')->name('members.import');
 
         Route::get('mutations/export', function (\Illuminate\Http\Request $request) {
+            Gate::authorize('viewAny', \App\Models\MutationRequest::class);
+
             $user = Auth::user();
-            $unitId = (int) $request->query('unit_id');
+            $requestedUnitId = $request->filled('unit_id') ? (int) $request->query('unit_id') : null;
+
+            // Enforce unit scope: non-global users are forced to their own unit
+            $unitId = \App\Services\ExportScopeHelper::getEffectiveUnitId($user, $requestedUnitId);
+
             $query = \App\Models\MutationRequest::query()->select(['id', 'member_id', 'from_unit_id', 'to_unit_id', 'status', 'effective_date'])->with(['member', 'fromUnit', 'toUnit']);
             if ($unitId)
                 $query->where(function ($q) use ($unitId) {
                     $q->where('from_unit_id', $unitId)->orWhere('to_unit_id', $unitId);
                 });
+            $rowCount = (clone $query)->count();
             $filename = 'mutations_export_' . now()->format('Ymd_His') . '.csv';
-            return response()->streamDownload(function () use ($query) {
+            \App\Services\ExportScopeHelper::auditExport($user, 'mutations', $unitId, $rowCount);
+            return response()->streamDownload(function () use ($query, $user, $unitId) {
                 $out = fopen('php://output', 'w');
                 fputcsv($out, ['ID', 'Anggota', 'Asal', 'Tujuan', 'Status', 'Tanggal Efektif']);
-                $query->orderBy('id')->chunk(500, function ($rows) use (&$out) {
+                $count = 0;
+                $query->orderBy('id')->chunk(500, function ($rows) use (&$out, &$count) {
                     foreach ($rows as $r) {
                         fputcsv($out, [$r->id, optional($r->member)->full_name, optional($r->fromUnit)->name, optional($r->toUnit)->name, $r->status, $r->effective_date]);
+                        $count++;
                     }
                 });
                 fclose($out);
@@ -336,7 +395,7 @@ Route::middleware(['auth'])->group(function () {
         })->name('admin.mutations.export');
     });
 
-    Route::prefix('finance')->name('finance.')->middleware('role:super_admin,admin_unit,bendahara')->group(function () {
+    Route::prefix('finance')->name('finance.')->middleware(['feature:finance', 'role:super_admin,admin_unit,bendahara'])->group(function () {
         Route::get('categories', [\App\Http\Controllers\Finance\FinanceCategoryController::class, 'index'])->name('categories.index');
         Route::get('categories/create', [\App\Http\Controllers\Finance\FinanceCategoryController::class, 'create'])->name('categories.create');
         Route::post('categories', [\App\Http\Controllers\Finance\FinanceCategoryController::class, 'store'])->name('categories.store');
@@ -379,6 +438,7 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware('role:admin_unit,admin_pusat,super_admin')->group(function () {
             Route::get('outbox', [\App\Http\Controllers\LetterController::class, 'outbox'])->name('outbox');
             Route::get('create', [\App\Http\Controllers\LetterController::class, 'create'])->name('create');
+            Route::get('template-render', [\App\Http\Controllers\LetterController::class, 'templateRender'])->name('template-render');
             Route::post('/', [\App\Http\Controllers\LetterController::class, 'store'])->name('store');
             Route::get('{letter}/edit', [\App\Http\Controllers\LetterController::class, 'edit'])->name('edit');
             Route::put('{letter}', [\App\Http\Controllers\LetterController::class, 'update'])->name('update');
@@ -488,12 +548,41 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/member/card/qr.png', [\App\Http\Controllers\Member\CardController::class, 'qr'])->middleware('role:anggota,super_admin,admin_unit,bendahara')->name('member.card.qr');
 
     // Member Aspirations
-    // Member Aspirations
     Route::get('/member/aspirations', [\App\Http\Controllers\Member\AspirationController::class, 'index'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit')->name('member.aspirations.index');
     Route::get('/member/aspirations/create', [\App\Http\Controllers\Member\AspirationController::class, 'create'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit')->name('member.aspirations.create');
     Route::post('/member/aspirations', [\App\Http\Controllers\Member\AspirationController::class, 'store'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit')->name('member.aspirations.store');
     Route::get('/member/aspirations/{aspiration}', [\App\Http\Controllers\Member\AspirationController::class, 'show'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit')->name('member.aspirations.show');
     Route::post('/member/aspirations/{aspiration}/support', [\App\Http\Controllers\Member\AspirationController::class, 'support'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit')->name('member.aspirations.support');
+
+    // Member Dues (Iuran Saya)
+    Route::get('/member/dues', [\App\Http\Controllers\Member\MemberDuesController::class, 'index'])
+        ->middleware(['feature:finance', 'auth'])
+        ->name('member.dues');
+
+    // Announcements
+    Route::prefix('announcements')->name('announcements.')->middleware('feature:announcements')->group(function () {
+        Route::get('/', [\App\Http\Controllers\AnnouncementController::class, 'index'])->name('index');
+        Route::get('/{announcement}', [\App\Http\Controllers\AnnouncementController::class, 'show'])->name('show');
+        Route::get('/attachments/{attachment}/download', [\App\Http\Controllers\AnnouncementController::class, 'downloadAttachment'])->name('attachments.download');
+    });
+
+    // Admin Announcements Management
+    Route::prefix('admin/announcements')->name('admin.announcements.')->middleware(['feature:announcements', 'role:super_admin,admin_pusat,admin_unit'])->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\AnnouncementController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\Admin\AnnouncementController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\Admin\AnnouncementController::class, 'store'])->name('store');
+        Route::get('/{announcement}/edit', [\App\Http\Controllers\Admin\AnnouncementController::class, 'edit'])->name('edit');
+        Route::put('/{announcement}', [\App\Http\Controllers\Admin\AnnouncementController::class, 'update'])->name('update');
+        Route::delete('/{announcement}', [\App\Http\Controllers\Admin\AnnouncementController::class, 'destroy'])->name('destroy');
+
+        // Quick Actions
+        Route::patch('/{announcement}/toggle-active', [\App\Http\Controllers\Admin\AnnouncementController::class, 'toggleActive'])->name('toggle-active');
+        Route::patch('/{announcement}/toggle-pin', [\App\Http\Controllers\Admin\AnnouncementController::class, 'togglePin'])->name('toggle-pin');
+
+        // Attachments
+        Route::post('/{announcement}/attachments', [\App\Http\Controllers\Admin\AnnouncementAttachmentController::class, 'store'])->name('attachments.store');
+        Route::delete('/attachments/{attachment}', [\App\Http\Controllers\Admin\AnnouncementAttachmentController::class, 'destroy'])->name('attachments.destroy');
+    });
 });
 
 Route::post('/logout', function () {
@@ -523,7 +612,7 @@ Route::post('/feedback', function (\Illuminate\Http\Request $request) {
 })->middleware('auth')->name('feedback.submit');
 
 // Public API (token-only)
-Route::prefix('api/reports')->middleware(['api_token'])->group(function () {
+Route::prefix('api/reports')->middleware(['api_token', 'throttle:60,1'])->group(function () {
     Route::get('growth', [\App\Http\Controllers\ReportController::class, 'apiGrowth']);
     Route::get('mutations', [\App\Http\Controllers\ReportController::class, 'apiMutations']);
     Route::get('documents', [\App\Http\Controllers\ReportController::class, 'apiDocuments']);

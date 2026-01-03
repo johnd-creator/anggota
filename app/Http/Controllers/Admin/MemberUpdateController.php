@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MemberUpdateRequest;
 use App\Models\Member;
 use App\Models\ActivityLog;
-use Illuminate\Support\Facades\Notification as NotificationFacade;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -14,23 +14,44 @@ class MemberUpdateController extends Controller
 {
     public function index(Request $request)
     {
-        $query = MemberUpdateRequest::query()->with('member');
-        if ($status = $request->get('status'))
+        Gate::authorize('viewAny', MemberUpdateRequest::class);
+
+        $user = $request->user();
+        $unitId = $user->currentUnitId();
+
+        // Build base query with unit scope for non-global users
+        $baseQuery = MemberUpdateRequest::query();
+        if (!$user->hasGlobalAccess()) {
+            $baseQuery->whereHas('member', function ($q) use ($unitId) {
+                $q->where('organization_unit_id', $unitId);
+            });
+        }
+
+        $query = (clone $baseQuery)->with('member');
+        if ($status = $request->get('status')) {
             $query->where('status', $status);
+        }
+
         $items = $query->latest()->paginate(10)->withQueryString();
+
+        // Stats from scoped base query (not global)
+        $statsQuery = clone $baseQuery;
+
         return Inertia::render('Admin/Updates/Index', [
             'items' => $items,
             'stats' => [
-                'total' => MemberUpdateRequest::count(),
-                'pending' => MemberUpdateRequest::where('status', 'pending')->count(),
-                'approved' => MemberUpdateRequest::where('status', 'approved')->count(),
-                'rejected' => MemberUpdateRequest::where('status', 'rejected')->count(),
+                'total' => (clone $statsQuery)->count(),
+                'pending' => (clone $statsQuery)->where('status', 'pending')->count(),
+                'approved' => (clone $statsQuery)->where('status', 'approved')->count(),
+                'rejected' => (clone $statsQuery)->where('status', 'rejected')->count(),
             ],
         ]);
     }
 
     public function approve(Request $request, MemberUpdateRequest $update_request)
     {
+        Gate::authorize('approve', $update_request);
+
         $member = $update_request->member;
         if (!$member) {
             return back()->with('error', 'Member tidak ditemukan');
@@ -54,7 +75,6 @@ class MemberUpdateController extends Controller
             try {
                 $owner->notify(new \App\Notifications\MemberUpdateApprovedNotification($update_request));
             } catch (\Throwable $e) {
-                // Notification failed but update succeeded, continue
             }
         }
 
@@ -63,6 +83,8 @@ class MemberUpdateController extends Controller
 
     public function reject(Request $request, MemberUpdateRequest $update_request)
     {
+        Gate::authorize('reject', $update_request);
+
         $validated = $request->validate(['notes' => 'required|string|min:5']);
 
         $update_request->status = 'rejected';
@@ -83,7 +105,6 @@ class MemberUpdateController extends Controller
             try {
                 $owner->notify(new \App\Notifications\MemberUpdateRejectedNotification($update_request));
             } catch (\Throwable $e) {
-                // Notification failed but rejection succeeded, continue
             }
         }
 

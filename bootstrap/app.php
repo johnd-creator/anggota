@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
             'api_token' => \App\Http\Middleware\ApiTokenMiddleware::class,
+            'feature' => \App\Http\Middleware\EnsureFeatureEnabled::class,
         ]);
     })
     ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
@@ -35,6 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('notifications:digest')->dailyAt('18:00');
         $schedule->command('sessions:cleanup')->daily();
         $schedule->command('audit:purge --force')->dailyAt('02:30');
+        $schedule->command('dues:generate')->monthlyOn((int) config('dues.generate_on_day', 1), '00:10');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

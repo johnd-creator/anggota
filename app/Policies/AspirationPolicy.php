@@ -24,14 +24,9 @@ class AspirationPolicy
             return true;
         }
 
-        // Admin unit can see their unit's aspirations
-        if ($user->hasRole('admin_unit')) {
-            return $user->organization_unit_id === $aspiration->organization_unit_id;
-        }
-
-        // Members can see aspirations from their member's unit
-        $member = $user->member;
-        return $member && $member->organization_unit_id === $aspiration->organization_unit_id;
+        // Use currentUnitId() for consistent unit resolution
+        $unitId = $user->currentUnitId();
+        return $unitId && $unitId === $aspiration->organization_unit_id;
     }
 
     /**
@@ -52,25 +47,16 @@ class AspirationPolicy
             return true;
         }
 
+        $unitId = $user->currentUnitId();
+
+        // Must have a unit and it must match
+        if (!$unitId || $unitId !== $aspiration->organization_unit_id) {
+            return false;
+        }
+
+        // Cannot support own aspiration (if user has member profile)
         $member = $user->member;
-        $roleName = $user->role?->name;
-
-        // If admin_unit without member profile, check unit match
-        if (!$member && $roleName === 'admin_unit') {
-            return $user->organization_unit_id === $aspiration->organization_unit_id;
-        }
-
-        if (!$member) {
-            return false;
-        }
-
-        // Must be same unit
-        if ($member->organization_unit_id !== $aspiration->organization_unit_id) {
-            return false;
-        }
-
-        // Cannot support own aspiration
-        if ($aspiration->member_id === $member->id) {
+        if ($member && $aspiration->member_id === $member->id) {
             return false;
         }
 
@@ -92,7 +78,8 @@ class AspirationPolicy
         }
 
         if ($user->hasRole('admin_unit')) {
-            return $user->organization_unit_id === $aspiration->organization_unit_id;
+            $unitId = $user->currentUnitId();
+            return $unitId && $unitId === $aspiration->organization_unit_id;
         }
 
         return false;

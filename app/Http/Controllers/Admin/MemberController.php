@@ -23,6 +23,8 @@ class MemberController extends Controller
 
         $query = Member::query()->with('unit');
         $user = $request->user();
+        $isGlobal = $user?->hasGlobalAccess() ?? false;
+        $unitId = $user?->currentUnitId();
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
@@ -43,16 +45,12 @@ class MemberController extends Controller
         }
 
         // admin_unit only sees their own unit, global access roles see all
-        if ($user && $user->role && $user->role->name === 'admin_unit') {
-            if ($user->organization_unit_id) {
-                $query->where('organization_unit_id', $user->organization_unit_id);
+        if (!$isGlobal) {
+            // Non-global users must be scoped to their effective unit
+            if ($unitId) {
+                $query->where('organization_unit_id', $unitId);
             } else {
                 $query->whereRaw('1=0');
-            }
-        } elseif (!$user->hasGlobalAccess()) {
-            // Non-admin roles shouldn't access this, but if they do, limit by unit
-            if ($user->organization_unit_id) {
-                $query->where('organization_unit_id', $user->organization_unit_id);
             }
         } else {
             // Global access - can filter by units if specified
@@ -80,21 +78,39 @@ class MemberController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        $units = [];
+        if ($isGlobal) {
+            $units = \Illuminate\Support\Facades\Cache::remember('units_select_options:global', 300, fn() => OrganizationUnit::select('id', 'name', 'code')->orderBy('name')->get());
+        } elseif ($unitId) {
+            $units = \Illuminate\Support\Facades\Cache::remember("units_select_options:unit:{$unitId}", 300, fn() => OrganizationUnit::where('id', $unitId)->select('id', 'name', 'code')->get());
+        }
+
+        $adminUnitId = $user?->hasRole('admin_unit') ? $unitId : null;
+
         return Inertia::render('Admin/Members/Index', [
             'members' => $members,
             'filters' => $request->only(['search', 'status', 'statuses', 'units', 'sort', 'dir']),
-            'units' => \Illuminate\Support\Facades\Cache::remember('units_select_options', 300, fn() => OrganizationUnit::select('id', 'name', 'code')->orderBy('name')->get()),
-            'admin_unit_id' => $user && $user->role && $user->role->name === 'admin_unit' ? $user->organization_unit_id : null,
-            'admin_unit_missing' => $user && $user->role && $user->role->name === 'admin_unit' && !$user->organization_unit_id,
+            'units' => $units,
+            'admin_unit_id' => $adminUnitId,
+            'admin_unit_missing' => $user?->hasRole('admin_unit') && !$unitId,
         ]);
     }
 
     public function create()
     {
         Gate::authorize('create', Member::class);
+        $user = request()->user();
+        $unitId = $user?->currentUnitId();
+
+        // admin_unit can only see their own unit
+        if ($user?->hasRole('admin_unit')) {
+            $units = $unitId ? OrganizationUnit::where('id', $unitId)->select('id', 'name', 'code')->get() : collect([]);
+        } else {
+            $units = OrganizationUnit::select('id', 'name', 'code')->orderBy('code')->get();
+        }
 
         return Inertia::render('Admin/Members/Form', [
-            'units' => OrganizationUnit::select('id', 'name', 'code')->orderBy('code')->get(),
+            'units' => $units,
             'positions' => \App\Models\UnionPosition::orderBy('name')->get(['id', 'name']),
         ]);
     }
@@ -128,8 +144,9 @@ class MemberController extends Controller
         $user = $request->user();
         // admin_unit can only create members in their own unit
         if ($user && $user->role && $user->role->name === 'admin_unit') {
-            if ($user->organization_unit_id) {
-                $validated['organization_unit_id'] = $user->organization_unit_id;
+            $currentUnitId = $user->currentUnitId();
+            if ($currentUnitId) {
+                $validated['organization_unit_id'] = $currentUnitId;
             }
         }
         // admin_pusat and super_admin can choose any unit
@@ -192,14 +209,7 @@ class MemberController extends Controller
     public function show(Member $member)
     {
         Gate::authorize('view', $member);
-        $user = request()->user();
-        // admin_unit can only view members in their own unit
-        if ($user && $user->role && $user->role->name === 'admin_unit') {
-            if ($user->organization_unit_id !== $member->organization_unit_id) {
-                abort(403);
-            }
-        }
-        // admin_pusat and super_admin can view any member
+
         $member->load(['unit', 'documents', 'statusLogs', 'unionPosition']);
         ActivityLog::create([
             'actor_id' => Auth::id(),
@@ -216,18 +226,18 @@ class MemberController extends Controller
     public function edit(Member $member)
     {
         Gate::authorize('update', $member);
-        $user = request()->user();
-        // admin_unit can only edit members in their own unit
-        if ($user && $user->role && $user->role->name === 'admin_unit') {
-            if ($user->organization_unit_id !== $member->organization_unit_id) {
-                abort(403);
-            }
-        }
-        // admin_pusat and super_admin can edit any member
+
         $member->load('user');
+
+        $user = request()->user();
+        $unitId = $user?->currentUnitId();
+        $units = ($user?->hasRole('admin_unit'))
+            ? ($unitId ? OrganizationUnit::where('id', $unitId)->select('id', 'name', 'code')->get() : collect([]))
+            : OrganizationUnit::select('id', 'name', 'code')->orderBy('code')->get();
+
         return Inertia::render('Admin/Members/Form', [
             'member' => $member,
-            'units' => OrganizationUnit::select('id', 'name', 'code')->orderBy('code')->get(),
+            'units' => $units,
             'positions' => \App\Models\UnionPosition::orderBy('name')->get(['id', 'name']),
         ]);
     }
@@ -236,13 +246,6 @@ class MemberController extends Controller
     {
         Gate::authorize('update', $member);
         $user = $request->user();
-        // admin_unit can only update members in their own unit
-        if ($user && $user->role && $user->role->name === 'admin_unit') {
-            if ($user->organization_unit_id !== $member->organization_unit_id) {
-                abort(403);
-            }
-        }
-        // admin_pusat and super_admin can update any member
 
         $validated = $request->validate([
             'full_name' => 'required|string|max:255',
@@ -267,8 +270,11 @@ class MemberController extends Controller
             'documents.*' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
         ]);
         try {
-            if ($user && $user->role && $user->role->name === 'admin_unit' && $user->organization_unit_id) {
-                $validated['organization_unit_id'] = $user->organization_unit_id;
+            if ($user?->hasRole('admin_unit')) {
+                $currentUnitId = $user->currentUnitId();
+                if ($currentUnitId) {
+                    $validated['organization_unit_id'] = $currentUnitId;
+                }
             }
 
             $member->update($validated);

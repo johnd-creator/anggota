@@ -9,11 +9,22 @@
           <!-- Category -->
           <div>
             <label class="block text-sm font-medium text-neutral-700">Kategori Surat <span class="text-red-500">*</span></label>
-            <select v-model="form.letter_category_id" class="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-primary-500">
-              <option value="">Pilih Kategori</option>
-              <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.code }} - {{ cat.name }}</option>
-            </select>
+            <div class="flex gap-2 mt-1">
+              <select v-model="form.letter_category_id" class="flex-1 block rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-primary-500">
+                <option value="">Pilih Kategori</option>
+                <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.code }} - {{ cat.name }}</option>
+              </select>
+              <button
+                type="button"
+                @click="applyTemplate"
+                :disabled="!form.letter_category_id || applyingTemplate"
+                class="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {{ applyingTemplate ? '⏳' : '📄' }} Template
+              </button>
+            </div>
             <p v-if="form.errors.letter_category_id" class="text-xs text-status-error mt-1">{{ form.errors.letter_category_id }}</p>
+            <p v-if="selectedCategoryHasTemplate" class="text-xs text-blue-600 mt-1">💡 Kategori ini memiliki template. Klik "📄 Template" untuk mengisi otomatis.</p>
           </div>
 
           <!-- Signer Type -->
@@ -271,10 +282,62 @@ const form = useForm({
 
 const submitting = ref(false)
 const submittingApproval = ref(false)
+const applyingTemplate = ref(false)
 const memberSearch = ref('')
 const memberResults = ref([])
 const selectedMember = ref(props.letter?.to_member ? { id: props.letter.to_member.id, label: props.letter.to_member.full_name } : null)
 let searchTimeout = null
+
+// Check if selected category has template
+const selectedCategoryHasTemplate = computed(() => {
+  if (!form.letter_category_id) return false
+  const cat = props.categories.find(c => c.id === form.letter_category_id)
+  return cat && (cat.template_subject || cat.template_body)
+})
+
+// Apply template from backend
+async function applyTemplate() {
+  if (!form.letter_category_id) return
+
+  // Confirm if form has content
+  if (form.subject?.trim() || form.body?.trim()) {
+    if (!confirm('Ini akan mengisi ulang Perihal, Isi, dan Tembusan dari template. Lanjutkan?')) {
+      return
+    }
+  }
+
+  applyingTemplate.value = true
+  try {
+    const params = new URLSearchParams({
+      category_id: form.letter_category_id,
+      to_type: form.to_type || '',
+      to_unit_id: form.to_unit_id || '',
+      to_member_id: form.to_member_id || '',
+    })
+    const res = await fetch(`/letters/template-render?${params}`)
+    const data = await res.json()
+
+    // Apply template content
+    if (data.subject) form.subject = data.subject
+    if (data.body) form.body = data.body
+    if (data.cc_text) form.cc_text = data.cc_text
+
+    // Apply defaults only if current value is empty/default
+    if (data.defaults?.confidentiality && form.confidentiality === 'biasa') {
+      form.confidentiality = data.defaults.confidentiality
+    }
+    if (data.defaults?.urgency && form.urgency === 'biasa') {
+      form.urgency = data.defaults.urgency
+    }
+    if (data.defaults?.signer_type && !form.signer_type) {
+      form.signer_type = data.defaults.signer_type
+    }
+  } catch (e) {
+    console.error('Failed to apply template', e)
+  } finally {
+    applyingTemplate.value = false
+  }
+}
 
 // Attachment upload
 const fileInput = ref(null)
