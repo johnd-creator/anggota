@@ -68,10 +68,10 @@ class DashboardCountersUnitScopeTest extends TestCase
         $response->assertInertia(
             fn(Assert $page) => $page
                 ->component('Dashboard')
-                // members_total should be unit A count (3 + 1 memberA = 4)
-                ->where('counters.members_total', 4)
-                // units_total for non-global should be 1
-                ->where('counters.units_total', 1)
+                // members_total is nationwide total (all units)
+                ->where('counters.members_total', 10)
+                // units_total is nationwide total
+                ->where('counters.units_total', 2)
                 // mutations_pending: 2 involve unit A (from or to)
                 ->where('counters.mutations_pending', 2)
                 ->where('counters.is_global', false)

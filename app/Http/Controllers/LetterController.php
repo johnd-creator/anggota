@@ -13,6 +13,7 @@ use App\Models\OrganizationUnit;
 use App\Models\User;
 use App\Services\LetterNumberService;
 use App\Services\LetterTemplateRenderer;
+use App\Services\QrCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\DB;
@@ -413,15 +414,12 @@ class LetterController extends Controller
         $isFinal = in_array($letter->status, $finalStatuses);
 
         $qrBase64 = null;
+        $qrMime = null;
         if ($isFinal) {
-            try {
-                $qrPng = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('png')
-                    ->size(150)
-                    ->margin(1)
-                    ->generate($verifyUrl);
-                $qrBase64 = base64_encode($qrPng);
-            } catch (\Throwable $e) {
-                // Fallback: qrBase64 remains null, UI will show verify link
+            $qrData = app(QrCodeService::class)->generate($verifyUrl, 150, 1);
+            if ($qrData) {
+                $qrBase64 = base64_encode($qrData['data']);
+                $qrMime = $qrData['mime'];
             }
         }
 
@@ -429,6 +427,7 @@ class LetterController extends Controller
             'letter' => $letter,
             'verifyUrl' => $verifyUrl,
             'qrBase64' => $qrBase64,
+            'qrMime' => $qrMime,
             'isFinal' => $isFinal,
         ]);
     }
@@ -504,15 +503,12 @@ class LetterController extends Controller
 
         $verifyUrl = route('letters.verify', $letter->verification_token);
 
-        try {
-            // Use simplesoftwareio/simple-qrcode
-            $qrCode = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('png')
-                ->size(150)
-                ->margin(1)
-                ->generate($verifyUrl);
+        $qrData = app(QrCodeService::class)->generate($verifyUrl, 150, 1);
+        if ($qrData) {
+            return response($qrData['data'])->header('Content-Type', $qrData['mime']);
+        }
 
-            return response($qrCode)->header('Content-Type', 'image/png');
-        } catch (\Throwable $e) {
+        try {
             // Fallback: return a simple 1x1 transparent PNG
             $img = imagecreatetruecolor(150, 150);
             $white = imagecolorallocate($img, 255, 255, 255);
@@ -524,6 +520,8 @@ class LetterController extends Controller
             $data = ob_get_clean();
             imagedestroy($img);
             return response($data)->header('Content-Type', 'image/png');
+        } catch (\Throwable $e) {
+            abort(404);
         }
     }
 
@@ -609,20 +607,18 @@ class LetterController extends Controller
 
         // Generate QR code offline
         $qrBase64 = null;
-        try {
-            $qrPng = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('png')
-                ->size(80)
-                ->margin(1)
-                ->generate($verifyUrl);
-            $qrBase64 = base64_encode($qrPng);
-        } catch (\Exception $e) {
-            // Fallback: qrBase64 remains null
+        $qrMime = null;
+        $qrData = app(QrCodeService::class)->generate($verifyUrl, 80, 1);
+        if ($qrData) {
+            $qrBase64 = base64_encode($qrData['data']);
+            $qrMime = $qrData['mime'];
         }
 
         $html = view('letters.pdf', [
             'letter' => $letter,
             'verifyUrl' => $verifyUrl,
             'qrBase64' => $qrBase64,
+            'qrMime' => $qrMime,
         ])->render();
 
         $dompdf = new \Dompdf\Dompdf();

@@ -295,7 +295,7 @@ class RbacUnitScopeRegressionTest extends TestCase
         $response->assertInertia(
             fn(Assert $page) => $page
                 ->where('counters.is_global', false)
-                ->where('counters.units_total', 1)
+                ->where('counters.units_total', 2)
         );
     }
 

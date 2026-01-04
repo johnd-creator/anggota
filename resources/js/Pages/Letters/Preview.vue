@@ -138,6 +138,7 @@ const props = defineProps({
   letter: Object,
   verifyUrl: String,
   qrBase64: String,
+  qrMime: String,
   isFinal: Boolean,
 })
 
@@ -155,7 +156,10 @@ const letterheadLogo = computed(() => {
 })
 
 const qrSrc = computed(() => {
-  if (props.qrBase64) return `data:image/png;base64,${props.qrBase64}`
+  if (props.qrBase64) {
+    const mime = props.qrMime || 'image/png'
+    return `data:${mime};base64,${props.qrBase64}`
+  }
   return `/letters/${props.letter.id}/qr.png`
 })
 

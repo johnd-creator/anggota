@@ -144,22 +144,15 @@ class HandleInertiaRequests extends Middleware
                 // Cache key suffix for scoped data
                 $cacheKeySuffix = $isGlobal ? 'global' : "unit:{$unitId}";
 
-                // For non-global users, show scoped totals
+                // Nationwide totals: shown to all users for confidence/visibility.
+                // Unit-scoped totals are provided separately via members_unit_total and scoped queues below.
                 $membersTotal = 0;
                 $unitsTotal = 0;
                 if ($hasMembers) {
-                    if ($isGlobal) {
-                        $membersTotal = Cache::remember('metrics_members_total:global', 60, fn() => \App\Models\Member::count());
-                    } else if ($unitId) {
-                        $membersTotal = Cache::remember("metrics_members_total:unit:{$unitId}", 60, fn() => \App\Models\Member::where('organization_unit_id', $unitId)->count());
-                    }
+                    $membersTotal = Cache::remember('metrics_members_total:global', 60, fn() => \App\Models\Member::count());
                 }
                 if ($hasUnits) {
-                    if ($isGlobal) {
-                        $unitsTotal = Cache::remember('metrics_units_total:global', 60, fn() => \App\Models\OrganizationUnit::count());
-                    } else {
-                        $unitsTotal = 1; // Non-global sees only their own unit
-                    }
+                    $unitsTotal = Cache::remember('metrics_units_total:global', 60, fn() => \App\Models\OrganizationUnit::count());
                 }
 
                 // Scoped pending mutations

@@ -288,7 +288,7 @@
             <div class="signature-date">{{ $unitCity }}, {{ $letterDate }}</div>
             <div class="signer-title">{{ $letter->signer_type === 'ketua' ? 'Ketua' : 'Sekretaris' }}</div>
             @if($qrBase64)
-                <img src="data:image/png;base64,{{ $qrBase64 }}" class="qr-code" alt="QR">
+                <img src="data:{{ $qrMime ?? 'image/png' }};base64,{{ $qrBase64 }}" class="qr-code" alt="QR">
             @else
                 <div style="font-size:8pt;color:#888;word-break:break-all;margin:10px 0;">{{ $verifyUrl }}</div>
             @endif

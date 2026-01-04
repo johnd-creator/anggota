@@ -20,8 +20,6 @@
           <span>Dashboard</span>
         </Link>
 
-
-
         <!-- Public Announcements (All Users) -->
         <Link v-if="$page.props.features?.announcements !== false" href="/announcements" :class="menuItemClass('/announcements')">
           <MegaphoneIcon class="h-5 w-5" />
@@ -159,6 +157,7 @@
             <Link href="/reports/documents" :class="subMenuItemClass('/reports/documents')">Monitoring Dokumen</Link>
           </div>
         </template>
+
         <!-- Member Aspirations -->
         <template v-if="isMember || isTreasurer">
           <Link href="/member/aspirations" :class="menuItemClass('/member/aspirations')">
@@ -220,7 +219,6 @@
           </div>
           <span class="text-xl font-bold text-white">SP-PIPS</span>
         </div>
-	        <!-- Mobile Nav - simplified -->
 	        <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
 	          <Link href="/dashboard" :class="menuItemClass('/dashboard')" @click="mobileMenuOpen = false">
 	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -247,54 +245,70 @@
 	            </svg>
 	            <span>Aspirasi Anggota</span>
 	          </Link>
+
 	          <Link v-if="isSuperAdmin || isAdminUnit || isAdminPusat || isMember || isTreasurer" href="/letters/inbox" :class="menuItemClass('/letters')" @click="mobileMenuOpen = false">
 	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
 	            </svg>
 	            <span>Surat</span>
 	          </Link>
-	          <Link v-if="isMember || isTreasurer" href="/member/aspirations" :class="menuItemClass('/member/aspirations')" @click="mobileMenuOpen = false">
-	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-	            </svg>
-	            <span>Aspirasi</span>
-	          </Link>
+
 	          <Link v-if="isSuperAdmin || isTreasurer || isAdminUnit" href="/finance/ledgers" :class="menuItemClass('/finance/ledgers')" @click="mobileMenuOpen = false">
 	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 	            </svg>
 	            <span>Financials</span>
 	          </Link>
+
 	          <Link v-if="isAdminOrUnit" href="/admin/members" :class="menuItemClass('/admin/members')" @click="mobileMenuOpen = false">
 	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
 	            </svg>
 	            <span>Master Data</span>
 	          </Link>
+
 	          <Link v-if="isAdminOrUnit" href="/admin/mutations" :class="menuItemClass('/admin/mutations')" @click="mobileMenuOpen = false">
 	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
 	            </svg>
 	            <span>Mutations</span>
 	          </Link>
+
 	          <Link v-if="isAdminOrUnit" href="/admin/onboarding" :class="menuItemClass('/admin/onboarding')" @click="mobileMenuOpen = false">
 	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
 	            </svg>
 	            <span>Onboarding</span>
 	          </Link>
+
 	          <Link v-if="isAdminOrUnit" href="/admin/updates" :class="menuItemClass('/admin/updates')" @click="mobileMenuOpen = false">
 	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
 	            </svg>
 	            <span>Update Requests</span>
 	          </Link>
+
 	          <Link v-if="isAdminOrUnit" href="/reports/growth" :class="menuItemClass('/reports')" @click="mobileMenuOpen = false">
 	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
 	            </svg>
 	            <span>Reports</span>
 	          </Link>
+
+	          <Link v-if="isMember || isTreasurer" href="/member/aspirations" :class="menuItemClass('/member/aspirations')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+	            </svg>
+	            <span>Aspirasi</span>
+	          </Link>
+
+	          <Link v-if="$page.props.features?.finance !== false" href="/member/dues" :class="menuItemClass('/member/dues')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+	            </svg>
+	            <span>Iuran Saya</span>
+	          </Link>
+
 	          <Link href="/settings" :class="menuItemClass('/settings')" @click="mobileMenuOpen = false">
 	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />

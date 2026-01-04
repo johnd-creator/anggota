@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Member;
 
 use App\Http\Controllers\Controller;
 use App\Models\Member;
+use App\Services\QrCodeService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Auth;
 
@@ -37,7 +37,10 @@ class CardController extends Controller
     {
         $member = Auth::user()?->member;
         if (!$member || !$member->qr_token) abort(404);
-        $png = QrCode::format('png')->size(180)->generate(route('member.card.verify', $member->qr_token));
-        return response($png)->header('Content-Type', 'image/png');
+        $qrData = app(QrCodeService::class)->generate(route('member.card.verify', $member->qr_token), 180, 1);
+        if ($qrData) {
+            return response($qrData['data'])->header('Content-Type', $qrData['mime']);
+        }
+        abort(404);
     }
 }
