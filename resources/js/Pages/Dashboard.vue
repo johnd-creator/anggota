@@ -33,6 +33,16 @@
                                 </a>
                             </div>
                         </div>
+                        <button
+                            type="button"
+                            class="ml-4 text-gray-400 hover:text-gray-600 rounded p-1 hover:bg-gray-50"
+                            aria-label="Tutup pengumuman"
+                            @click="dismissPinnedAnnouncement(item.id)"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -515,7 +525,7 @@ import ProgressBar from '@/Components/UI/ProgressBar.vue';
 import StatusBadge from '@/Components/UI/StatusBadge.vue';
 import ModalBase from '@/Components/UI/ModalBase.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
 const page = usePage();
@@ -529,6 +539,10 @@ const canOpenTotalMembers = computed(() => !['anggota', 'bendahara'].includes(ro
 
 const showUnpaidModal = ref(false);
 const currentPeriod = new Date().toISOString().slice(0, 7);
+
+function dismissPinnedAnnouncement(id) {
+    router.post(`/announcements/${id}/dismiss`, {}, { preserveScroll: true });
+}
 
 // Dues data
 	const duesSummary = computed(() => pg.dues_summary || null);

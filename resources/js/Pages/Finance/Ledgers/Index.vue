@@ -107,7 +107,12 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-neutral-200">
-              <tr v-for="l in ledgers.data" :key="l.id" class="hover:bg-neutral-50">
+              <tr
+                v-for="l in ledgers.data"
+                :key="l.id"
+                class="hover:bg-neutral-50"
+                :class="focusLedgerId && l.id === focusLedgerId ? 'bg-brand-primary-50/60' : ''"
+              >
                 <td class="px-6 py-4 text-sm text-neutral-700">{{ formatDate(l.date) }}</td>
                 <td class="px-6 py-4 text-sm text-neutral-700">{{ l.category ? l.category.name : '-' }}</td>
                 <td class="px-6 py-4 text-sm" :class="l.type==='income' ? 'text-green-700' : 'text-status-error'">{{ l.type==='income' ? 'Pemasukan' : 'Pengeluaran' }}</td>
@@ -213,6 +218,7 @@ const props = defineProps({
   workflowEnabled: { type: Boolean, default: true },
   pendingCount: { type: Number, default: 0 },
   canApprove: { type: Boolean, default: false },
+  focusLedgerId: { type: Number, default: null },
 })
 
 const search = ref(props.filters.search || '')

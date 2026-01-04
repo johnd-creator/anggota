@@ -36,13 +36,23 @@
           </Link>
         </template>
 
-        <!-- Admin Aspirations -->
+        <!-- Member Aspirations (for non-super_admin, show before Kelola Aspirasi) -->
+        <template v-if="!isSuperAdmin && (isMember || isTreasurer)">
+          <Link href="/member/aspirations" :class="menuItemClass('/member/aspirations')">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            <span>Aspirasi</span>
+          </Link>
+        </template>
+
+        <!-- Admin Aspirations (Kelola Aspirasi for non-super_admin) -->
         <template v-if="isAdminOrUnit">
           <Link href="/admin/aspirations" :class="menuItemClass('/admin/aspirations')">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
             </svg>
-            <span>Aspirasi Anggota</span>
+            <span>{{ isSuperAdmin ? 'Aspirasi Anggota' : 'Kelola Aspirasi' }}</span>
             <span v-if="$page.props.counters?.aspirations_pending" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $page.props.counters.aspirations_pending }}</span>
           </Link>
         </template>
@@ -65,6 +75,16 @@
             <Link v-if="isSuperAdmin || isAdminUnit || isAdminPusat" href="/letters/outbox" :class="subMenuItemClass('/letters/outbox')">Surat Keluar</Link>
             <Link v-if="isSuperAdmin || canApproveLetters" href="/letters/approvals" :class="subMenuItemClass('/letters/approvals')">Perlu Persetujuan</Link>
           </div>
+        </template>
+
+        <!-- Iuran Saya (for non-super_admin, show before Financials) -->
+        <template v-if="!isSuperAdmin && $page.props.features?.finance !== false">
+          <Link href="/member/dues" :class="menuItemClass('/member/dues')">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <span>Iuran Saya</span>
+          </Link>
         </template>
 
         <!-- Financials Section -->
@@ -158,8 +178,8 @@
           </div>
         </template>
 
-        <!-- Member Aspirations -->
-        <template v-if="isMember || isTreasurer">
+        <!-- Member Aspirations (for super_admin only, show after Reports) -->
+        <template v-if="isSuperAdmin && (isMember || isTreasurer)">
           <Link href="/member/aspirations" :class="menuItemClass('/member/aspirations')">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -168,13 +188,15 @@
           </Link>
         </template>
 
-        <!-- Iuran Saya (All users when finance enabled) -->
-        <Link v-if="$page.props.features?.finance !== false" href="/member/dues" :class="menuItemClass('/member/dues')">
-          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          <span>Iuran Saya</span>
-        </Link>
+        <!-- Iuran Saya (for super_admin only, show after Aspirasi) -->
+        <template v-if="isSuperAdmin && $page.props.features?.finance !== false">
+          <Link href="/member/dues" :class="menuItemClass('/member/dues')">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <span>Iuran Saya</span>
+          </Link>
+        </template>
 
         <!-- Settings Section -->
         <button @click="toggleSection('settings')" :class="sectionHeaderClass('settings')">
@@ -239,11 +261,18 @@
 	            <span>Kelola Pengumuman</span>
 	          </Link>
 
+	          <Link v-if="!isSuperAdmin && (isMember || isTreasurer)" href="/member/aspirations" :class="menuItemClass('/member/aspirations')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+	            </svg>
+	            <span>Aspirasi</span>
+	          </Link>
+
 	          <Link v-if="isAdminOrUnit" href="/admin/aspirations" :class="menuItemClass('/admin/aspirations')" @click="mobileMenuOpen = false">
 	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
 	            </svg>
-	            <span>Aspirasi Anggota</span>
+	            <span>{{ isSuperAdmin ? 'Aspirasi Anggota' : 'Kelola Aspirasi' }}</span>
 	          </Link>
 
 	          <Link v-if="isSuperAdmin || isAdminUnit || isAdminPusat || isMember || isTreasurer" href="/letters/inbox" :class="menuItemClass('/letters')" @click="mobileMenuOpen = false">
@@ -251,6 +280,13 @@
 	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
 	            </svg>
 	            <span>Surat</span>
+	          </Link>
+
+	          <Link v-if="!isSuperAdmin && $page.props.features?.finance !== false" href="/member/dues" :class="menuItemClass('/member/dues')" @click="mobileMenuOpen = false">
+	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+	            </svg>
+	            <span>Iuran Saya</span>
 	          </Link>
 
 	          <Link v-if="isSuperAdmin || isTreasurer || isAdminUnit" href="/finance/ledgers" :class="menuItemClass('/finance/ledgers')" @click="mobileMenuOpen = false">
@@ -295,14 +331,14 @@
 	            <span>Reports</span>
 	          </Link>
 
-	          <Link v-if="isMember || isTreasurer" href="/member/aspirations" :class="menuItemClass('/member/aspirations')" @click="mobileMenuOpen = false">
+	          <Link v-if="isSuperAdmin && (isMember || isTreasurer)" href="/member/aspirations" :class="menuItemClass('/member/aspirations')" @click="mobileMenuOpen = false">
 	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
 	            </svg>
 	            <span>Aspirasi</span>
 	          </Link>
 
-	          <Link v-if="$page.props.features?.finance !== false" href="/member/dues" :class="menuItemClass('/member/dues')" @click="mobileMenuOpen = false">
+	          <Link v-if="isSuperAdmin && $page.props.features?.finance !== false" href="/member/dues" :class="menuItemClass('/member/dues')" @click="mobileMenuOpen = false">
 	            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 	              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
 	            </svg>
@@ -337,16 +373,7 @@
 
           <!-- Search Bar -->
           <div class="hidden md:flex flex-1 max-w-md mx-8">
-            <div class="relative w-full">
-              <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input 
-                type="text" 
-                placeholder="Search..."
-                class="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary-500 focus:border-transparent bg-neutral-50"
-              />
-            </div>
+            <TopbarSearch class="w-full" />
           </div>
 
           <!-- Optional Page Actions -->
@@ -464,6 +491,7 @@ import UserAvatar from '@/Components/UI/UserAvatar.vue';
 import {
   MegaphoneIcon, 
 } from '@heroicons/vue/24/outline';
+import TopbarSearch from '@/Components/Search/TopbarSearch.vue';
 
 defineProps({
   pageTitle: {

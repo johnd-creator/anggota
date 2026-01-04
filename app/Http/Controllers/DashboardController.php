@@ -44,13 +44,22 @@ class DashboardController extends Controller
             return collect([]);
         }
 
-        return \App\Models\Announcement::query()
+        $query = \App\Models\Announcement::query()
             ->visibleTo($user)
             ->where('pin_to_dashboard', true)
             ->with(['organizationUnit', 'attachments'])
             ->latest()
             ->take(5)
-            ->get()
+            ;
+
+        // Avoid crashing if migrations haven't been run yet in a fresh/dev environment.
+        if (Schema::hasTable('announcement_dismissals')) {
+            $query->whereDoesntHave('dismissals', function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+            });
+        }
+
+        return $query->get()
             ->map(function ($announcement) {
                 return [
                     'id' => $announcement->id,
@@ -439,4 +448,3 @@ class DashboardController extends Controller
     }
 
 }
-

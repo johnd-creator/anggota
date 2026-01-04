@@ -286,6 +286,9 @@ Route::middleware(['auth'])->group(function () {
 
         Route::resource('members', \App\Http\Controllers\Admin\MemberController::class)
             ->whereNumber('member');
+        Route::get('users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'show'])
+            ->whereNumber('user')
+            ->name('users.show');
         Route::resource('union-positions', \App\Http\Controllers\Admin\UnionPositionController::class)->middleware('role:super_admin')->names('union_positions');
         Route::resource('roles', \App\Http\Controllers\Admin\RoleController::class)->middleware('role:super_admin');
         Route::post('roles/{role}/assign', [\App\Http\Controllers\Admin\RoleController::class, 'assign'])->middleware('role:super_admin')->name('roles.assign');
@@ -564,6 +567,9 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('announcements')->name('announcements.')->middleware('feature:announcements')->group(function () {
         Route::get('/', [\App\Http\Controllers\AnnouncementController::class, 'index'])->name('index');
         Route::get('/{announcement}', [\App\Http\Controllers\AnnouncementController::class, 'show'])->name('show');
+        Route::post('/{announcement}/dismiss', [\App\Http\Controllers\AnnouncementController::class, 'dismiss'])
+            ->middleware('auth')
+            ->name('dismiss');
         Route::get('/attachments/{attachment}/download', [\App\Http\Controllers\AnnouncementController::class, 'downloadAttachment'])->name('attachments.download');
     });
 
@@ -600,6 +606,14 @@ Route::post('/logout', function () {
     request()->session()->regenerateToken();
     return redirect()->route('login');
 })->middleware('auth')->name('logout');
+
+// Global Search
+Route::middleware(['auth'])->group(function () {
+    Route::get('/search', [\App\Http\Controllers\SearchController::class, 'index'])->name('search.index');
+    Route::get('/api/search', [\App\Http\Controllers\SearchController::class, 'api'])
+        ->middleware('throttle:15,1')
+        ->name('search.api');
+});
 
 Route::post('/feedback', function (\Illuminate\Http\Request $request) {
     \App\Models\ActivityLog::create([

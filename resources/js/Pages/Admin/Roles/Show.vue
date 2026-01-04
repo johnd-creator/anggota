@@ -45,6 +45,9 @@
             </tr>
           </tbody>
         </table>
+        <div class="mt-4">
+          <Pagination :paginator="users" />
+        </div>
       </CardContainer>
     </div>
 
@@ -65,6 +68,7 @@
 </template>
 
 <script setup>
+import Pagination from '@/Components/UI/Pagination.vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
 import InputField from '@/Components/UI/InputField.vue';

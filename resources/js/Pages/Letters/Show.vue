@@ -3,12 +3,27 @@
     <div class="max-w-3xl mx-auto space-y-6">
       <AlertBanner v-if="$page.props.flash?.success" type="success" :message="$page.props.flash.success" dismissible />
 
-      <!-- Back Link -->
-      <div>
-        <button @click="goBack" class="inline-flex items-center text-sm text-neutral-600 hover:text-neutral-900">
-          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      <!-- Page Actions -->
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <SecondaryButton size="sm" @click="goBack">
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
           Kembali
-        </button>
+        </SecondaryButton>
+
+        <div class="flex flex-wrap gap-2 justify-end">
+          <SecondaryButton size="sm" :href="`/letters/${letter.id}/preview`">
+            Preview
+          </SecondaryButton>
+          <Link
+            v-if="canEdit"
+            :href="`/letters/${letter.id}/edit`"
+            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary-500"
+          >
+            Edit
+          </Link>
+        </div>
       </div>
 
       <CardContainer padding="lg">
@@ -25,11 +40,6 @@
             </div>
             <h2 class="text-xl font-semibold text-neutral-900">{{ letter.subject }}</h2>
             <p class="text-sm text-neutral-500 mt-1">{{ letter.category?.name }}</p>
-          </div>
-          <div v-if="canEdit" class="flex space-x-2">
-            <Link :href="`/letters/${letter.id}/edit`" class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-              Edit
-            </Link>
           </div>
         </div>
 
@@ -226,12 +236,18 @@ function getRecipient() {
 }
 
 function goBack() {
-  const roleName = page.props.auth?.user?.role?.name
-  if (['admin_unit', 'admin_pusat', 'super_admin'].includes(roleName)) {
-    router.visit('/letters/outbox')
-  } else {
-    router.visit('/letters/inbox')
+  if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
+    window.history.back()
+    return
   }
+
+  if (props.canApprove && props.letter.status === 'submitted') {
+    router.visit('/letters/approvals')
+    return
+  }
+
+  const isCreator = props.letter.creator_user_id === page.props.auth?.user?.id
+  router.visit(isCreator ? '/letters/outbox' : '/letters/inbox')
 }
 
 function submitLetter() {

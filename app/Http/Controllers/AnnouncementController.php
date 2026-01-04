@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Announcement;
 use App\Models\AnnouncementAttachment;
+use App\Models\AnnouncementDismissal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -102,5 +104,26 @@ class AnnouncementController extends Controller
             Storage::disk($attachment->disk)->path($attachment->path),
             $attachment->original_name
         );
+    }
+
+    public function dismiss(Request $request, Announcement $announcement)
+    {
+        Gate::authorize('view', $announcement);
+
+        if (!Schema::hasTable('announcement_dismissals')) {
+            abort(503, 'Feature requires migration: announcement_dismissals');
+        }
+
+        AnnouncementDismissal::updateOrCreate(
+            [
+                'announcement_id' => $announcement->id,
+                'user_id' => $request->user()->id,
+            ],
+            [
+                'dismissed_at' => now(),
+            ]
+        );
+
+        return back();
     }
 }

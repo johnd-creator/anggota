@@ -9,7 +9,6 @@
         <div class="absolute -bottom-24 -left-24 w-80 h-80 bg-rose-600 rounded-full blur-3xl opacity-20 animate-pulse" style="animation-delay: 2s"></div>
 
         <!-- Grid Pattern -->
-        <div class="absolute inset-0 bg-[url('/img/grid.svg')] opacity-10"></div>
       </div>
 
       <!-- Content -->

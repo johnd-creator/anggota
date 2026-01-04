@@ -36,6 +36,7 @@ class FinanceLedgerController extends Controller
         $status = $request->query('status');
         $search = $request->query('search');
         $unitParam = $request->query('unit_id');
+        $focusId = $request->query('focus');
 
         // Apply unit scope
         if (!$isGlobal) {
@@ -58,6 +59,13 @@ class FinanceLedgerController extends Controller
             $query->where('status', $status);
         if ($search)
             $query->where('description', 'like', "%{$search}%");
+
+        if ($focusId && ctype_digit((string) $focusId)) {
+            $focusId = (int) $focusId;
+            $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$focusId]);
+        } else {
+            $focusId = null;
+        }
 
         $ledgers = $query->orderByDesc('date')->orderByDesc('id')->paginate(10)->withQueryString();
 
@@ -116,6 +124,7 @@ class FinanceLedgerController extends Controller
             'workflowEnabled' => $workflowEnabled,
             'pendingCount' => $pendingCount,
             'canApprove' => $isAdminUnit,
+            'focusLedgerId' => $focusId,
         ]);
     }
 

@@ -28,6 +28,11 @@ class Announcement extends Model
         return $this->hasMany(AnnouncementAttachment::class);
     }
 
+    public function dismissals(): HasMany
+    {
+        return $this->hasMany(AnnouncementDismissal::class);
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

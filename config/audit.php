@@ -45,6 +45,7 @@ return [
         'document.' => 'export',
         'onboarding_' => 'member',
         'audit_log.' => 'system',
+        'search.' => 'system',
     ],
 
     /*
@@ -140,6 +141,10 @@ return [
             'action',
             'count',
             'route_name',
+            'query_hash',
+            'query_len',
+            'type_scope',
+            'role',
         ],
     ],
 
