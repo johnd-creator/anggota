@@ -218,6 +218,7 @@ const form = reactive({ name: profileDefaults.name || '', email: profileDefaults
 const tab = ref('profile');
 function setTab(t){ tab.value = t; }
 function tabClass(t){ return ['w-full text-left px-3 py-2 rounded', tab.value===t ? 'bg-brand-primary-50 text-brand-primary-700' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'].join(' '); }
+const csrfToken = computed(() => page.props?.csrf_token || '');
 
 const categories = [
   { key:'announcements', label:'Pengumuman Penting', desc: 'Info resmi' },
@@ -255,7 +256,7 @@ async function savePrefs(){
   try {
     const res = await fetch('/settings/notifications', {
       method:'PATCH',
-      headers:{ 'Content-Type':'application/json' },
+      headers:{ 'Content-Type':'application/json', 'X-CSRF-TOKEN': csrfToken.value },
       body: JSON.stringify({
         channels: { ...prefs, letters: lettersEnabled.value },
         digest_daily: digestDaily.value
@@ -298,7 +299,7 @@ async function submitPasswordReset() {
   try {
     const res = await fetch('/settings/password', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken.value },
       body: JSON.stringify({
         current_password: passwordForm.current_password,
         password: passwordForm.password,
@@ -342,7 +343,7 @@ async function revokeOthers(){
   try {
     const r = await fetch('/settings/sessions/revoke-others', {
        method:'POST',
-       headers:{ 'X-CSRF-TOKEN': page.props.csrf_token, 'Content-Type':'application/json' }
+       headers:{ 'X-CSRF-TOKEN': csrfToken.value, 'Content-Type':'application/json' }
     });
     if(r.ok) {
         alert('Sesi lain berhasil dikeluarkan.');
@@ -385,7 +386,7 @@ async function saveProfile(){
   try {
     const res = await fetch('/settings/profile', {
       method:'PATCH',
-      headers:{ 'Content-Type':'application/json', 'Accept':'application/json' },
+      headers:{ 'Content-Type':'application/json', 'Accept':'application/json', 'X-CSRF-TOKEN': csrfToken.value },
       body: JSON.stringify({ name: form.name })
     });
     const d = await res.json();

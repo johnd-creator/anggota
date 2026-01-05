@@ -49,6 +49,7 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+            'csrf_token' => csrf_token(),
             'features' => [
                 'announcements' => (bool) config('features.announcements', true),
                 'letters' => (bool) config('features.letters', true),
