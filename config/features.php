@@ -46,4 +46,15 @@ return [
     |
     */
     'finance' => env('FEATURE_FINANCE', true),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Reports Feature
+    |--------------------------------------------------------------------------
+    |
+    | Controls access to /reports/export (CSV export endpoint).
+    | To disable: set FEATURE_REPORTS=false in .env, then run php artisan config:cache
+    |
+    */
+    'reports' => env('FEATURE_REPORTS', true),
 ];

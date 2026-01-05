@@ -1,0 +1,27 @@
+PHPUnit 12.4.4 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.16
+Configuration: /var/www/html/anggota/phpunit.xml
+
+.F                                                                  2 / 2 (100%)
+
+Time: 00:00.193, Memory: 59.00 MB
+
+There was 1 failure:
+
+1) Tests\Feature\SettingsSessionsTest::test_user_can_revoke_other_sessions
+Failed asserting that a row in the table [sessions] matches the attributes {
+    "id": "current_session_id"
+}.
+
+Found: [
+    {
+        "id": "rdpddN52mkD70HIaeczF09xFkjbo8kPlsoGU61Tw"
+    }
+].
+
+/var/www/html/anggota/vendor/laravel/framework/src/Illuminate/Foundation/Testing/Concerns/InteractsWithDatabase.php:43
+/var/www/html/anggota/tests/Feature/SettingsSessionsTest.php:71
+
+FAILURES!
+Tests: 2, Assertions: 16, Failures: 1.

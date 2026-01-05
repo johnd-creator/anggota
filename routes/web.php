@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -98,7 +99,13 @@ Route::middleware(['auth'])->group(function () {
             'channels.updates' => ['array'],
             'channels.onboarding' => ['array'],
             'channels.security' => ['array'],
-            'channels.letters' => ['nullable', 'boolean'],
+            'channels.letters' => ['nullable', 'boolean'], // Legacy bool support? Check frontend. Actually frontend sends array for others.
+            // New Categories
+            'channels.announcements' => ['array'],
+            'channels.dues' => ['array'],
+            'channels.reports' => ['array'],
+            'channels.finance' => ['array'],
+
             'digest_daily' => ['boolean'],
         ]);
         $pref = \App\Models\NotificationPreference::updateOrCreate(
@@ -108,16 +115,131 @@ Route::middleware(['auth'])->group(function () {
         return response()->json(['status' => 'ok', 'updated_at' => $pref->updated_at?->toISOString()]);
     })->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('settings.notification_prefs');
 
+    Route::patch('/settings/profile', function (\Illuminate\Http\Request $request) {
+        $user = Auth::user();
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+        ]);
+
+        $oldName = $user->name;
+
+        DB::transaction(function () use ($user, $data, $oldName) {
+            // Update User
+            $user->name = $data['name'];
+            $user->save();
+
+            // Update Member if exists
+            if ($user->member) {
+                $user->member->full_name = $data['name'];
+                $user->member->save();
+            }
+
+            // Audit Log
+            \App\Models\ActivityLog::create([
+                'actor_id' => $user->id,
+                'action' => 'profile_update',
+                'subject_type' => \App\Models\User::class,
+                'subject_id' => $user->id,
+                'payload' => ['old_name' => $oldName, 'new_name' => $data['name']],
+                'event_category' => 'system',
+            ]);
+        });
+
+        return response()->json(['status' => 'ok', 'updated_at' => now()->toISOString()]);
+    })->middleware('auth')->name('settings.profile.update');
+
+    Route::patch('/settings/password', function (\Illuminate\Http\Request $request) {
+        $user = Auth::user();
+        $data = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        if (!Hash::check($data['current_password'], $user->password)) {
+            return response()->json(['message' => 'Password saat ini tidak sesuai.'], 422);
+        }
+
+        DB::transaction(function () use ($user, $data) {
+            $user->password = Hash::make($data['password']);
+            $user->save();
+
+            \App\Models\ActivityLog::create([
+                'actor_id' => $user->id,
+                'action' => 'password_changed',
+                'subject_type' => \App\Models\User::class,
+                'subject_id' => $user->id,
+                'payload' => ['via' => 'settings'],
+                'event_category' => 'security',
+            ]);
+        });
+
+        Auth::logoutOtherDevices($data['password']);
+
+        return response()->json(['status' => 'ok']);
+    })->middleware('auth')->name('settings.password.update');
+
+    Route::get('/settings/sessions', function (\Illuminate\Http\Request $request) {
+        $userId = Auth::id();
+        $currentId = $request->session()->getId();
+
+        $sessions = DB::table('sessions')
+            ->where('user_id', $userId)
+            ->orderBy('last_activity', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($s) use ($currentId) {
+                return [
+                    'id' => $s->id,
+                    'ip_address' => $s->ip_address,
+                    'user_agent' => $s->user_agent,
+                    'is_current_device' => $s->id === $currentId,
+                    'last_activity' => \Illuminate\Support\Carbon::createFromTimestamp($s->last_activity)->diffForHumans(),
+                ];
+            });
+
+        return response()->json(['sessions' => $sessions]);
+    })->middleware('auth')->name('settings.sessions.index');
+
+    Route::post('/settings/sessions/revoke-others', function (\Illuminate\Http\Request $request) {
+        $userId = Auth::id();
+        $currentId = $request->session()->getId();
+
+        $count = DB::table('sessions')
+            ->where('user_id', $userId)
+            ->where('id', '!=', $currentId)
+            ->delete();
+
+        if ($count > 0) {
+            \App\Models\ActivityLog::create([
+                'actor_id' => $userId,
+                'action' => 'revoke_other_sessions',
+                'subject_type' => \App\Models\User::class,
+                'subject_id' => $userId,
+                'payload' => ['count' => $count],
+                'event_category' => 'auth',
+            ]);
+        }
+
+        return response()->json(['status' => 'ok', 'count' => $count]);
+    })->middleware('auth')->name('settings.sessions.revoke_others');
+
     Route::get('/help', function () {
         return Inertia::render('Help/Index');
     })->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('help.index');
 
     // root path handled above (guest: login page, auth: dashboard)
 
-    Route::prefix('reports')->middleware('role:super_admin,admin_unit')->group(function () {
+    Route::prefix('reports')->middleware(['feature:reports', 'role:super_admin,admin_pusat,admin_unit,bendahara'])->group(function () {
+        // UI pages (existing)
         Route::get('growth', [\App\Http\Controllers\ReportController::class, 'growth'])->name('reports.growth');
         Route::get('mutations', [\App\Http\Controllers\ReportController::class, 'mutations'])->name('reports.mutations');
-        Route::get('documents', [\App\Http\Controllers\ReportController::class, 'documents'])->name('reports.documents');
+        // New Reports UI v2
+        Route::get('members', [\App\Http\Controllers\ReportController::class, 'members'])->name('reports.members');
+        Route::get('aspirations', [\App\Http\Controllers\ReportController::class, 'aspirations'])->name('reports.aspirations');
+        Route::get('dues', [\App\Http\Controllers\ReportController::class, 'dues'])->name('reports.dues');
+        Route::get('finance', [\App\Http\Controllers\ReportController::class, 'finance'])->name('reports.finance');
+
+        // Legacy per-type export (kept for backward compatibility)
         Route::post('{type}/export', function (\Illuminate\Http\Request $request, string $type) {
             $user = Auth::user();
             $requestedUnitId = $request->filled('unit_id') ? (int) $request->input('unit_id') : null;
@@ -179,40 +301,26 @@ Route::middleware(['auth'])->group(function () {
                             fputcsv($out, [$r->id, optional($r->member)->full_name, optional($r->fromUnit)->name, optional($r->toUnit)->name, $r->status, $r->effective_date]);
                     });
                 });
-            } elseif ($type === 'documents') {
-                Gate::authorize('export', \App\Models\Member::class);
-
-                $status = $request->input('status');
-                $query = \App\Models\Member::query()->select('id', 'full_name', 'organization_unit_id', 'photo_path', 'documents', 'kta_number', 'nip', 'union_position_id')->with(['unit', 'unionPosition']);
-                if ($unitId)
-                    $query->where('organization_unit_id', $unitId);
-                if ($status)
-                    $query->where('status', $status);
-                $filename = 'report_documents_' . now()->format('Ymd_His') . '.csv';
-                $rowCount = (clone $query)->count();
-                \App\Services\ExportScopeHelper::auditExport($user, 'reports.documents', $unitId, $rowCount, [
-                    'status' => $status,
-                ]);
-                return \App\Services\ReportExporter::streamCsv($filename, ['ID', 'Nama', 'KTA', 'NIP', 'Jabatan', 'Unit', 'Foto', 'Dokumen'], function ($out) use ($query, $maskPii) {
-                    $query->orderBy('id')->chunk(500, function ($rows) use (&$out, $maskPii) {
-                        foreach ($rows as $m)
-                            fputcsv($out, [
-                                $m->id,
-                                $m->full_name,
-                                $m->kta_number,
-                                $maskPii ? \App\Services\ExportScopeHelper::maskPii($m->nip, 'nip') : $m->nip,
-                                optional($m->unionPosition)->name,
-                                optional($m->unit)->name,
-                                $m->photo_path ? 'YA' : 'TIDAK',
-                                $m->documents ? 'ADA' : 'TIDAK',
-                            ]);
-                    });
-                });
             }
+
             return response()->json(['error' => 'Unknown report'], 404);
         })->name('reports.export');
+
+        // New unified CSV export endpoint (R1)
+        // Unified CSV Export
+        Route::get('/export', [\App\Http\Controllers\ReportsExportController::class, 'export'])
+            ->name('reports.export')
+            ->middleware('throttle:10,1');
+
+        // Export Status
+        Route::get('/export/status', \App\Http\Controllers\ReportsExportStatusController::class)
+            ->name('reports.export.status');
     });
 
+    // Backward-compatible redirect: Reports CSV docs moved to Help Center.
+    Route::get('/docs/reports/csv', function () {
+        return redirect('/docs/help/reports-csv');
+    })->middleware(['auth', 'role:super_admin,admin_pusat,admin_unit,bendahara'])->name('docs.reports.csv');
 
 
     Route::get('/ops', function () {
@@ -630,5 +738,5 @@ Route::post('/feedback', function (\Illuminate\Http\Request $request) {
 Route::prefix('api/reports')->middleware(['api_token', 'throttle:60,1'])->group(function () {
     Route::get('growth', [\App\Http\Controllers\ReportController::class, 'apiGrowth']);
     Route::get('mutations', [\App\Http\Controllers\ReportController::class, 'apiMutations']);
-    Route::get('documents', [\App\Http\Controllers\ReportController::class, 'apiDocuments']);
+
 });

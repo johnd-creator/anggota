@@ -1,0 +1,23 @@
+PHPUnit 12.4.4 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.16
+Configuration: /var/www/html/anggota/phpunit.xml
+
+..F.                                                                4 / 4 (100%)
+
+Time: 00:00.244, Memory: 63.00 MB
+
+There was 1 failure:
+
+1) Tests\Feature\ReportsExportStatusTest::test_export_controller_sets_status
+Failed asserting that two strings are equal.
+--- Expected
++++ Actual
+@@ @@
+-'completed'
++'started'
+
+/var/www/html/anggota/tests/Feature/ReportsExportStatusTest.php:88
+
+FAILURES!
+Tests: 4, Assertions: 10, Failures: 1.

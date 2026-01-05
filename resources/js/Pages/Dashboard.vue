@@ -610,46 +610,14 @@ const duesProgress = computed(() => {
     return Math.round((duesCollected.value / duesTarget.value) * 100);
 });
 
-// Recent activities - from alerts or mock data
+// Recent activities - from props
 const recentActivities = computed(() => {
-    const alerts = pg.alerts || {};
-    const activities = [];
-
-    if (alerts.documents_missing > 0) {
-        activities.push({
-            type: 'warning',
-            message: `${alerts.documents_missing} anggota belum upload dokumen`,
-            time: 'Baru saja'
-        });
-    }
-    if (alerts.mutations_sla_breach > 0) {
-        activities.push({
-            type: 'error',
-            message: `${alerts.mutations_sla_breach} mutasi melewati SLA`,
-            time: 'Hari ini'
-        });
-    }
-
-    // Add some general activities
-    activities.push(
-        { type: 'success', message: "Member 'John Doe' added", time: '2 jam yang lalu' },
-        { type: 'info', message: 'Mutation request from Unit 101 approved', time: '3 jam yang lalu' },
-        { type: 'info', message: 'New update request from Unit 304', time: '5 jam yang lalu' }
-    );
-
-    return activities.slice(0, 5);
+    return pg.dashboard?.recent_activities || [];
 });
 
-// Recent mutations - from dashboard data or mock
+// Recent mutations - from props
 const recentMutations = computed(() => {
-    const mutations = pg.dashboard?.mutations || {};
-
-    // Mock data for display - in real scenario this would come from backend
-    return [
-        { id: 3049001, member_name: 'John Doe', type: 'Management', date: '2022-07-24', status: 'status', status_label: 'Status' },
-        { id: 3045002, member_name: 'John Doe', type: 'Mutation', date: '2022-07-22', status: 'approved', status_label: 'Approved' },
-        { id: 3045003, member_name: 'John Doe', type: 'Mutation', date: '2023-07-23', status: 'status', status_label: 'Status' },
-    ];
+    return pg.dashboard?.recent_mutations || [];
 });
 
 // Format helpers

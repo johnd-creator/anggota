@@ -1,8 +1,12 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import debounce from 'lodash/debounce';
+import CtaButton from '@/Components/UI/CtaButton.vue';
+import IconButton from '@/Components/UI/IconButton.vue';
+import Pagination from '@/Components/UI/Pagination.vue';
+import CardContainer from '@/Components/UI/CardContainer.vue';
 
 const props = defineProps({
     announcements: Object,
@@ -10,19 +14,38 @@ const props = defineProps({
     can: Object,
 });
 
+const isFiltering = ref(false);
 const search = ref(props.filters.q || '');
 const status = ref(props.filters.status || '');
 const scope = ref(props.filters.scope_type || '');
 const pinned = ref(props.filters.pinned || '');
 
+const hasActiveFilters = computed(() => {
+    return search.value || status.value || scope.value || pinned.value;
+});
+
 watch([search, status, scope, pinned], debounce(() => {
+    isFiltering.value = true;
     router.get('/admin/announcements', { 
         q: search.value, 
         status: status.value, 
         scope_type: scope.value,
         pinned: pinned.value,
-    }, { preserveState: true, replace: true });
+    }, { 
+        preserveState: true, 
+        replace: true,
+        onFinish: () => {
+            isFiltering.value = false;
+        }
+    });
 }, 300));
+
+const resetFilters = () => {
+    search.value = '';
+    status.value = '';
+    scope.value = '';
+    pinned.value = '';
+};
 
 const formatScope = (type, unitId, unitName) => {
     if (type === 'global_all') return 'Global (Semua)';
@@ -68,68 +91,96 @@ const deleteItem = (announcement) => {
                     <p class="text-sm text-neutral-500">Kelola pengumuman global dan unit.</p>
                 </div>
                 <div class="flex flex-wrap gap-3">
-                    <Link
+                    <CtaButton
                         v-if="can?.create !== false"
                         href="/admin/announcements/create"
-                        class="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-full shadow-lg shadow-blue-300/70 hover:bg-blue-700 transition transform hover:-translate-y-0.5"
                     >
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        <template #icon>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </template>
                         Tambah Pengumuman
-                    </Link>
+                    </CtaButton>
                 </div>
             </div>
 
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <!-- Filters -->
-                <div class="p-4 border-b border-gray-100 bg-gray-50 flex flex-wrap gap-4">
-                    <div class="flex-1 min-w-[200px]">
-                        <input 
-                            v-model="search" 
-                            type="text" 
-                            placeholder="Cari judul atau isi..." 
-                            class="input-field w-full"
-                        >
+            <!-- Filters -->
+            <CardContainer padding="sm">
+                <div class="flex flex-wrap gap-3 items-center">
+                    <!-- Search with icon -->
+                    <div class="relative w-full md:w-64">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg v-if="!isFiltering" class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <svg v-else class="w-4 h-4 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </div>
+                        <input
+                            v-model="search"
+                            type="text"
+                            placeholder="Cari judul atau isi..."
+                            class="pl-10 pr-3 py-2 border border-neutral-300 rounded-lg text-sm w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow duration-200"
+                        />
                     </div>
-                    <select v-model="status" class="input-field w-auto">
+
+                    <select v-model="status" class="border border-neutral-300 rounded-lg px-3 py-2 text-sm bg-white cursor-pointer hover:border-neutral-400 transition-colors focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <option value="">Semua Status</option>
                         <option value="active">Aktif</option>
                         <option value="inactive">Non-aktif</option>
                     </select>
-                    <select v-model="scope" class="input-field w-auto">
+
+                    <select v-model="scope" class="border border-neutral-300 rounded-lg px-3 py-2 text-sm bg-white cursor-pointer hover:border-neutral-400 transition-colors focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <option value="">Semua Scope</option>
                         <option value="global_all">Global (All)</option>
                         <option value="global_officers">Global (Pengurus)</option>
                         <option value="unit">Unit</option>
                     </select>
-                    <select v-model="pinned" class="input-field w-auto">
+
+                    <select v-model="pinned" class="border border-neutral-300 rounded-lg px-3 py-2 text-sm bg-white cursor-pointer hover:border-neutral-400 transition-colors focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <option value="">Semua Pin</option>
                         <option value="pinned">Pinned</option>
                         <option value="not_pinned">Not Pinned</option>
                     </select>
-                </div>
 
-                <!-- Table -->
+                    <!-- Reset Button -->
+                    <button
+                        v-if="hasActiveFilters"
+                        @click="resetFilters"
+                        class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Reset
+                    </button>
+                </div>
+            </CardContainer>
+
+            <!-- Table -->
+            <CardContainer padding="none" class="overflow-hidden border border-neutral-200">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                    <table class="min-w-full divide-y divide-neutral-200">
+                        <thead class="bg-neutral-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Judul</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target Audience</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Judul</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Target Audience</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Tanggal</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                        <tbody class="bg-white divide-y divide-neutral-200">
                             <tr v-if="announcements.data.length === 0">
-                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                                <td colspan="5" class="px-6 py-4 text-center text-neutral-500">
                                     Tidak ada data pengumuman.
                                 </td>
                             </tr>
                             <tr v-for="item in announcements.data" :key="item.id" class="hover:bg-gray-50">
                                 <td class="px-6 py-4">
-                                    <div class="text-sm font-medium text-gray-900">{{ item.title }}</div>
-                                    <div class="text-xs text-gray-500 truncate max-w-xs">{{ item.body.substring(0, 50) }}...</div>
+                                    <div class="text-sm font-medium text-neutral-900">{{ item.title }}</div>
+                                    <div class="text-xs text-neutral-500 truncate max-w-xs">{{ item.body.substring(0, 50) }}...</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
@@ -155,13 +206,31 @@ const deleteItem = (announcement) => {
                                         <span v-else>unpinned</span>
                                     </button>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
                                     {{ formatDate(item.created_at) }}
                                     <div class="text-xs">by {{ item.creator?.name }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <Link :href="`/admin/announcements/${item.id}/edit`" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</Link>
-                                    <button @click="deleteItem(item)" class="text-red-600 hover:text-red-900">Hapus</button>
+                                    <div class="flex justify-end gap-2">
+                                        <IconButton
+                                            variant="ghost"
+                                            aria-label="Edit"
+                                            @click="router.visit(`/admin/announcements/${item.id}/edit`)"
+                                        >
+                                            <svg class="w-5 h-5 text-brand-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2-2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </IconButton>
+                                        <IconButton
+                                            variant="ghost"
+                                            aria-label="Delete"
+                                            @click="deleteItem(item)"
+                                        >
+                                            <svg class="w-5 h-5 text-status-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </IconButton>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -169,23 +238,10 @@ const deleteItem = (announcement) => {
                 </div>
 
                 <!-- Pagination -->
-                <div class="px-6 py-4 border-t border-gray-200" v-if="announcements.prev_page_url || announcements.next_page_url">
-                    <div class="flex justify-between">
-                         <Link 
-                            v-if="announcements.prev_page_url" 
-                            :href="announcements.prev_page_url" 
-                            class="px-3 py-1 border rounded hover:bg-gray-50"
-                        >Sebelumnya</Link>
-                        <div v-else></div>
-
-                        <Link 
-                            v-if="announcements.next_page_url" 
-                            :href="announcements.next_page_url" 
-                            class="px-3 py-1 border rounded hover:bg-gray-50"
-                        >Next</Link>
-                    </div>
+                <div class="px-6 py-4 border-t border-neutral-200">
+                    <Pagination :paginator="announcements" />
                 </div>
-            </div>
+            </CardContainer>
         </div>
     </AppLayout>
 </template>

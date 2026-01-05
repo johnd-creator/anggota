@@ -4,9 +4,7 @@
       <nav class="text-sm text-neutral-600">
         <a href="/dashboard" class="hover:underline">Dashboard</a> / <span>Pengaturan</span>
       </nav>
-      <div class="flex items-center gap-2">
-        <PrimaryButton @click="saveAll">Simpan Semua</PrimaryButton>
-      </div>
+      <!-- "Simpan Semua" stub hidden -->
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -16,9 +14,8 @@
             <button :class="tabClass('profile')" @click="setTab('profile')" aria-label="Tab Profil">Profil Pengguna</button>
             <button :class="tabClass('notifications')" @click="setTab('notifications')" aria-label="Tab Notifikasi">Preferensi Notifikasi</button>
             <button :class="tabClass('security')" @click="setTab('security')" aria-label="Tab Keamanan">Keamanan Akun</button>
-            <button :class="tabClass('integrations')" @click="setTab('integrations')" aria-label="Tab Integrasi">Integrasi/API</button>
             <button :class="tabClass('privacy')" @click="setTab('privacy')" aria-label="Tab Privasi">Privasi & Data</button>
-            <button :class="tabClass('language')" @click="setTab('language')" aria-label="Tab Bahasa">Bahasa</button>
+            <!-- Integrations & Language tabs hidden -->
           </div>
         </CardContainer>
         <CardContainer v-if="canQuickActions" padding="lg" shadow="sm" class="mt-4">
@@ -42,9 +39,15 @@
               </div>
             </div>
           </template>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputField v-model="form.name" label="Nama" aria-label="Nama" />
-            <InputField v-model="form.email" label="Email" aria-label="Email" :disabled="true" helper="Email mengikuti akun pengguna dan tidak dapat diubah di sini." />
+          <div class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InputField v-model="form.name" label="Nama" aria-label="Nama" />
+              <InputField v-model="form.email" label="Email" aria-label="Email" :disabled="true" helper="Email mengikuti akun pengguna dan tidak dapat diubah di sini." />
+            </div>
+            <div class="flex items-center justify-end gap-3 border-t pt-4">
+              <span v-if="profileMessage" :class="profileSuccess ? 'text-green-600' : 'text-red-500'" class="text-sm font-medium transition-opacity duration-500">{{ profileMessage }}</span>
+              <PrimaryButton @click="saveProfile" :disabled="profileLoading">Simpan Profil</PrimaryButton>
+            </div>
           </div>
         </CardContainer>
 
@@ -98,12 +101,31 @@
             <div class="text-sm">Sesi Aktif: Request ID {{ requestId }}</div>
             <div class="flex gap-3">
               <SecondaryButton @click="forceLogout">Force Logout</SecondaryButton>
-              <SecondaryButton :disabled="true">Reset Password Darurat (Nonaktif)</SecondaryButton>
-              <ToggleSwitch v-model="mfa" aria-label="Toggle MFA" />
-              <span class="text-xs text-neutral-600">MFA (stub)</span>
+              <SecondaryButton @click="openPasswordModal">Reset Password</SecondaryButton>
+              <!-- MFA switch hidden -->
             </div>
-            <div v-if="isSuperAdmin" class="mt-4">
-              <div class="text-sm font-semibold mb-2">Sesi Aktif Pengguna</div>
+
+            <div class="mt-6 border-t pt-4">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="text-sm font-semibold text-neutral-900">Sesi Saya</h4>
+                <SecondaryButton @click="revokeOthers" class="text-xs">Logout Semua Device Lain</SecondaryButton>
+              </div>
+              <div v-if="mySessions.length === 0" class="text-xs text-neutral-500 italic">Memuat sesi...</div>
+              <div v-else class="space-y-2">
+                 <div v-for="s in mySessions" :key="s.id" class="flex items-center justify-between p-2 border rounded bg-neutral-50">
+                    <div class="text-sm">
+                       <span class="font-medium">{{ s.ip_address }}</span>
+                       <span class="text-neutral-500 mx-2">•</span>
+                       <span class="text-xs text-neutral-600 truncate max-w-[200px] inline-block align-bottom" :title="s.user_agent">{{ s.user_agent }}</span>
+                       <div class="text-xs text-neutral-500 mt-1">Aktif: {{ s.last_activity }}</div>
+                    </div>
+                    <Badge v-if="s.is_current_device" variant="success">Current</Badge>
+                 </div>
+              </div>
+            </div>
+
+            <div v-if="isSuperAdmin" class="mt-6 border-t pt-4">
+              <div class="text-sm font-semibold mb-2">Semua Sesi Pengguna (Admin View)</div>
               <div v-if="!sessions.length" class="text-xs text-neutral-600">Tidak ada sesi.</div>
               <div v-else class="space-y-2">
                 <div v-for="s in sessions" :key="s.id" class="flex items-center justify-between text-sm">
@@ -116,51 +138,7 @@
           </div>
         </CardContainer>
 
-        <CardContainer padding="lg" shadow="sm" v-show="tab==='integrations'">
-          <template #header>
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-lg font-semibold text-neutral-900">Integrasi & API Tokens</h3>
-                <p class="text-sm text-neutral-600">Kelola token akses</p>
-              </div>
-              <AlertBanner type="danger" message="Jaga kerahasiaan token" />
-            </div>
-          </template>
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-neutral-200">
-              <thead class="bg-neutral-50">
-                <tr>
-                  <th class="px-4 py-2 text-left text-xs text-neutral-500">Label</th>
-                  <th class="px-4 py-2 text-left text-xs text-neutral-500">Status</th>
-                  <th class="px-4 py-2 text-left text-xs text-neutral-500">Kadaluarsa</th>
-                  <th class="px-4 py-2 text-left text-xs text-neutral-500">Last Used</th>
-                  <th class="px-4 py-2 text-right text-xs text-neutral-500">Aksi</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-neutral-200 bg-white">
-                <tr v-for="t in tokens" :key="t.id">
-                  <td class="px-4 py-2 text-sm">{{ t.label }}</td>
-                  <td class="px-4 py-2 text-sm"><Badge :variant="t.active ? 'success' : 'neutral'">{{ t.active ? 'Active' : 'Inactive' }}</Badge></td>
-                  <td class="px-4 py-2 text-sm">{{ t.expires_at || '-' }}</td>
-                  <td class="px-4 py-2 text-sm">{{ t.last_used || '-' }}</td>
-                  <td class="px-4 py-2 text-right text-sm">
-                    <SecondaryButton @click="confirm('regenerate', t)">Regenerate</SecondaryButton>
-                    <SecondaryButton class="ml-2" @click="confirm('deactivate', t)">Deactivate</SecondaryButton>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <ModalBase v-model:show="modalOpen" title="Konfirmasi" size="md">
-            <div class="text-sm text-neutral-700">Aksi: {{ modalAction }} untuk token "{{ modalToken?.label }}"?</div>
-            <template #footer>
-              <div class="flex justify-end gap-3">
-                <SecondaryButton @click="modalOpen=false">Batal</SecondaryButton>
-                <PrimaryButton @click="doTokenAction">Lanjut</PrimaryButton>
-              </div>
-            </template>
-          </ModalBase>
-        </CardContainer>
+        <!-- Integrations Tab hidden -->
 
         <CardContainer padding="lg" shadow="sm" v-show="tab==='privacy'">
           <template #header>
@@ -173,11 +151,16 @@
           </template>
           <div class="space-y-3 text-sm">
             <div>Data disimpan: nama, email, unit, status, riwayat mutasi, dokumen terkait.</div>
-            <div><a href="/docs/release/launch-checklist" class="text-brand-primary-700 underline">Kebijakan Privasi (lihat dokumen)</a></div>
-            <div class="flex gap-3">
+            <div><a href="/help" class="text-brand-primary-700 underline">Kebijakan Privasi (lihat di Help Center)</a></div>
+            
+            <div v-if="isMember" class="flex gap-3">
               <SecondaryButton @click="openPrivacy('export')">Request Data Export</SecondaryButton>
               <SecondaryButton @click="openPrivacy('delete')">Ajukan Penghapusan Data</SecondaryButton>
             </div>
+            <div v-else class="text-neutral-500 italic">
+               Fitur ini tersedia untuk anggota melalui portal anggota.
+            </div>
+
             <ModalBase v-model:show="privacyOpen" title="Konfirmasi" size="md">
               <div class="text-sm text-neutral-700">Aksi: {{ privacyAction==='export'?'Export Data':'Penghapusan Data' }}. Lanjutkan?</div>
               <template #footer>
@@ -190,22 +173,28 @@
           </div>
         </CardContainer>
 
-        <CardContainer padding="lg" shadow="sm" v-show="tab==='language'">
-          <template #header>
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-lg font-semibold text-neutral-900">Bahasa</h3>
-                <p class="text-sm text-neutral-600">Pilih bahasa antarmuka</p>
-              </div>
-            </div>
-          </template>
-          <div class="flex items-center gap-3">
-            <SelectField v-model="lang" :options="langOptions" aria-label="Pilih Bahasa" />
-            <Badge variant="brand">Preview: {{ lang==='id'?'Bahasa Indonesia':'English' }}</Badge>
-          </div>
-        </CardContainer>
+        <!-- Language Tab hidden -->
       </div>
     </div>
+
+    <ModalBase v-model:show="passwordModalOpen" title="Reset Password" size="md">
+      <div class="space-y-3">
+        <InputField v-model="passwordForm.current_password" type="password" label="Password Saat Ini" />
+        <InputField v-model="passwordForm.password" type="password" label="Password Baru" />
+        <InputField v-model="passwordForm.password_confirmation" type="password" label="Konfirmasi Password Baru" />
+        <p class="text-xs text-neutral-500">Minimal 8 karakter. Hindari password yang mudah ditebak.</p>
+        <p v-if="passwordMessage" :class="passwordSuccess ? 'text-green-600' : 'text-red-500'" class="text-sm font-medium">{{ passwordMessage }}</p>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <SecondaryButton @click="passwordModalOpen = false">Batal</SecondaryButton>
+          <PrimaryButton @click="submitPasswordReset" :disabled="passwordLoading">
+            <span v-if="passwordLoading">Menyimpan...</span>
+            <span v-else>Simpan Password</span>
+          </PrimaryButton>
+        </div>
+      </template>
+    </ModalBase>
   </AppLayout>
 </template>
 
@@ -221,7 +210,7 @@ import AlertBanner from '@/Components/UI/AlertBanner.vue';
 import Badge from '@/Components/UI/Badge.vue';
 import ModalBase from '@/Components/UI/ModalBase.vue';
 import { usePage, router } from '@inertiajs/vue3';
-import { reactive, ref } from 'vue';
+import { reactive, ref, computed, watch, onMounted } from 'vue';
 
 const page = usePage();
 const profileDefaults = page.props.profile || { name: page.props.auth.user?.name || '', email: page.props.auth.user?.email || '' };
@@ -231,15 +220,23 @@ function setTab(t){ tab.value = t; }
 function tabClass(t){ return ['w-full text-left px-3 py-2 rounded', tab.value===t ? 'bg-brand-primary-50 text-brand-primary-700' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'].join(' '); }
 
 const categories = [
-  { key:'mutations', label:'Mutasi' },
-  { key:'updates', label:'Perubahan Data' },
-  { key:'onboarding', label:'Onboarding' },
-  { key:'security', label:'Keamanan' },
+  { key:'announcements', label:'Pengumuman Penting', desc: 'Info resmi' },
+  { key:'mutations', label:'Mutasi Anggota', desc: 'Status mutasi' },
+  { key:'updates', label:'Perubahan Data', desc: 'Update profil' },
+  { key:'onboarding', label:'Onboarding', desc: 'Anggota baru' },
+  { key:'dues', label:'Iuran & Keuangan', desc: 'Tagihan & status' },
+  { key:'reports', label:'Laporan', desc: 'Statistik mingguan' },
+  { key:'finance', label:'Keuangan (Admin)', desc: 'Approval ledger' },
+  { key:'security', label:'Keamanan', desc: 'Login alert' },
 ];
 const prefs = reactive({
+  announcements: { email:true, inapp:true, wa:false },
   mutations: { email:true, inapp:true, wa:false },
   updates: { email:true, inapp:true, wa:false },
   onboarding: { email:true, inapp:true, wa:false },
+  dues: { email:true, inapp:true, wa:false },
+  reports: { email:true, inapp:true, wa:false },
+  finance: { email:true, inapp:true, wa:false },
   security: { email:true, inapp:true, wa:false },
 });
 const digestDaily = ref(false);
@@ -274,22 +271,93 @@ async function savePrefs(){
 const requestId = page.props.request_id || 'unknown';
 const mfa = ref(false);
 function forceLogout(){ router.post('/logout'); }
-function saveAll(){ /* stub save */ }
 
-const tokens = ref([
-  { id: 1, label:'HRIS Sync', active:true, expires_at:'-', last_used:'-' },
-  { id: 2, label:'Payroll Export', active:false, expires_at:'2026-01-01', last_used:'-' },
-]);
-const modalOpen = ref(false); const modalAction = ref(''); const modalToken = ref(null);
-function confirm(action, token){ modalAction.value = action; modalToken.value = token; modalOpen.value = true; }
-function doTokenAction(){ modalOpen.value=false; /* stub */ }
+const passwordModalOpen = ref(false);
+const passwordForm = reactive({
+  current_password: '',
+  password: '',
+  password_confirmation: '',
+});
+const passwordMessage = ref('');
+const passwordSuccess = ref(false);
+const passwordLoading = ref(false);
+
+function openPasswordModal() {
+  passwordMessage.value = '';
+  passwordSuccess.value = false;
+  passwordForm.current_password = '';
+  passwordForm.password = '';
+  passwordForm.password_confirmation = '';
+  passwordModalOpen.value = true;
+}
+
+async function submitPasswordReset() {
+  passwordLoading.value = true;
+  passwordMessage.value = '';
+  passwordSuccess.value = false;
+  try {
+    const res = await fetch('/settings/password', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        current_password: passwordForm.current_password,
+        password: passwordForm.password,
+        password_confirmation: passwordForm.password_confirmation,
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      passwordSuccess.value = true;
+      passwordMessage.value = 'Password berhasil diperbarui.';
+      passwordModalOpen.value = false;
+    } else {
+      passwordMessage.value = data.message || 'Gagal memperbarui password.';
+      passwordSuccess.value = false;
+    }
+  } catch (e) {
+    passwordMessage.value = 'Gagal memperbarui password.';
+    passwordSuccess.value = false;
+  } finally {
+    passwordLoading.value = false;
+  }
+}
+
+const mySessions = ref([]);
+const mySessionsLoading = ref(false);
+
+async function fetchMySessions(){
+  if(mySessionsLoading.value) return;
+  mySessionsLoading.value = true;
+  try {
+    const r = await fetch('/settings/sessions');
+    if(r.ok) {
+        const d = await r.json();
+        mySessions.value = d.sessions || [];
+    }
+  } catch(e){} finally { mySessionsLoading.value=false; }
+}
+
+async function revokeOthers(){
+  if(!confirm('Logout semua device lain? Sesi ini tetap aktif.')) return;
+  try {
+    const r = await fetch('/settings/sessions/revoke-others', {
+       method:'POST',
+       headers:{ 'X-CSRF-TOKEN': page.props.csrf_token, 'Content-Type':'application/json' }
+    });
+    if(r.ok) {
+        alert('Sesi lain berhasil dikeluarkan.');
+        fetchMySessions();
+    }
+  } catch(e){}
+}
+
+watch(tab, (v) => { if(v==='security') fetchMySessions(); });
+onMounted(() => { if(tab.value==='security') fetchMySessions(); });
 
 const privacyOpen = ref(false); const privacyAction = ref('');
 function openPrivacy(a){ privacyAction.value = a; privacyOpen.value = true; }
 function doPrivacyAction(){ privacyOpen.value=false; if (privacyAction.value==='export') router.post('/member/data/export-request'); else router.post('/member/data/delete-request'); }
 
-const langOptions = [ { label:'Bahasa Indonesia', value:'id' }, { label:'English', value:'en' } ];
-const lang = ref(localStorage.getItem('lang') || 'id');
 function openRunbook(which){
   if (which==='backup') window.location.href = '/docs/ops/backup-dr';
   else if (which==='launch') window.location.href = '/docs/release/launch-checklist';
@@ -304,4 +372,37 @@ if (isSuperAdmin) {
 }
 function revoke(s){ router.post('/admin/sessions/revoke', { session_id: s.session_id }); }
 
+// Check if user is effectively a member (has member_id or role anggota)
+const isMember = computed(() => !!page.props.auth?.user?.is_member || (page.props.auth?.user?.role?.name === 'anggota'));
+
+const profileMessage = ref('');
+const profileSuccess = ref(false);
+const profileLoading = ref(false);
+
+async function saveProfile(){
+  profileLoading.value = true;
+  profileMessage.value = '';
+  try {
+    const res = await fetch('/settings/profile', {
+      method:'PATCH',
+      headers:{ 'Content-Type':'application/json', 'Accept':'application/json' },
+      body: JSON.stringify({ name: form.name })
+    });
+    const d = await res.json();
+    if(res.ok){
+      profileMessage.value = 'Tersimpan';
+      profileSuccess.value = true;
+      router.reload(); // Refresh layout user name
+    } else {
+      profileMessage.value = d.message || 'Gagal menyimpan';
+      profileSuccess.value = false;
+    }
+  } catch(e){
+    profileMessage.value = 'Gagal menyimpan';
+    profileSuccess.value = false;
+  } finally {
+    profileLoading.value = false;
+    setTimeout(()=>{ profileMessage.value=''; }, 3000);
+  }
+}
 </script>

@@ -26,6 +26,8 @@ class DashboardController extends Controller
                 'members_by_unit' => $this->getMembersByUnit($user, $isGlobal, $unitId),
                 'growth_last_12' => $this->getGrowthStats($user, $isGlobal, $unitId),
                 'mutations' => $this->getMutationStats($user, $isGlobal, $unitId),
+                'recent_mutations' => $this->getRecentMutations($user, $isGlobal, $unitId),
+                'recent_activities' => $this->getRecentActivity($user, $isGlobal, $unitId),
             ],
             'alerts' => $this->getAlerts($user, $isGlobal, $unitId),
             'dues_summary' => $this->getDuesSummary($user),
@@ -35,6 +37,74 @@ class DashboardController extends Controller
             'announcements_pinned' => $this->getPinnedAnnouncements($user),
             'my_dues' => $this->getMyDuesSummary($user),
         ]);
+    }
+
+    private function getRecentMutations($user, bool $isGlobal, ?int $unitId)
+    {
+        $query = \App\Models\MutationRequest::with(['member', 'fromUnit', 'toUnit'])
+            ->where('status', 'pending');
+
+        if (!$isGlobal && $unitId) {
+            $query->where(function ($q) use ($unitId) {
+                $q->where('from_unit_id', $unitId)
+                    ->orWhere('to_unit_id', $unitId);
+            });
+        }
+
+        return $query->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($m) {
+                return [
+                    'id' => $m->id,
+                    'member_name' => $m->member->full_name ?? 'Unknown',
+                    'type' => 'Mutasi', // Can be refined if we have different types
+                    'date' => $m->created_at->toIso8601String(),
+                    'status' => $m->status,
+                    'status_label' => ucfirst($m->status),
+                ];
+            });
+    }
+
+    private function getRecentActivity($user, bool $isGlobal, ?int $unitId)
+    {
+        // Don't show audit logs to regular members to avoid info leak confusion, 
+        // though UI hides the section anyway. 
+        if ($user->hasRole('anggota') || $user->hasRole('reguler')) {
+            return [];
+        }
+
+        $query = \App\Models\AuditLog::with('user');
+
+        if (!$isGlobal && $unitId) {
+            $query->where('organization_unit_id', $unitId);
+        }
+
+        return $query->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($log) {
+                $message = "{$log->event_category}: {$log->event}";
+                // Basic message formatting
+                if ($log->user) {
+                    $message = "{$log->user->name} - {$log->event}";
+                }
+
+                // Map event to type for icon color
+                $type = 'info';
+                if (in_array($log->event, ['login_failed', 'unauthorized', 'breach']))
+                    $type = 'error';
+                if (in_array($log->event, ['login', 'create', 'update', 'approve']))
+                    $type = 'success';
+                if (in_array($log->event, ['delete', 'revoke']))
+                    $type = 'warning';
+
+                return [
+                    'message' => $message,
+                    'time' => $log->created_at->diffForHumans(),
+                    'type' => $type,
+                ];
+            });
     }
 
     private function getPinnedAnnouncements($user)
@@ -50,7 +120,7 @@ class DashboardController extends Controller
             ->with(['organizationUnit', 'attachments'])
             ->latest()
             ->take(5)
-            ;
+        ;
 
         // Avoid crashing if migrations haven't been run yet in a fresh/dev environment.
         if (Schema::hasTable('announcement_dismissals')) {

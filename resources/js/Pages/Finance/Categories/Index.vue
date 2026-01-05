@@ -9,10 +9,12 @@
           <p class="text-sm text-neutral-500">Atur kategori pemasukan dan pengeluaran untuk unit Anda.</p>
         </div>
         <div class="flex flex-wrap gap-3">
-          <Link href="/finance/categories/create" class="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-full shadow-lg shadow-blue-300/70 hover:bg-blue-700 transition transform hover:-translate-y-0.5">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <CtaButton href="/finance/categories/create">
+            <template #icon>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            </template>
             Tambah Kategori
-          </Link>
+          </CtaButton>
         </div>
       </div>
 
@@ -22,18 +24,24 @@
             <InputField v-model="search" placeholder="Cari nama kategori..." class="w-full" />
           </div>
           <div>
-            <select v-model="type" class="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700">
-              <option value="">Semua Tipe</option>
-              <option value="income">Pemasukan</option>
-              <option value="expense">Pengeluaran</option>
-            </select>
+            <SelectField
+              v-model="type"
+              :options="[
+                { value: '', label: 'Semua Tipe' },
+                { value: 'income', label: 'Pemasukan' },
+                { value: 'expense', label: 'Pengeluaran' }
+              ]"
+            />
           </div>
           <div v-if="isSuperAdmin">
-            <select v-model="unitId" class="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700">
-              <option value="">Semua Unit</option>
-              <option value="null">Global</option>
-              <option v-for="u in units" :key="u.id" :value="u.id">{{ u.name }}</option>
-            </select>
+             <SelectField
+              v-model="unitId"
+              :options="[
+                { value: '', label: 'Semua Unit' },
+                { value: 'null', label: 'Global' },
+                ...units.map(u => ({ value: u.id, label: u.name }))
+              ]"
+            />
           </div>
         </div>
       </CardContainer>
@@ -93,7 +101,7 @@
       <template #footer>
         <div class="flex justify-end space-x-3">
           <SecondaryButton @click="showDelete = false">Batal</SecondaryButton>
-          <PrimaryButton class="bg-status-error hover:bg-status-error-dark focus:ring-status-error" @click="doDelete" :loading="deleting">Hapus</PrimaryButton>
+          <PrimaryButton class="!bg-red-600 hover:!bg-red-700 focus:!ring-red-500" @click="doDelete" :loading="deleting">Hapus</PrimaryButton>
         </div>
       </template>
     </ModalBase>
@@ -111,6 +119,8 @@ import InputField from '@/Components/UI/InputField.vue'
 	import ModalBase from '@/Components/UI/ModalBase.vue'
 	import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 	import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
+    import CtaButton from '@/Components/UI/CtaButton.vue'
+    import SelectField from '@/Components/UI/SelectField.vue'
 	import Pagination from '@/Components/UI/Pagination.vue'
 
 const props = defineProps({ categories: Object, filters: Object, units: Array })

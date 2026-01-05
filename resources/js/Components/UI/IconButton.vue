@@ -48,7 +48,7 @@ const handleClick = (event) => {
 };
 
 const buttonClasses = computed(() => {
-  const base = 'inline-flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary-500';
+  const base = 'inline-flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1A2B63]/30';
   
   const sizes = {
     sm: 'p-1.5',
@@ -57,13 +57,13 @@ const buttonClasses = computed(() => {
   };
 
   const variants = {
-    ghost: 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900',
-    outline: 'border border-neutral-300 text-neutral-700 hover:bg-neutral-50',
+    ghost: 'text-neutral-600 hover:bg-[#1A2B63]/10 hover:text-[#1A2B63]',
+    outline: 'border-2 border-[#1A2B63]/20 text-[#1A2B63] hover:bg-[#1A2B63]/5 hover:border-[#1A2B63]/40',
   };
 
   const states = props.disabled
     ? 'opacity-50 cursor-not-allowed'
-    : 'active:scale-95';
+    : 'hover:scale-110 active:scale-95';
 
   return [base, sizes[props.size], variants[props.variant], states].join(' ');
 });

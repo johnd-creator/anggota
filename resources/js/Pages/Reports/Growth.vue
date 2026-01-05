@@ -4,10 +4,8 @@
       <nav class="text-sm text-neutral-600">
         <a href="/dashboard" class="hover:underline">Dashboard</a> / <span>Laporan</span> / <span>Pertumbuhan</span>
       </nav>
-      <PrimaryButton @click="openExport">Export</PrimaryButton>
+      <PrimaryButton @click="openExport">Export CSV</PrimaryButton>
     </div>
-
-    <AlertBanner type="info" :message="`Data terupdate s/d ${lastUpdated}`" />
 
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
       <div class="lg:col-span-3 space-y-4">
@@ -19,7 +17,6 @@
             </div>
             <div class="flex items-center gap-3">
               <Badge variant="brand">Total: {{ kpi.total }}</Badge>
-              <Badge :variant="kpi.yoy>=0 ? 'success' : 'danger'">YoY: {{ kpi.yoy }}%</Badge>
             </div>
           </div>
           <div class="mt-4 overflow-x-auto">
@@ -28,14 +25,12 @@
                 <tr>
                   <th class="px-4 py-2 text-left text-xs font-medium text-neutral-500">Bulan</th>
                   <th class="px-4 py-2 text-left text-xs font-medium text-neutral-500">Anggota Baru</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-neutral-500">Total</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-neutral-200 bg-white">
                 <tr v-for="(r,i) in rows" :key="i">
                   <td class="px-4 py-2 text-sm">{{ r.month }}</td>
                   <td class="px-4 py-2 text-sm">{{ r.new }}</td>
-                  <td class="px-4 py-2 text-sm">{{ r.total }}</td>
                 </tr>
               </tbody>
             </table>
@@ -54,8 +49,8 @@
               <div class="text-lg font-semibold">{{ insight.peak_month }}</div>
             </div>
             <div class="p-3 bg-neutral-50 rounded">
-              <div class="text-xs text-neutral-600">Pertumbuhan YoY</div>
-              <div class="text-lg font-semibold">{{ kpi.yoy }}%</div>
+              <div class="text-xs text-neutral-600">Terakhir diperbarui</div>
+              <div class="text-lg font-semibold">{{ lastUpdated }}</div>
             </div>
           </div>
         </CardContainer>
@@ -65,9 +60,16 @@
         <CardContainer padding="lg" shadow="sm" class="sticky top-20">
           <h3 class="text-base font-semibold text-neutral-900">Filter</h3>
           <div class="mt-3 space-y-3">
-            <SelectField v-model="filters.period" :options="periodOptions" placeholder="Periode" />
-            <SelectField v-model="filters.unit" :options="unitOptions" placeholder="Unit" />
-            <SelectField v-model="filters.status" :options="statusOptions" placeholder="Status" />
+            <InputField v-model="filters.date_start" type="date" label="Dari" />
+            <InputField v-model="filters.date_end" type="date" label="Sampai" />
+            <SelectField v-if="canSelectUnit" v-model="filters.unit_id" :options="unitOptions" label="Unit" />
+            <div v-else>
+              <label class="block text-sm font-medium text-neutral-700 mb-1">Unit</label>
+              <div class="w-full rounded-lg border border-neutral-200 bg-neutral-100 px-3 py-2 text-neutral-600 cursor-not-allowed">
+                {{ userUnitName || 'Unit tidak ditemukan' }}
+              </div>
+              <p class="text-xs text-neutral-500 mt-1">Export dibatasi ke unit Anda.</p>
+            </div>
             <PrimaryButton class="w-full" @click="apply">Terapkan</PrimaryButton>
           </div>
         </CardContainer>
@@ -76,10 +78,9 @@
 
     <ModalBase v-model:show="exportOpen" title="Konfirmasi Export" size="md">
       <div class="space-y-2 text-sm text-neutral-700">
-        <div>Format: {{ exportForm.format }}</div>
-        <div>Periode: {{ filters.period }}</div>
-        <div>Unit: {{ filters.unit || 'Semua' }}</div>
-        <div>Status: {{ filters.status || 'Semua' }}</div>
+        <div>Format: CSV</div>
+        <div>Rentang: {{ filters.date_start || '-' }} → {{ filters.date_end || '-' }}</div>
+        <div>Unit: {{ filterUnitLabel }}</div>
       </div>
       <template #footer>
         <div class="flex justify-end gap-3">
@@ -98,37 +99,114 @@ import CardContainer from '@/Components/UI/CardContainer.vue';
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import SelectField from '@/Components/UI/SelectField.vue';
+import InputField from '@/Components/UI/InputField.vue';
 import ModalBase from '@/Components/UI/ModalBase.vue';
 import Toast from '@/Components/UI/Toast.vue';
-import AlertBanner from '@/Components/UI/AlertBanner.vue';
+
 import Badge from '@/Components/UI/Badge.vue';
-import { reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
+import { usePage, router } from '@inertiajs/vue3';
 
-const filters = reactive({ period: 'last_6_months', unit:'', status:'' });
-const unitOptions = [];
-const statusOptions = [
+const props = defineProps({
+  series: { type: Array, default: () => [] },
+  kpi: { type: Object, default: () => ({ total: 0 }) },
+  filters: { type: Object, default: () => ({}) },
+  last_updated: { type: String, default: '' },
+  units: { type: Array, default: () => [] },
+});
+
+const page = usePage();
+const user = computed(() => page.props.auth?.user || {});
+const roleName = computed(() => user.value?.role?.name || '');
+const canSelectUnit = computed(() => ['super_admin', 'admin_pusat'].includes(roleName.value));
+const userUnitName = computed(() => user.value?.organization_unit?.name || '');
+
+const filters = reactive({
+  date_start: props.filters?.date_start || '',
+  date_end: props.filters?.date_end || '',
+  unit_id: props.filters?.unit_id || '',
+});
+
+const unitOptions = computed(() => [
   { label: 'Semua', value: '' },
-  { label: 'Aktif', value: 'aktif' },
-  { label: 'Cuti', value: 'cuti' },
-  { label: 'Suspended', value: 'suspended' },
-];
-const periodOptions = [
-  { label: '6 Bulan Terakhir', value: 'last_6_months' },
-  { label: '12 Bulan Terakhir', value: 'last_12_months' },
-];
-const rows = ref([
-  { month:'Jan', new:12, total:100 },
-  { month:'Feb', new:8, total:108 },
+  ...props.units.map(u => ({ label: u.name, value: u.id })),
 ]);
-const kpi = reactive({ total: 1234, yoy: 7.4 });
-const insight = reactive({ avg_new: 10, peak_month: 'Apr' });
-const lastUpdated = new Date().toLocaleDateString('id-ID');
 
-function apply(){ }
+const rows = computed(() => props.series.map((r) => ({
+  month: r.label,
+  new: r.value,
+})));
+
+const kpi = computed(() => props.kpi || { total: 0 });
+const lastUpdated = computed(() => props.last_updated || '-');
+
+const insight = computed(() => {
+  const values = props.series.map((r) => Number(r.value || 0));
+  if (!values.length) {
+    return { avg_new: 0, peak_month: '-' };
+  }
+  const avg = Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+  const peakIndex = values.indexOf(Math.max(...values));
+  return {
+    avg_new: avg,
+    peak_month: props.series[peakIndex]?.label || '-',
+  };
+});
 
 const exportOpen = ref(false);
-const exportForm = reactive({ format: 'Excel' });
 const toast = reactive({ show:false, message:'', type:'info' });
 function openExport(){ exportOpen.value = true; }
-function doExport(){ exportOpen.value=false; toast.message='Sedang menyiapkan laporan…'; toast.type='info'; toast.show=true; setTimeout(()=>{ toast.message='Laporan siap didownload (lihat Notifikasi)'; toast.type='success'; toast.show=true; setTimeout(()=>toast.show=false,3000); }, 1200); }
+
+const filterUnitLabel = computed(() => {
+  if (canSelectUnit.value) {
+    const selected = unitOptions.value.find((u) => String(u.value) === String(filters.unit_id));
+    return selected?.label || 'Semua';
+  }
+  return userUnitName.value || 'Unit Anda';
+});
+
+function apply(){
+  const params = {};
+  if (filters.date_start) params.date_start = filters.date_start;
+  if (filters.date_end) params.date_end = filters.date_end;
+  if (filters.unit_id) params.unit_id = filters.unit_id;
+  router.get('/reports/growth', params, { preserveState: true, replace: true });
+}
+
+function submitExportForm() {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/reports/growth/export';
+  form.style.display = 'none';
+
+  const token = page.props.csrf_token || '';
+  const inputs = {
+    _token: token,
+    unit_id: filters.unit_id || '',
+    date_start: filters.date_start || '',
+    date_end: filters.date_end || '',
+  };
+
+  Object.entries(inputs).forEach(([name, value]) => {
+    if (value === '') return;
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
+}
+
+function doExport(){
+  exportOpen.value = false;
+  submitExportForm();
+  toast.message = 'Sedang menyiapkan laporan…';
+  toast.type = 'info';
+  toast.show = true;
+  setTimeout(() => { toast.show = false; }, 2500);
+}
 </script>

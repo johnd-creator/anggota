@@ -8,6 +8,12 @@
         </ul>
       </CardContainer>
       <CardContainer padding="lg" shadow="sm">
+        <div class="text-sm font-semibold text-neutral-900 mb-2">Reports</div>
+        <ul class="text-sm text-brand-primary-700 space-y-2">
+          <li><a href="/docs/help/reports-csv">Panduan Export CSV</a></li>
+        </ul>
+      </CardContainer>
+      <CardContainer padding="lg" shadow="sm">
         <div class="text-sm font-semibold text-neutral-900 mb-2">Kartu Digital</div>
         <ul class="text-sm text-brand-primary-700 space-y-2">
           <li><a href="/docs/help/kartu">Kartu Anggota Digital</a></li>
@@ -27,4 +33,3 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
 </script>
-

@@ -1,26 +1,64 @@
 <template>
   <AppLayout page-title="Admin Sessions">
-    <CardContainer padding="lg" shadow="sm">
-      <div class="mb-4 flex flex-wrap gap-2 items-center">
-        <input v-model="filterForm.search" placeholder="Cari Email/Nama" class="border rounded px-3 py-2 text-sm w-full md:w-64" @keyup.enter="applyFilter" />
-        
-        <select v-model="filterForm.role" class="border rounded px-3 py-2 text-sm bg-white">
-           <option value="">Semua Role</option>
-           <option value="super_admin">Super Admin</option>
-           <option value="admin_pusat">Admin Pusat</option>
-           <option value="admin_unit">Admin Unit</option>
-           <option value="bendahara">Bendahara</option>
-           <option value="anggota">Anggota</option>
-           <option value="reguler">Reguler</option>
-        </select>
-        
-        <input type="date" v-model="filterForm.date_start" class="border rounded px-3 py-2 text-sm" />
-        <span class="text-sm text-gray-500">-</span>
-        <input type="date" v-model="filterForm.date_end" class="border rounded px-3 py-2 text-sm" />
-        
-        <button @click="applyFilter" class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition">Filter</button>
-        <button @click="resetFilter" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300 transition">Reset</button>
-      </div>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+                <div>
+                    <h2 class="text-lg font-semibold text-neutral-900">Sesi Login</h2>
+                    <p class="text-sm text-neutral-500">Pantau dan kelola sesi login pengguna yang aktif.</p>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <CardContainer padding="sm" class="mb-6">
+                <div class="flex flex-wrap gap-3 items-center">
+                    <div class="relative w-full md:w-64">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg v-if="!isFiltering" class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <svg v-else class="w-4 h-4 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </div>
+                        <input 
+                            v-model="filterForm.search" 
+                            type="text"
+                            placeholder="Cari Email/Nama..." 
+                            class="pl-10 pr-3 py-2 border border-neutral-300 rounded-lg text-sm w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow duration-200"
+                        />
+                    </div>
+                    
+                    <select v-model="filterForm.role" class="border border-neutral-300 rounded-lg px-3 py-2 text-sm bg-white cursor-pointer hover:border-neutral-400 transition-colors focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Semua Role</option>
+                        <option value="super_admin">Super Admin</option>
+                        <option value="admin_pusat">Admin Pusat</option>
+                        <option value="admin_unit">Admin Unit</option>
+                        <option value="bendahara">Bendahara</option>
+                        <option value="anggota">Anggota</option>
+                        <option value="reguler">Reguler</option>
+                    </select>
+                    
+                    <div class="flex items-center gap-2">
+                        <input type="date" v-model="filterForm.date_start" class="border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                        <span class="text-sm text-gray-500">s/d</span>
+                        <input type="date" v-model="filterForm.date_end" class="border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    
+                    <!-- Reset Button -->
+                    <button
+                        v-if="hasActiveFilters"
+                        @click="resetFilter"
+                        class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Reset
+                    </button>
+                </div>
+            </CardContainer>
+
+            <CardContainer padding="none" class="overflow-hidden border border-neutral-200">
 
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-neutral-200">
@@ -34,63 +72,79 @@
               <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Aksi</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-neutral-200 bg-white">
-            <tr v-for="s in sessions.data" :key="s.id" class="hover:bg-neutral-50">
-              <td class="px-6 py-4 text-sm">
-                 <div class="font-medium text-neutral-900">{{ s.user?.name || 'Unknown' }}</div>
-              </td>
-              <td class="px-6 py-4 text-sm text-neutral-600">
-                <span class="px-2 py-1 bg-gray-100 rounded text-xs">{{ s.user?.role?.name || '-' }}</span>
-              </td>
-              <td class="px-6 py-4 text-sm text-neutral-600">{{ s.ip }}</td>
-              <td class="px-6 py-4 text-sm text-neutral-600 max-w-xs truncate" :title="s.user_agent">{{ s.user_agent }}</td>
-              <td class="px-6 py-4 text-sm text-neutral-600">
-                <div>{{ formatDate(s.last_activity) }}</div>
-                <div class="text-xs text-neutral-400">{{ timeAgo(s.last_activity) }}</div>
-              </td>
-              <td class="px-6 py-4 text-sm space-y-1">
-                <button @click="terminate(s.id)" class="text-red-600 hover:text-red-800 text-xs font-semibold block">Terminate</button>
-                <button @click="terminateAll(s.user_id)" class="text-red-600 hover:text-red-800 text-xs font-semibold block">Terminate All User Sessions</button>
-              </td>
-            </tr>
-            <tr v-if="sessions.data.length === 0">
-                <td colspan="6" class="px-6 py-4 text-center text-sm text-neutral-500">Tidak ada data sesi.</td>
-            </tr>
-          </tbody>
+                <tbody class="divide-y divide-neutral-200 bg-white">
+                    <tr v-for="s in sessions.data" :key="s.id" class="hover:bg-neutral-50">
+                        <td class="px-6 py-4 text-sm">
+                            <div class="font-medium text-neutral-900">{{ s.user?.name || 'Unknown' }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-neutral-600">
+                            <span class="px-2 py-0.5 bg-neutral-100 border border-neutral-200 text-neutral-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                                {{ s.user?.role?.name || '-' }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-neutral-600">{{ s.ip }}</td>
+                        <td class="px-6 py-4 text-sm text-neutral-600 max-w-xs truncate" :title="s.user_agent">{{ s.user_agent }}</td>
+                        <td class="px-6 py-4 text-sm text-neutral-600">
+                            <div class="font-medium">{{ formatDate(s.last_activity) }}</div>
+                            <div class="text-xs text-neutral-400">{{ timeAgo(s.last_activity) }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-sm whitespace-nowrap">
+                            <div class="flex items-center gap-2">
+                                <IconButton
+                                    variant="ghost"
+                                    aria-label="Terminate Session"
+                                    @click="terminate(s.id)"
+                                    title="Hentikan Sesi"
+                                >
+                                    <svg class="w-5 h-5 text-status-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </IconButton>
+                                <IconButton
+                                    variant="ghost"
+                                    aria-label="Terminate All User Sessions"
+                                    @click="terminateAll(s.user_id)"
+                                    title="Hentikan Semua Sesi User"
+                                >
+                                    <svg class="w-5 h-5 text-status-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </IconButton>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr v-if="sessions.data.length === 0">
+                        <td colspan="6" class="px-6 py-8 text-center text-sm text-neutral-500 italic">Tidak ada data sesi aktif.</td>
+                    </tr>
+                </tbody>
         </table>
       </div>
       
-      <div v-if="sessions.links && sessions.links.length > 3" class="mt-4 flex justify-between items-center text-sm text-neutral-600">
-        <div>Menampilkan {{ sessions.from || 0 }} - {{ sessions.to || 0 }} dari {{ sessions.total }}</div>
-        <div class="flex gap-1">
-           <template v-for="(link, k) in sessions.links" :key="k">
-               <Link 
-                  v-if="link.url" 
-                  :href="link.url" 
-                  v-html="link.label" 
-                  class="px-3 py-1 border rounded text-xs" 
-                  :class="{'bg-blue-50 border-blue-500 text-blue-600': link.active, 'bg-white text-gray-700': !link.active}" 
-               />
-               <span v-else v-html="link.label" class="px-3 py-1 border rounded text-xs bg-gray-50 text-gray-400"></span>
-           </template>
-        </div>
-      </div>
-    </CardContainer>
+                <!-- Pagination -->
+                <div class="px-6 py-4 border-t border-neutral-200">
+                    <Pagination :paginator="sessions" />
+                </div>
+            </CardContainer>
   </AppLayout>
 </template>
 
 <script setup>
-import { reactive } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { ref, reactive, watch, computed } from 'vue';
+import { router, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
-import { Link } from '@inertiajs/vue3';
+import InputField from '@/Components/UI/InputField.vue';
+import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
+import IconButton from '@/Components/UI/IconButton.vue';
+import Pagination from '@/Components/UI/Pagination.vue';
+import debounce from 'lodash/debounce';
 
 const props = defineProps({
   sessions: Object,
   filters: Object,
 });
 
+const isFiltering = ref(false);
 const filterForm = reactive({
     search: props.filters.search || '',
     role: props.filters.role || '',
@@ -98,27 +152,41 @@ const filterForm = reactive({
     date_end: props.filters.date_end || '',
 });
 
-function applyFilter() {
-  router.get(route('admin.sessions.index'), filterForm, { preserveState: true, replace: true });
-}
+const hasActiveFilters = computed(() => {
+    return filterForm.search || filterForm.role || filterForm.date_start || filterForm.date_end;
+});
+
+const applyFilter = debounce(() => {
+    isFiltering.value = true;
+    router.get('/admin/sessions', filterForm, { 
+        preserveState: true, 
+        replace: true,
+        onFinish: () => {
+            isFiltering.value = false;
+        }
+    });
+}, 300);
+
+watch(() => ({ ...filterForm }), () => {
+    applyFilter();
+}, { deep: true });
 
 function resetFilter() {
     filterForm.search = '';
     filterForm.role = '';
     filterForm.date_start = '';
     filterForm.date_end = '';
-    applyFilter();
 }
 
 function terminate(id) {
   if (confirm('Yakin ingin menghentikan sesi ini?')) {
-    router.delete(route('admin.sessions.destroy', id));
+    router.delete(`/admin/sessions/${id}`);
   }
 }
 
 function terminateAll(userId) {
   if (confirm('Yakin ingin menghentikan SEMUA sesi user ini?')) {
-    router.delete(route('admin.sessions.destroy_user', userId));
+    router.delete(`/admin/sessions/user/${userId}`);
   }
 }
 

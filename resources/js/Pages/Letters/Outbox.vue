@@ -10,10 +10,12 @@
           <p class="text-sm text-neutral-500">Surat yang Anda buat.</p>
         </div>
         <div class="flex flex-wrap gap-3">
-          <Link href="/letters/create" class="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-full shadow-lg shadow-blue-300/70 hover:bg-blue-700 transition transform hover:-translate-y-0.5">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <CtaButton href="/letters/create">
+            <template #icon>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            </template>
             Buat Surat
-          </Link>
+          </CtaButton>
         </div>
       </div>
 
@@ -77,14 +79,64 @@
                 </td>
                 <td class="px-6 py-4 text-sm text-neutral-600">{{ formatDate(letter.created_at) }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div class="flex justify-end space-x-2">
-                    <Link :href="`/letters/${letter.id}/preview`" class="text-neutral-600 hover:text-neutral-800">Preview</Link>
-                    <Link :href="`/letters/${letter.id}`" class="text-brand-primary-600 hover:text-brand-primary-700">Detail</Link>
+                  <div class="flex justify-end items-center gap-2">
+                    <IconButton
+                      variant="ghost"
+                      aria-label="Preview"
+                      @click="router.visit(`/letters/${letter.id}/preview`)"
+                      title="Preview"
+                    >
+                      <svg class="w-5 h-5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </IconButton>
+                    <IconButton
+                      variant="ghost"
+                      aria-label="Detail"
+                      @click="router.visit(`/letters/${letter.id}`)"
+                      title="Detail"
+                    >
+                      <svg class="w-5 h-5 text-brand-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </IconButton>
                     <template v-if="canEdit(letter)">
-                      <Link :href="`/letters/${letter.id}/edit`" class="text-blue-600 hover:text-blue-700">Edit</Link>
-                      <button @click="confirmDelete(letter)" class="text-red-600 hover:text-red-700">Hapus</button>
+                      <IconButton
+                        variant="ghost"
+                        aria-label="Edit"
+                        @click="router.visit(`/letters/${letter.id}/edit`)"
+                        title="Edit"
+                      >
+                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2-2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </IconButton>
+                      <IconButton
+                        variant="ghost"
+                        aria-label="Hapus"
+                        @click="confirmDelete(letter)"
+                        title="Hapus"
+                      >
+                        <svg class="w-5 h-5 text-status-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </IconButton>
                     </template>
-                    <button v-if="canSubmit(letter)" @click="submitLetter(letter)" class="text-green-600 hover:text-green-700 font-medium">Ajukan</button>
+                    <IconButton
+                      v-if="canSubmit(letter)"
+                      variant="outline"
+                      aria-label="Ajukan"
+                      @click="submitLetter(letter)"
+                      title="Ajukan"
+                      size="sm"
+                      class="ml-1"
+                    >
+                      <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span class="ml-1 text-xs text-green-600 font-medium">Ajukan</span>
+                    </IconButton>
                   </div>
                 </td>
               </tr>
@@ -109,7 +161,7 @@
       <template #footer>
         <div class="flex justify-end space-x-3">
           <SecondaryButton @click="showDelete = false">Batal</SecondaryButton>
-          <PrimaryButton class="bg-status-error hover:bg-status-error-dark focus:ring-status-error" @click="doDelete" :loading="deleting">Hapus</PrimaryButton>
+          <PrimaryButton variant="danger" @click="doDelete" :loading="deleting">Hapus</PrimaryButton>
         </div>
       </template>
     </ModalBase>
@@ -129,6 +181,8 @@ import ModalBase from '@/Components/UI/ModalBase.vue'
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
 import Pagination from '@/Components/UI/Pagination.vue'
+import CtaButton from '@/Components/UI/CtaButton.vue'
+import IconButton from '@/Components/UI/IconButton.vue'
 
 const props = defineProps({
   letters: Object,

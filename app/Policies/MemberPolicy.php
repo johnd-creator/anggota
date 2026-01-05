@@ -71,11 +71,11 @@ class MemberPolicy
 
     /**
      * Determine if user can export members.
-     * Query will be scoped by controller for admin_unit.
+     * Query will be scoped by controller for admin_unit/bendahara.
      */
     public function export(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'bendahara']);
     }
 
     /**

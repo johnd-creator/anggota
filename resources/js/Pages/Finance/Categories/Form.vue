@@ -10,12 +10,15 @@
             <p v-if="errors.name" class="text-xs text-status-error mt-1">{{ errors.name }}</p>
           </div>
           <div>
-            <label class="block text-sm font-medium text-neutral-700">Tipe</label>
-            <select v-model="form.type" class="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700">
-              <option value="income">Pemasukan</option>
-              <option value="expense">Pengeluaran</option>
-            </select>
-            <p v-if="errors.type" class="text-xs text-status-error mt-1">{{ errors.type }}</p>
+            <SelectField
+              label="Tipe"
+              v-model="form.type"
+              :options="[
+                { value: 'income', label: 'Pemasukan' },
+                { value: 'expense', label: 'Pengeluaran' }
+              ]"
+              :error="errors.type"
+            />
           </div>
 
           <div>
@@ -25,17 +28,21 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-neutral-700">Unit</label>
             <template v-if="isSuperAdmin">
-              <select v-model="form.organization_unit_id" class="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700">
-                <option :value="null">Global</option>
-                <option v-for="u in units" :key="u.id" :value="u.id">{{ u.name }}</option>
-              </select>
+              <SelectField
+                label="Unit"
+                v-model="form.organization_unit_id"
+                :options="[
+                  { value: null, label: 'Global' },
+                  ...units.map(u => ({ value: u.id, label: u.name }))
+                ]"
+                :error="errors.organization_unit_id"
+              />
             </template>
             <template v-else>
+              <label class="block text-sm font-medium text-neutral-700">Unit</label>
               <InputField :model-value="page.props.auth.user?.organization_unit?.name" readonly />
             </template>
-            <p v-if="errors.organization_unit_id" class="text-xs text-status-error mt-1">{{ errors.organization_unit_id }}</p>
           </div>
 
           <!-- Recurring Fields -->
@@ -81,6 +88,7 @@ import CardContainer from '@/Components/UI/CardContainer.vue'
 import InputField from '@/Components/UI/InputField.vue'
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
+import SelectField from '@/Components/UI/SelectField.vue'
 import AlertBanner from '@/Components/UI/AlertBanner.vue'
 
 const props = defineProps({ units: Array, category: Object })

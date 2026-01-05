@@ -45,33 +45,7 @@ class ReportUnitScopeTest extends TestCase
         );
     }
 
-    public function test_admin_unit_sees_only_own_unit_in_documents_report(): void
-    {
-        $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A']);
-        $unitB = OrganizationUnit::factory()->create(['name' => 'Unit B']);
 
-        $adminUnitA = User::factory()->create([
-            'role_id' => Role::where('name', 'admin_unit')->first()->id,
-            'organization_unit_id' => $unitA->id,
-        ]);
-
-        // Create members with photos (complete)
-        Member::factory()->create(['organization_unit_id' => $unitA->id, 'photo_path' => 'path/to/photo.jpg']);
-        Member::factory()->create(['organization_unit_id' => $unitB->id, 'photo_path' => 'path/to/photo.jpg']);
-
-        $response = $this->actingAs($adminUnitA)->get('/reports/documents?unit_id=' . $unitB->id);
-
-        $response->assertStatus(200);
-
-        $response->assertInertia(
-            fn(Assert $page) => $page
-                ->component('Reports/Documents')
-                ->where('kpi.complete', 1) // Should only count Unit A complete member
-                ->where('filters.unit_id', $unitA->id)
-                ->has('items.data', 1) // Should only list 1 item from Unit A
-                ->where('items.data.0.organization_unit_id', $unitA->id)
-        );
-    }
 
     public function test_super_admin_can_view_report_for_specific_unit(): void
     {

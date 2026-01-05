@@ -28,6 +28,11 @@ const props = defineProps({
     default: 'button',
     validator: (value) => ['button', 'submit', 'reset'].includes(value),
   },
+  variant: {
+    type: String,
+    default: 'primary',
+    validator: (value) => ['primary', 'danger'].includes(value),
+  },
   size: {
     type: String,
     default: 'md',
@@ -56,19 +61,24 @@ const handleClick = (event) => {
 };
 
 const buttonClasses = computed(() => {
-  const base = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary-500';
+  const base = 'inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-sm';
   
   const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg',
+    sm: 'px-3 py-2 text-sm',
+    md: 'px-5 py-2.5 text-sm',
+    lg: 'px-6 py-3 text-base',
   };
 
   const states = props.disabled || props.loading
-    ? 'opacity-50 cursor-not-allowed'
-    : 'hover:shadow-md active:scale-95';
+    ? 'opacity-60 cursor-not-allowed'
+    : 'hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm';
 
-  const colors = 'bg-blue-600 text-white hover:bg-blue-700';
+  const variants = {
+    primary: 'bg-[#1A2B63] text-white hover:bg-[#2E4080] focus:ring-[#1A2B63]/50',
+    danger: 'bg-status-error text-white hover:bg-status-error-dark focus:ring-status-error/50',
+  };
+
+  const colors = variants[props.variant] || variants.primary;
 
   const width = props.fullWidth ? 'w-full' : '';
 

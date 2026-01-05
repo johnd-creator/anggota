@@ -18,7 +18,10 @@ class NotificationService
     {
         $prefs = NotificationPreference::where('user_id', $user->id)->first();
         $catPrefs = $prefs?->channels[$category] ?? null;
-        $channels = $catPrefs ?? ['inapp' => true, 'email' => false, 'wa' => false];
+
+        // Use role-aware defaults if no preference set
+        $channels = $catPrefs ?? self::getDefaultChannels($user, $category);
+
         $digestDaily = (bool) ($prefs?->digest_daily ?? false);
 
         if (($channels['inapp'] ?? false) === true) {
@@ -44,7 +47,9 @@ class NotificationService
                     $mailable = new GeneralNotificationMail($category, $message, $data);
                 }
                 Mail::to($user->email)->queue($mailable);
-            } catch (\Throwable $e) { Log::warning('mail_queue_failed', ['error' => $e->getMessage()]); }
+            } catch (\Throwable $e) {
+                Log::warning('mail_queue_failed', ['error' => $e->getMessage()]);
+            }
             ActivityLog::create(['actor_id' => $user->id, 'action' => 'notify_email', 'subject_type' => \App\Models\User::class, 'subject_id' => $user->id, 'payload' => ['category' => $category]]);
         }
 
@@ -52,5 +57,26 @@ class NotificationService
             dispatch(new SendWebhookNotification($user->id, $category, $message, $data));
             ActivityLog::create(['actor_id' => $user->id, 'action' => 'notify_webhook', 'subject_type' => \App\Models\User::class, 'subject_id' => $user->id, 'payload' => ['category' => $category]]);
         }
+    }
+
+    private static function getDefaultChannels($user, string $category): array
+    {
+        $base = ['inapp' => true, 'email' => false, 'wa' => false];
+
+        // Bendahara defaults
+        if ($user->hasRole('bendahara')) {
+            if (in_array($category, ['dues', 'finance'])) {
+                return ['inapp' => true, 'email' => true, 'wa' => false];
+            }
+        }
+
+        // Admin Unit defaults
+        if ($user->hasRole('admin_unit')) {
+            if (in_array($category, ['onboarding', 'updates', 'aspirations'])) {
+                return ['inapp' => true, 'email' => true, 'wa' => false];
+            }
+        }
+
+        return $base;
     }
 }

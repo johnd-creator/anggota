@@ -108,4 +108,13 @@ class AspirationPolicy
     {
         return $user->hasRole(['admin_unit', 'admin_pusat', 'super_admin']);
     }
+
+    /**
+     * Determine if user can export aspirations.
+     * Query will be scoped by controller for admin_unit/bendahara.
+     */
+    public function export(User $user): bool
+    {
+        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'bendahara']);
+    }
 }

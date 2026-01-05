@@ -120,7 +120,7 @@ class ExportScopeHelper
 
         // Remove any PII from filters
         $safeFilters = array_filter($filters, function ($key) {
-            return !in_array($key, ['email', 'phone', 'nip', 'password']);
+            return !in_array($key, ['email', 'phone', 'nip', 'password', 'q']);
         }, ARRAY_FILTER_USE_KEY);
 
         AuditLog::create([
@@ -131,10 +131,11 @@ class ExportScopeHelper
             'subject_type' => 'export',
             'subject_id' => null,
             'payload' => [
-                'type' => $type,
+                'report_type' => $type,
                 'unit_id' => $unitId,
                 'row_count' => $rowCount,
                 'filters' => $safeFilters,
+                'format' => 'csv',
             ],
         ]);
     }

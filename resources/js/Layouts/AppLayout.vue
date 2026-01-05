@@ -159,7 +159,7 @@
         </template>
 
         <!-- Reports Section -->
-        <template v-if="isAdminOrUnit">
+        <template v-if="isAdminOrUnit || isTreasurer">
           <button @click="toggleSection('reports')" :class="sectionHeaderClass('reports')">
             <div class="flex items-center gap-3">
               <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,9 +172,15 @@
             </svg>
           </button>
           <div v-show="expandedSections.reports" class="ml-6 space-y-1">
-            <Link href="/reports/growth" :class="subMenuItemClass('/reports/growth')">Pertumbuhan</Link>
-            <Link href="/reports/mutations" :class="subMenuItemClass('/reports/mutations')">Laporan Mutasi</Link>
-            <Link href="/reports/documents" :class="subMenuItemClass('/reports/documents')">Monitoring Dokumen</Link>
+            <Link href="/reports/members" :class="subMenuItemClass('/reports/members')">Keanggotaan</Link>
+            <Link href="/reports/aspirations" :class="subMenuItemClass('/reports/aspirations')">Aspirasi</Link>
+            <Link href="/reports/dues" :class="subMenuItemClass('/reports/dues')">Iuran</Link>
+            <Link href="/reports/finance" :class="subMenuItemClass('/reports/finance')">Keuangan</Link>
+            
+            <template v-if="isSuperAdmin || isAdminUnit || isAdminPusat">
+                 <Link href="/reports/growth" :class="subMenuItemClass('/reports/growth')">Pertumbuhan</Link>
+                 <Link href="/reports/mutations" :class="subMenuItemClass('/reports/mutations')">Mutasi</Link>
+            </template>
           </div>
         </template>
 

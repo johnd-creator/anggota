@@ -1,0 +1,32 @@
+PHPUnit 12.4.4 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.16
+Configuration: /var/www/html/anggota/phpunit.xml
+
+FE                                                                  2 / 2 (100%)
+
+Time: 00:00.274, Memory: 59.00 MB
+
+There was 1 error:
+
+1) Tests\Feature\NotificationPrefsTest::test_default_channels_helper
+Error: Class "Database\Factories\RoleFactory" not found
+
+/var/www/html/anggota/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Factories/Factory.php:950
+/var/www/html/anggota/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Factories/HasFactory.php:21
+/var/www/html/anggota/tests/Feature/NotificationPrefsTest.php:56
+
+--
+
+There was 1 failure:
+
+1) Tests\Feature\NotificationPrefsTest::test_user_can_update_notification_preferences_with_new_categories
+Expected response status code [200] but received 302.
+Failed asserting that 302 is identical to 200.
+
+/var/www/html/anggota/vendor/laravel/framework/src/Illuminate/Testing/TestResponseAssert.php:45
+/var/www/html/anggota/vendor/laravel/framework/src/Illuminate/Testing/TestResponse.php:174
+/var/www/html/anggota/tests/Feature/NotificationPrefsTest.php:31
+
+ERRORS!
+Tests: 2, Assertions: 1, Errors: 1, Failures: 1.

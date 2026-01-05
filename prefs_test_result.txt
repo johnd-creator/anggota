@@ -1,0 +1,21 @@
+PHPUnit 12.4.4 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.16
+Configuration: /var/www/html/anggota/phpunit.xml
+
+F.                                                                  2 / 2 (100%)
+
+Time: 00:00.248, Memory: 59.00 MB
+
+There was 1 failure:
+
+1) Tests\Feature\NotificationPrefsTest::test_user_can_update_notification_preferences_with_new_categories
+Expected response status code [200] but received 302.
+Failed asserting that 302 is identical to 200.
+
+/var/www/html/anggota/vendor/laravel/framework/src/Illuminate/Testing/TestResponseAssert.php:45
+/var/www/html/anggota/vendor/laravel/framework/src/Illuminate/Testing/TestResponse.php:174
+/var/www/html/anggota/tests/Feature/NotificationPrefsTest.php:31
+
+FAILURES!
+Tests: 2, Assertions: 3, Failures: 1.
