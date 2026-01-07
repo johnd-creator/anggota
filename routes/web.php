@@ -428,6 +428,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('updates/{update_request}/approve', [\App\Http\Controllers\Admin\MemberUpdateController::class, 'approve'])->name('updates.approve');
         Route::post('updates/{update_request}/reject', [\App\Http\Controllers\Admin\MemberUpdateController::class, 'reject'])->name('updates.reject');
         Route::get('mutations', [\App\Http\Controllers\Admin\MutationController::class, 'index'])->name('mutations.index');
+        Route::get('mutations/create', [\App\Http\Controllers\Admin\MutationController::class, 'create'])->name('mutations.create');
         Route::post('mutations', [\App\Http\Controllers\Admin\MutationController::class, 'store'])->name('mutations.store');
         Route::get('mutations/{mutation}', [\App\Http\Controllers\Admin\MutationController::class, 'show'])->name('mutations.show');
         Route::post('mutations/{mutation}/approve', [\App\Http\Controllers\Admin\MutationController::class, 'approve'])->middleware(['role:super_admin', 'throttle:10,1'])->name('mutations.approve');

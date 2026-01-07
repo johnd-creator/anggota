@@ -13,6 +13,7 @@ use App\Models\OrganizationUnit;
 use App\Models\User;
 use App\Services\LetterNumberService;
 use App\Services\LetterTemplateRenderer;
+use App\Services\HtmlSanitizerService;
 use App\Services\QrCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
@@ -25,11 +26,16 @@ class LetterController extends Controller
 {
     protected LetterNumberService $numberService;
     protected LetterTemplateRenderer $templateRenderer;
+    protected HtmlSanitizerService $sanitizer;
 
-    public function __construct(LetterNumberService $numberService, LetterTemplateRenderer $templateRenderer)
-    {
+    public function __construct(
+        LetterNumberService $numberService,
+        LetterTemplateRenderer $templateRenderer,
+        HtmlSanitizerService $sanitizer
+    ) {
         $this->numberService = $numberService;
         $this->templateRenderer = $templateRenderer;
+        $this->sanitizer = $sanitizer;
     }
 
     /**
@@ -144,21 +150,48 @@ class LetterController extends Controller
             ->needsApproval();
 
         if (!$user->hasGlobalAccess()) {
-            // Only Ketua/Sekretaris can access approvals
+            // Get user's signer type capabilities
             $positionName = $user->getUnionPositionName();
             $signerType = $positionName ? strtolower($positionName) : null;
 
-            if (!in_array($signerType, ['ketua', 'sekretaris'], true)) {
+            // Check if user is in letter_approvers for any type
+            $delegatedTypes = \App\Models\LetterApprover::where('user_id', $user->id)
+                ->where('is_active', true)
+                ->pluck('signer_type')
+                ->toArray();
+
+            $allowedTypes = $delegatedTypes;
+            if ($signerType && in_array($signerType, ['ketua', 'sekretaris', 'bendahara'], true)) {
+                $allowedTypes[] = $signerType;
+            }
+            $allowedTypes = array_unique($allowedTypes);
+
+            if (empty($allowedTypes)) {
                 abort(403);
             }
-
-            $query->where('signer_type', $signerType);
 
             // Approver scope is their own unit
             if (!$unitId) {
                 abort(403);
             }
             $query->where('from_unit_id', $unitId);
+
+            // Show letters where:
+            // 1. Primary pending (signer_type matches user) AND primary not yet approved
+            // 2. Secondary pending (signer_type_secondary matches user) AND primary already approved AND secondary not yet approved
+            $query->where(function ($q) use ($allowedTypes) {
+                // Primary pending: signer_type matches and not yet approved
+                $q->where(function ($sub) use ($allowedTypes) {
+                    $sub->whereIn('signer_type', $allowedTypes)
+                        ->whereNull('approved_by_user_id');
+                });
+                // Secondary pending: signer_type_secondary matches, primary done, secondary not done
+                $q->orWhere(function ($sub) use ($allowedTypes) {
+                    $sub->whereIn('signer_type_secondary', $allowedTypes)
+                        ->whereNotNull('approved_by_user_id')
+                        ->whereNull('approved_secondary_by_user_id');
+                });
+            });
         }
 
         // Apply filters
@@ -328,13 +361,15 @@ class LetterController extends Controller
             'from_unit_id' => $fromUnitId,
             'letter_category_id' => $validated['letter_category_id'],
             'signer_type' => $validated['signer_type'],
+            'signer_type_secondary' => $validated['signer_type_secondary'] ?? null,
             'to_type' => $validated['to_type'],
             'to_unit_id' => $validated['to_unit_id'] ?? null,
             'to_member_id' => $validated['to_member_id'] ?? null,
             'to_external_name' => $validated['to_external_name'] ?? null,
             'to_external_org' => $validated['to_external_org'] ?? null,
+            'to_external_address' => $validated['to_external_address'] ?? null,
             'subject' => $validated['subject'],
-            'body' => $validated['body'],
+            'body' => $this->sanitizer->sanitize($validated['body']),
             'cc_text' => $validated['cc_text'] ?? null,
             'confidentiality' => $validated['confidentiality'],
             'urgency' => $validated['urgency'],
@@ -381,8 +416,12 @@ class LetterController extends Controller
                 ]);
         }
 
+        // Sanitize body HTML for safe rendering
+        $bodyHtml = $this->sanitizer->sanitize($letter->body);
+
         return Inertia::render('Letters/Show', [
             'letter' => $letter,
+            'bodyHtml' => $bodyHtml,
             'canApprove' => $canApprove,
             'reads' => $reads,
             'canViewReads' => $this->canViewReadReceipts($letter, $user),
@@ -396,7 +435,7 @@ class LetterController extends Controller
     {
         $this->authorize('view', $letter);
 
-        $letter->load(['category', 'creator', 'fromUnit', 'toUnit', 'toMember', 'approvedBy', 'rejectedBy', 'revisions.actor', 'attachments']);
+        $letter->load(['category', 'creator', 'fromUnit', 'toUnit', 'toMember', 'approvedBy', 'approvedSecondaryBy', 'rejectedBy', 'revisions.actor', 'attachments']);
 
         // Mark as read for recipients
         $user = request()->user();
@@ -423,8 +462,12 @@ class LetterController extends Controller
             }
         }
 
+        // Sanitize body HTML for safe rendering
+        $bodyHtml = $this->sanitizer->sanitize($letter->body);
+
         return Inertia::render('Letters/Preview', [
             'letter' => $letter,
+            'bodyHtml' => $bodyHtml,
             'verifyUrl' => $verifyUrl,
             'qrBase64' => $qrBase64,
             'qrMime' => $qrMime,
@@ -596,7 +639,7 @@ class LetterController extends Controller
         // Mark as read when downloading PDF
         $this->markAsReadIfRecipient($letter, request()->user());
 
-        $letter->load(['category', 'creator', 'fromUnit', 'toUnit', 'toMember', 'approvedBy']);
+        $letter->load(['category', 'creator', 'fromUnit', 'toUnit', 'toMember', 'approvedBy', 'approvedSecondaryBy']);
 
         // Ensure verification token exists
         if (!$letter->verification_token) {
@@ -614,8 +657,12 @@ class LetterController extends Controller
             $qrMime = $qrData['mime'];
         }
 
+        // Sanitize body HTML for safe PDF rendering
+        $bodyHtml = $this->sanitizer->sanitize($letter->body);
+
         $html = view('letters.pdf', [
             'letter' => $letter,
+            'bodyHtml' => $bodyHtml,
             'verifyUrl' => $verifyUrl,
             'qrBase64' => $qrBase64,
             'qrMime' => $qrMime,
@@ -726,13 +773,15 @@ class LetterController extends Controller
         $letter->update([
             'letter_category_id' => $validated['letter_category_id'],
             'signer_type' => $validated['signer_type'],
+            'signer_type_secondary' => $validated['signer_type_secondary'] ?? null,
             'to_type' => $validated['to_type'],
             'to_unit_id' => $validated['to_unit_id'] ?? null,
             'to_member_id' => $validated['to_member_id'] ?? null,
             'to_external_name' => $validated['to_external_name'] ?? null,
             'to_external_org' => $validated['to_external_org'] ?? null,
+            'to_external_address' => $validated['to_external_address'] ?? null,
             'subject' => $validated['subject'],
-            'body' => $validated['body'],
+            'body' => $this->sanitizer->sanitize($validated['body']),
             'cc_text' => $validated['cc_text'] ?? null,
             'confidentiality' => $validated['confidentiality'],
             'urgency' => $validated['urgency'],
@@ -770,6 +819,12 @@ class LetterController extends Controller
             'submitted_at' => $submittedAt,
             'sla_due_at' => $submittedAt->copy()->addHours($slaHours),
             'sla_status' => 'ok',
+            // Reset approval fields for re-submission
+            'approved_by_user_id' => null,
+            'approved_at' => null,
+            'approved_primary_at' => null,
+            'approved_secondary_by_user_id' => null,
+            'approved_secondary_at' => null,
         ]);
 
         $this->notifyApprover($letter);
@@ -785,23 +840,63 @@ class LetterController extends Controller
     {
         $this->authorize('approve', $letter);
 
-        DB::transaction(function () use ($letter) {
-            $this->numberService->assignNumber($letter);
+        $message = '';
+        $isFinalApproval = false;
 
-            $letter->update([
-                'status' => 'approved',
-                'approved_by_user_id' => auth()->id(),
-                'approved_at' => now(),
-            ]);
+        DB::transaction(function () use ($letter, &$message, &$isFinalApproval) {
+            if (!$letter->requiresSecondaryApproval()) {
+                // Single approval flow (existing behavior)
+                $this->numberService->assignNumber($letter);
+
+                $letter->update([
+                    'status' => 'approved',
+                    'approved_by_user_id' => auth()->id(),
+                    'approved_at' => now(),
+                ]);
+
+                $message = 'Surat disetujui dan nomor surat dibuat: ' . $letter->letter_number;
+                $isFinalApproval = true;
+            } else {
+                // Dual approval flow
+                if (!$letter->isPrimaryApproved()) {
+                    // Stage 1: Primary approval
+                    $letter->update([
+                        'approved_by_user_id' => auth()->id(),
+                        'approved_primary_at' => now(),
+                        // status remains 'submitted' until secondary approves
+                    ]);
+
+                    $message = 'Persetujuan pertama berhasil. Menunggu persetujuan bendahara.';
+
+                    // Notify secondary approver (bendahara)
+                    $this->notifySecondaryApprover($letter);
+                    // Stage 1: Do NOT notify creator or recipients yet
+                } else {
+                    // Stage 2: Secondary approval - finalize
+                    $this->numberService->assignNumber($letter);
+
+                    $letter->update([
+                        'status' => 'approved',
+                        'approved_secondary_by_user_id' => auth()->id(),
+                        'approved_secondary_at' => now(),
+                        'approved_at' => now(),
+                    ]);
+
+                    $message = 'Surat disetujui dan nomor surat dibuat: ' . $letter->letter_number;
+                    $isFinalApproval = true;
+                }
+            }
         });
 
-        $this->notifyCreator($letter, 'approved');
-        // Notifikasi ke penerima agar "surat masuk" juga memicu notifikasi.
-        // Status tetap 'approved' (bisa dikirim/manual), tetapi penerima sudah tahu ada surat baru.
-        $this->notifyRecipients($letter, 'sent');
+        // Only notify creator and recipients on FINAL approval
+        if ($isFinalApproval) {
+            $this->notifyCreator($letter, 'approved');
+            // Notifikasi ke penerima agar "surat masuk" juga memicu notifikasi.
+            $this->notifyRecipients($letter, 'sent');
+        }
 
         return redirect()->route('letters.approvals')
-            ->with('success', 'Surat disetujui dan nomor surat dibuat: ' . $letter->letter_number);
+            ->with('success', $message);
     }
 
     /**
@@ -976,6 +1071,62 @@ class LetterController extends Controller
     }
 
     /**
+     * Notify the secondary approver (bendahara) when primary approval is done.
+     */
+    protected function notifySecondaryApprover(Letter $letter): void
+    {
+        try {
+            $letter->load('fromUnit');
+
+            $secondaryType = $letter->signer_type_secondary;
+            if (!$secondaryType) {
+                return;
+            }
+
+            $positionName = ucfirst($secondaryType); // 'Bendahara'
+
+            // Find users matching the secondary signer type in the letter's unit
+            $approvers = User::whereHas('linkedMember.unionPosition', function ($q) use ($positionName) {
+                $q->whereRaw('LOWER(name) = ?', [strtolower($positionName)]);
+            })
+                ->where('organization_unit_id', $letter->from_unit_id)
+                ->get();
+
+            // Also check letter_approvers table
+            $delegatedApprovers = \App\Models\LetterApprover::where('organization_unit_id', $letter->from_unit_id)
+                ->where('signer_type', $secondaryType)
+                ->where('is_active', true)
+                ->with('user')
+                ->get()
+                ->pluck('user')
+                ->filter();
+
+            $allApprovers = $approvers->merge($delegatedApprovers)->unique('id');
+
+            foreach ($allApprovers as $approver) {
+                if (!$approver)
+                    continue;
+
+                // Check letter notification preference
+                if (!NotificationPreference::isChannelEnabled($approver->id, 'letters')) {
+                    continue;
+                }
+
+                $exists = DatabaseNotification::where('notifiable_type', User::class)
+                    ->where('notifiable_id', $approver->id)
+                    ->where('type', \App\Notifications\LetterSubmittedNotification::class)
+                    ->where('data->letter_id', $letter->id)
+                    ->exists();
+                if (!$exists) {
+                    $approver->notify(new \App\Notifications\LetterSubmittedNotification($letter));
+                }
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Failed to notify secondary approver: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Notify the creator when letter status changes.
      */
     protected function notifyCreator(Letter $letter, string $action): void
@@ -1052,13 +1203,23 @@ class LetterController extends Controller
                 Rule::exists('letter_categories', 'id')->where('is_active', true),
             ],
             'signer_type' => 'required|in:ketua,sekretaris',
+            'signer_type_secondary' => [
+                'nullable',
+                'in:bendahara',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($value && $value === $request->signer_type) {
+                        $fail('Penandatangan sekunder tidak boleh sama dengan penandatangan utama.');
+                    }
+                },
+            ],
             'to_type' => 'required|in:unit,member,admin_pusat,eksternal',
             'to_unit_id' => 'required_if:to_type,unit|nullable|exists:organization_units,id',
             'to_member_id' => 'required_if:to_type,member|nullable|exists:members,id',
             'to_external_name' => 'required_if:to_type,eksternal|nullable|string|max:500',
             'to_external_org' => 'nullable|string|max:500',
+            'to_external_address' => 'nullable|string|max:2000',
             'subject' => 'required|string|max:255',
-            'body' => 'required|string',
+            'body' => 'required|string|max:50000',
             'cc_text' => 'nullable|string|max:5000',
             'confidentiality' => 'required|in:biasa,terbatas,rahasia',
             'urgency' => 'required|in:biasa,segera,kilat',

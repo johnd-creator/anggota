@@ -69,11 +69,52 @@
       </div>
 
       <!-- Body -->
-      <div class="text-sm leading-relaxed whitespace-pre-wrap">{{ letter.body }}</div>
+      <div class="letter-body text-sm leading-relaxed" v-html="bodyHtml"></div>
 
-      <!-- Signature Block (2 spasi setelah badan surat; harus berada di atas tembusan) -->
+      <!-- Signature Block -->
       <div class="mt-10">
-        <div class="ml-auto text-center w-56">
+        <!-- Dual signature layout (when secondary signer exists) -->
+        <div v-if="letter.signer_type_secondary" class="flex justify-between gap-8">
+          <!-- Primary Signer (Ketua/Sekretaris) -->
+          <div class="text-center w-56">
+            <p class="text-sm">{{ cityDateLine }}</p>
+            <p class="text-sm font-semibold mt-1">{{ primarySignerTitle }}</p>
+            
+            <!-- QR only if final -->
+            <template v-if="isFinal">
+              <div class="mt-2 flex justify-center">
+                <img :src="qrSrc" alt="QR" class="w-16 h-16 block bg-white" @error="qrError = true" />
+              </div>
+              <p v-if="qrError" class="mt-1 text-xs text-neutral-500">
+                <a :href="verifyUrl" class="underline text-blue-600">Link Verifikasi</a>
+              </p>
+            </template>
+            <template v-else>
+              <div class="mt-2 h-16 flex items-center justify-center">
+                <span v-if="letter.approved_by" class="text-xs text-green-600 italic">✓ Disetujui</span>
+                <span v-else class="text-xs text-neutral-400 italic">Menunggu Persetujuan</span>
+              </div>
+            </template>
+            
+            <p class="mt-2 text-sm font-semibold underline">{{ primarySignerName }}</p>
+          </div>
+          
+          <!-- Secondary Signer (Bendahara) -->
+          <div class="text-center w-56">
+            <p class="text-sm">{{ cityDateLine }}</p>
+            <p class="text-sm font-semibold mt-1">{{ secondarySignerTitle }}</p>
+            
+            <div class="mt-2 h-16 flex items-center justify-center">
+              <span v-if="letter.approved_secondary_by" class="text-xs text-green-600 italic">✓ Disetujui</span>
+              <span v-else class="text-xs text-neutral-400 italic">Menunggu Persetujuan</span>
+            </div>
+            
+            <p class="mt-2 text-sm font-semibold underline">{{ secondarySignerName }}</p>
+          </div>
+        </div>
+        
+        <!-- Single signature layout (existing behavior) -->
+        <div v-else class="ml-auto text-center w-56">
           <p class="text-sm">{{ cityDateLine }}</p>
           <p class="text-sm font-semibold mt-1">{{ signerTitle }}</p>
 
@@ -136,6 +177,7 @@ import { computed, ref } from 'vue'
 
 const props = defineProps({
   letter: Object,
+  bodyHtml: String,
   verifyUrl: String,
   qrBase64: String,
   qrMime: String,
@@ -219,9 +261,11 @@ const recipientName = computed(() => {
   if (props.letter.to_type === 'member') return props.letter.to_member?.full_name || 'Anggota'
   if (props.letter.to_type === 'admin_pusat') return 'Admin Pusat'
   if (props.letter.to_type === 'eksternal') {
-    const name = props.letter.to_external_name || 'Pihak Eksternal'
-    const org = props.letter.to_external_org
-    return org ? `${name}\n${org}` : name
+    const parts = []
+    if (props.letter.to_external_name) parts.push(props.letter.to_external_name)
+    if (props.letter.to_external_org) parts.push(props.letter.to_external_org)
+    if (props.letter.to_external_address) parts.push(props.letter.to_external_address)
+    return parts.length > 0 ? parts.join('\n') : 'Pihak Eksternal'
   }
   return '-'
 })
@@ -244,6 +288,25 @@ const signerName = computed(() => {
     return props.letter.approved_by?.name || '(nama)'
   }
   return '(Menunggu Persetujuan)'
+})
+
+// Dual signature computed properties
+const primarySignerTitle = computed(() => {
+  return props.letter.signer_type === 'ketua' ? 'Ketua' : 'Sekretaris'
+})
+
+const primarySignerName = computed(() => {
+  // Show name if primary approval done (even if status is still 'submitted' in dual flow)
+  return props.letter.approved_by?.name || '(Menunggu Persetujuan)'
+})
+
+const secondarySignerTitle = computed(() => {
+  // Currently only bendahara supported
+  return props.letter.signer_type_secondary === 'bendahara' ? 'Bendahara' : 'Penandatangan 2'
+})
+
+const secondarySignerName = computed(() => {
+  return props.letter.approved_secondary_by?.name || '(Menunggu Persetujuan)'
 })
 
 const attachmentsLabel = computed(() => {

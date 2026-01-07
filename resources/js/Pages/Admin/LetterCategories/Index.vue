@@ -10,10 +10,14 @@
           <p class="text-sm text-neutral-500">Kelola kategori untuk pengelompokan surat menyurat.</p>
         </div>
         <div class="flex flex-wrap gap-3">
-          <Link href="/admin/letter-categories/create" class="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-full shadow-lg shadow-blue-300/70 hover:bg-blue-700 transition transform hover:-translate-y-0.5">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <CtaButton href="/admin/letter-categories/create">
+            <template #icon>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+              </svg>
+            </template>
             Tambah Kategori
-          </Link>
+          </CtaButton>
         </div>
       </div>
 
@@ -96,7 +100,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { router, Link } from '@inertiajs/vue3'
+import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
 import IconButton from '@/Components/UI/IconButton.vue'
@@ -106,6 +110,7 @@ import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
 import ColorBadge from '@/Components/UI/ColorBadge.vue'
 import Pagination from '@/Components/UI/Pagination.vue'
+import CtaButton from '@/Components/UI/CtaButton.vue'
 
 const props = defineProps({ categories: Object })
 const showDelete = ref(false)

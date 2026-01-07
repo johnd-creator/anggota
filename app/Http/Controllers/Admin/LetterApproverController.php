@@ -60,6 +60,7 @@ class LetterApproverController extends Controller
             'signerTypes' => [
                 ['value' => 'ketua', 'label' => 'Ketua'],
                 ['value' => 'sekretaris', 'label' => 'Sekretaris'],
+                ['value' => 'bendahara', 'label' => 'Bendahara'],
             ],
         ]);
     }
@@ -71,7 +72,7 @@ class LetterApproverController extends Controller
     {
         $validated = $request->validate([
             'organization_unit_id' => 'nullable|exists:organization_units,id',
-            'signer_type' => 'required|in:ketua,sekretaris',
+            'signer_type' => 'required|in:ketua,sekretaris,bendahara',
             'user_id' => 'required|exists:users,id',
             'is_active' => 'boolean',
         ]);
@@ -115,6 +116,7 @@ class LetterApproverController extends Controller
             'signerTypes' => [
                 ['value' => 'ketua', 'label' => 'Ketua'],
                 ['value' => 'sekretaris', 'label' => 'Sekretaris'],
+                ['value' => 'bendahara', 'label' => 'Bendahara'],
             ],
         ]);
     }
@@ -126,7 +128,7 @@ class LetterApproverController extends Controller
     {
         $validated = $request->validate([
             'organization_unit_id' => 'nullable|exists:organization_units,id',
-            'signer_type' => 'required|in:ketua,sekretaris',
+            'signer_type' => 'required|in:ketua,sekretaris,bendahara',
             'user_id' => 'required|exists:users,id',
             'is_active' => 'boolean',
         ]);

@@ -114,34 +114,43 @@ class LetterPolicy
 
     /**
      * Determine if the user can send the letter.
+     * Status must be 'approved' for ALL users (including superadmin).
      */
     public function send(User $user, Letter $letter): bool
     {
+        // Status must be 'approved' for anyone to send
+        if ($letter->status !== 'approved') {
+            return false;
+        }
+
         if ($user->hasGlobalAccess()) {
             return true;
         }
-        if ($letter->creator_user_id !== $user->id) {
-            return false;
-        }
-        return in_array($letter->status, ['approved']);
+
+        return $letter->creator_user_id === $user->id;
     }
 
     /**
      * Determine if the user can archive the letter.
+     * Status must be 'approved' or 'sent' for ALL users (including superadmin).
      */
     public function archive(User $user, Letter $letter): bool
     {
+        // Status must be 'approved' or 'sent' for anyone to archive
+        if (!in_array($letter->status, ['approved', 'sent'])) {
+            return false;
+        }
+
         if ($user->hasGlobalAccess()) {
             return true;
         }
-        if ($letter->creator_user_id !== $user->id) {
-            return false;
-        }
-        return in_array($letter->status, ['approved', 'sent']);
+
+        return $letter->creator_user_id === $user->id;
     }
 
     /**
      * Check if user can approve this letter based on signer_type and unit.
+     * Supports dual approval flow: checks which slot (primary/secondary) is pending.
      * Uses letter_approvers delegation table with union position fallback.
      * Uses currentUnitId() for consistent unit scoping.
      */
@@ -152,7 +161,6 @@ class LetterPolicy
             return true;
         }
 
-        $signerType = $letter->signer_type;
         $letterUnitId = $letter->from_unit_id;
 
         // For Pusat letters (from_unit_id = null), only admin_pusat/super_admin
@@ -166,8 +174,38 @@ class LetterPolicy
             return false;
         }
 
+        // Determine which approval slot is pending
+        if (!$letter->requiresSecondaryApproval()) {
+            // Single approval flow - check primary signer_type
+            return $this->userCanApproveSignerType($user, $letter->signer_type, $letterUnitId);
+        }
+
+        // Dual approval flow
+        if (!$letter->isPrimaryApproved()) {
+            // Primary slot pending - check primary signer_type
+            return $this->userCanApproveSignerType($user, $letter->signer_type, $letterUnitId);
+        }
+
+        if (!$letter->isSecondaryApproved()) {
+            // Secondary slot pending - check secondary signer_type
+            return $this->userCanApproveSignerType($user, $letter->signer_type_secondary, $letterUnitId);
+        }
+
+        // Both slots already approved
+        return false;
+    }
+
+    /**
+     * Check if user can approve a specific signer type.
+     */
+    protected function userCanApproveSignerType(User $user, ?string $signerType, int $unitId): bool
+    {
+        if (!$signerType) {
+            return false;
+        }
+
         // Check 1: User is in letter_approvers for this unit + signer_type
-        if (\App\Models\LetterApprover::isApprover($letterUnitId, $signerType, $user->id)) {
+        if (\App\Models\LetterApprover::isApprover($unitId, $signerType, $user->id)) {
             return true;
         }
 

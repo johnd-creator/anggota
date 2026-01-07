@@ -29,13 +29,24 @@
 
           <!-- Signer Type -->
           <div>
-            <label class="block text-sm font-medium text-neutral-700">Penandatangan <span class="text-red-500">*</span></label>
+            <label class="block text-sm font-medium text-neutral-700">Penandatangan Utama <span class="text-red-500">*</span></label>
             <select v-model="form.signer_type" class="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-primary-500">
               <option value="">Pilih Penandatangan</option>
               <option value="ketua">Ketua</option>
               <option value="sekretaris">Sekretaris</option>
             </select>
             <p v-if="form.errors.signer_type" class="text-xs text-status-error mt-1">{{ form.errors.signer_type }}</p>
+          </div>
+
+          <!-- Secondary Signer Type (Optional 2nd Approval) -->
+          <div>
+            <label class="block text-sm font-medium text-neutral-700">Penandatangan Kedua</label>
+            <select v-model="form.signer_type_secondary" class="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-primary-500">
+              <option value="">Tidak Ada (1x Approval)</option>
+              <option value="bendahara">Bendahara (2x Approval)</option>
+            </select>
+            <p class="text-xs text-neutral-400 mt-1">Jika dipilih, surat memerlukan 2 tahap persetujuan.</p>
+            <p v-if="form.errors.signer_type_secondary" class="text-xs text-status-error mt-1">{{ form.errors.signer_type_secondary }}</p>
           </div>
 
           <!-- Recipient Type -->
@@ -89,6 +100,22 @@
               />
               <p class="text-xs text-neutral-400 mt-1">Nama instansi/perusahaan tujuan (opsional).</p>
               <p v-if="form.errors.to_external_org" class="text-xs text-status-error mt-1">{{ form.errors.to_external_org }}</p>
+            </div>
+            
+            <!-- Alamat Eksternal -->
+            <div>
+              <label class="block text-sm font-medium text-neutral-700">Alamat Penerima</label>
+              <textarea 
+                v-model="form.to_external_address" 
+                rows="3"
+                placeholder="Contoh:
+Jl. Jend. Gatot Subroto Kav. 52
+Jakarta Selatan 12950
+Telp. (021) 5290-1234"
+                class="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-primary-500"
+              ></textarea>
+              <p class="text-xs text-neutral-400 mt-1">Alamat lengkap penerima. Gunakan Enter untuk baris baru.</p>
+              <p v-if="form.errors.to_external_address" class="text-xs text-status-error mt-1">{{ form.errors.to_external_address }}</p>
             </div>
             
             <p class="text-xs text-blue-600 mt-2">💡 Surat ke eksternal akan disimpan sebagai arsip internal.</p>
@@ -153,11 +180,10 @@
           <!-- Body -->
           <div>
             <label class="block text-sm font-medium text-neutral-700">Isi Surat <span class="text-red-500">*</span></label>
-            <textarea 
+            <RichTextEditor 
               v-model="form.body" 
-              rows="10" 
               placeholder="Isi surat..."
-              class="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-primary-500"
+              class="mt-1"
             />
             <p v-if="form.errors.body" class="text-xs text-status-error mt-1">{{ form.errors.body }}</p>
           </div>
@@ -257,6 +283,7 @@ import InputField from '@/Components/UI/InputField.vue'
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
 import AlertBanner from '@/Components/UI/AlertBanner.vue'
+import RichTextEditor from '@/Components/UI/RichTextEditor.vue'
 
 const props = defineProps({ 
   letter: Object, 
@@ -267,11 +294,13 @@ const props = defineProps({
 const form = useForm({
   letter_category_id: props.letter?.letter_category_id || '',
   signer_type: props.letter?.signer_type || '',
+  signer_type_secondary: props.letter?.signer_type_secondary || '',
   to_type: props.letter?.to_type || '',
   to_unit_id: props.letter?.to_unit_id || '',
   to_member_id: props.letter?.to_member_id || '',
   to_external_name: props.letter?.to_external_name || '',
   to_external_org: props.letter?.to_external_org || '',
+  to_external_address: props.letter?.to_external_address || '',
   subject: props.letter?.subject || '',
   body: props.letter?.body || '',
   cc_text: props.letter?.cc_text || '',
@@ -319,7 +348,13 @@ async function applyTemplate() {
 
     // Apply template content
     if (data.subject) form.subject = data.subject
-    if (data.body) form.body = data.body
+    if (data.body) {
+      // Convert plain text template to HTML for RichTextEditor
+      let htmlBody = data.body
+        .split('\n\n').join('</p><p>')  // Double newlines become paragraph breaks
+        .split('\n').join('<br>')       // Single newlines become line breaks
+      form.body = '<p>' + htmlBody + '</p>'
+    }
     if (data.cc_text) form.cc_text = data.cc_text
 
     // Apply defaults only if current value is empty/default
@@ -386,6 +421,7 @@ watch(() => form.to_type, (newVal) => {
   if (newVal !== 'eksternal') {
     form.to_external_name = ''
     form.to_external_org = ''
+    form.to_external_address = ''
   }
 })
 

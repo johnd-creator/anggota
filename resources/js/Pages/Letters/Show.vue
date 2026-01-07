@@ -100,7 +100,7 @@
         <!-- Letter Body -->
         <div class="border-t border-neutral-200 pt-6">
           <p class="text-xs text-neutral-500 uppercase tracking-wider mb-2">Isi Surat</p>
-          <div class="prose prose-sm max-w-none text-neutral-800 whitespace-pre-wrap">{{ letter.body }}</div>
+          <div class="letter-body prose prose-sm max-w-none text-neutral-800" v-html="bodyHtml"></div>
         </div>
 
         <!-- Creator Actions -->
@@ -205,6 +205,7 @@ import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
 
 const props = defineProps({ 
   letter: Object,
+  bodyHtml: String,
   canApprove: Boolean,
 })
 const page = usePage()

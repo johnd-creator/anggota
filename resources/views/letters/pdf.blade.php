@@ -108,9 +108,98 @@
         /* Body */
         .body-content {
             text-align: justify;
-            white-space: pre-wrap;
             font-size: 11pt;
             line-height: 1.6;
+            word-wrap: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        .body-content td,
+        .body-content th {
+            word-wrap: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        /* Letter body HTML content styling */
+        .letter-body p {
+            margin-bottom: 0.75em;
+        }
+
+        .letter-body p:last-child {
+            margin-bottom: 0;
+        }
+
+        .letter-body ul,
+        .letter-body ol {
+            padding-left: 24px;
+            margin-bottom: 0.75em;
+        }
+
+        .letter-body li {
+            margin-bottom: 0.25em;
+        }
+
+        .letter-body a {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+
+        .letter-body h2 {
+            font-size: 14pt;
+            font-weight: bold;
+            margin-bottom: 0.5em;
+        }
+
+        .letter-body h3 {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-bottom: 0.5em;
+        }
+
+        .letter-body strong,
+        .letter-body b {
+            font-weight: bold;
+        }
+
+        .letter-body em,
+        .letter-body i {
+            font-style: italic;
+        }
+
+        .letter-body u {
+            text-decoration: underline;
+        }
+
+        /* Table styling for PDF - borderless formal layout */
+        .letter-body table {
+            border-collapse: collapse;
+            width: 100%;
+            border: none;
+            margin: 0.5em 0;
+        }
+
+        .letter-body th,
+        .letter-body td {
+            border: none;
+            padding: 2px 0;
+            vertical-align: top;
+        }
+
+        .letter-body table.formal-letter-table {
+            table-layout: fixed;
+            width: 100%;
+        }
+
+        .letter-body .formal-letter-table td:first-child {
+            width: 140px;
+        }
+
+        .letter-body .formal-letter-table td:nth-child(2) {
+            width: 16px;
+        }
+
+        .letter-body .formal-letter-table td:nth-child(3) {
+            width: auto;
         }
 
         /* Signature Block - matching Preview.vue (right aligned) */
@@ -275,26 +364,64 @@
             @if($letter->to_external_org)
                 <br>{{ $letter->to_external_org }}
             @endif
+            @if($letter->to_external_address)
+                <br>{!! nl2br(e($letter->to_external_address)) !!}
+            @endif
         @endif
         <br>di Tempat
     </div>
 
     <!-- Body -->
-    <div class="body-content">{{ $letter->body }}</div>
+    <div class="body-content letter-body">{!! $bodyHtml !!}</div>
 
-    <!-- Signature Block (right aligned like Preview.vue) -->
+    <!-- Signature Block -->
     <div class="signature-section">
-        <div class="signature-box">
-            <div class="signature-date">{{ $unitCity }}, {{ $letterDate }}</div>
-            <div class="signer-title">{{ $letter->signer_type === 'ketua' ? 'Ketua' : 'Sekretaris' }}</div>
+        @if($letter->signer_type_secondary)
+            <!-- Dual signature layout -->
+            <table style="width: 100%;">
+                <tr>
+                    <!-- Primary Signer (Ketua/Sekretaris) -->
+                    <td style="width: 50%; text-align: center; vertical-align: top;">
+                        <div class="signature-date">{{ $unitCity }}, {{ $letterDate }}</div>
+                        <div class="signer-title">{{ $letter->signer_type === 'ketua' ? 'Ketua' : 'Sekretaris' }}</div>
+                        @if($qrBase64)
+                            <img src="data:{{ $qrMime ?? 'image/png' }};base64,{{ $qrBase64 }}" class="qr-code" alt="QR"
+                                style="margin: 0 auto;">
+                        @else
+                            <div style="height: 70px;"></div>
+                        @endif
+                        <div class="signer-name">{{ $letter->approvedBy?->name ?? '(Menunggu Persetujuan)' }}</div>
+                    </td>
+                    <!-- Secondary Signer (Bendahara) -->
+                    <td style="width: 50%; text-align: center; vertical-align: top;">
+                        <div class="signature-date">{{ $unitCity }}, {{ $letterDate }}</div>
+                        <div class="signer-title">
+                            {{ $letter->signer_type_secondary === 'bendahara' ? 'Bendahara' : 'Penandatangan 2' }}
+                        </div>
+                        <div style="height: 70px;"></div>
+                        <div class="signer-name">{{ $letter->approvedSecondaryBy?->name ?? '(Menunggu Persetujuan)' }}</div>
+                    </td>
+                </tr>
+            </table>
             @if($qrBase64)
-                <img src="data:{{ $qrMime ?? 'image/png' }};base64,{{ $qrBase64 }}" class="qr-code" alt="QR">
-            @else
-                <div style="font-size:8pt;color:#888;word-break:break-all;margin:10px 0;">{{ $verifyUrl }}</div>
+                <div style="text-align: center; margin-top: 4px;">
+                    <div class="qr-label">Scan untuk verifikasi</div>
+                </div>
             @endif
-            <div class="qr-label">Scan untuk verifikasi</div>
-            <div class="signer-name">{{ $letter->approvedBy?->name ?? '(nama)' }}</div>
-        </div>
+        @else
+            <!-- Single signature layout -->
+            <div class="signature-box">
+                <div class="signature-date">{{ $unitCity }}, {{ $letterDate }}</div>
+                <div class="signer-title">{{ $letter->signer_type === 'ketua' ? 'Ketua' : 'Sekretaris' }}</div>
+                @if($qrBase64)
+                    <img src="data:{{ $qrMime ?? 'image/png' }};base64,{{ $qrBase64 }}" class="qr-code" alt="QR">
+                @else
+                    <div style="font-size:8pt;color:#888;word-break:break-all;margin:10px 0;">{{ $verifyUrl }}</div>
+                @endif
+                <div class="qr-label">Scan untuk verifikasi</div>
+                <div class="signer-name">{{ $letter->approvedBy?->name ?? '(nama)' }}</div>
+            </div>
+        @endif
     </div>
 
     <!-- Tembusan -->

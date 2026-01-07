@@ -7,12 +7,14 @@
           <h1 class="text-2xl font-bold text-neutral-900">Aspirasi Unit</h1>
           <p class="text-neutral-600 text-sm mt-1">Sampaikan saran dan dukung aspirasi anggota lain</p>
         </div>
-        <Link href="/member/aspirations/create" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
+        <CtaButton href="/member/aspirations/create">
+          <template #icon>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+          </template>
           Buat Aspirasi
-        </Link>
+        </CtaButton>
       </div>
 
       <!-- Filters -->
@@ -45,19 +47,21 @@
           <div class="flex gap-4">
             <!-- Support Button -->
             <div class="flex flex-col items-center">
-              <button
-                @click="toggleSupport(asp)"
+              <IconButton
+                aria-label="Dukung aspirasi"
+                size="lg"
                 :disabled="asp.is_own"
                 :class="[
-                  'w-12 h-12 rounded-xl flex items-center justify-center transition',
-                  asp.is_own ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' :
-                  asp.is_supported ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                  'w-12 h-12 rounded-xl',
+                  asp.is_own ? 'bg-neutral-100 text-neutral-400' :
+                  asp.is_supported ? 'bg-[#1A2B63] text-white hover:bg-[#2E4080]' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
                 ]"
+                @click="toggleSupport(asp)"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
                 </svg>
-              </button>
+              </IconButton>
               <span class="text-sm font-semibold text-neutral-700 mt-1">{{ asp.support_count }}</span>
             </div>
 
@@ -108,12 +112,12 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
           </svg>
           <p class="text-neutral-500">Belum ada aspirasi di unit Anda</p>
-          <Link href="/member/aspirations/create" class="inline-flex items-center gap-2 mt-4 text-blue-600 hover:text-blue-700 font-medium text-sm">
+          <SecondaryButton href="/member/aspirations/create" size="sm" class="mt-4 gap-2">
             Buat aspirasi pertama
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
-          </Link>
+          </SecondaryButton>
         </div>
       </CardContainer>
 
@@ -141,6 +145,9 @@ import { reactive } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
+import CtaButton from '@/Components/UI/CtaButton.vue';
+import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
+import IconButton from '@/Components/UI/IconButton.vue';
 
 const props = defineProps({
   aspirations: Object,

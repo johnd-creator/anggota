@@ -1,5 +1,6 @@
-const CACHE_NAME = 'simsp-cache-v2';
-const PRECACHE_URLS = ['/manifest.json', '/build/manifest.json'];
+const CACHE_NAME = 'simsp-cache-v3';
+// Do NOT precache `/build/manifest.json` (it's un-hashed and can become stale after deployments/builds).
+const PRECACHE_URLS = ['/manifest.json'];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -23,6 +24,10 @@ function isBuildAsset(url) {
   return url.pathname.startsWith('/build/');
 }
 
+function isBuildManifest(url) {
+  return url.pathname === '/build/manifest.json';
+}
+
 function shouldBypassCache(request, url) {
   const accept = request.headers.get('accept') || '';
   const isApi = url.pathname.startsWith('/api/');
@@ -41,6 +46,20 @@ self.addEventListener('fetch', (event) => {
 
   // Network-first for HTML navigations to avoid stale UI (Inertia/Vite version mismatch)
   if (isHtmlRequest(request)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Network-first for Vite build manifest to avoid stale asset mappings after new builds/deploys.
+  if (isBuildManifest(url)) {
     event.respondWith(
       fetch(request)
         .then((response) => {

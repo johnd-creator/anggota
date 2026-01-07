@@ -15,11 +15,13 @@ class Letter extends Model
         'from_unit_id',
         'letter_category_id',
         'signer_type',
+        'signer_type_secondary',
         'to_type',
         'to_unit_id',
         'to_member_id',
         'to_external_name',
         'to_external_org',
+        'to_external_address',
         'subject',
         'body',
         'cc_text',
@@ -29,6 +31,9 @@ class Letter extends Model
         'submitted_at',
         'approved_by_user_id',
         'approved_at',
+        'approved_primary_at',
+        'approved_secondary_by_user_id',
+        'approved_secondary_at',
         'rejected_by_user_id',
         'rejected_at',
         'revision_note',
@@ -48,6 +53,8 @@ class Letter extends Model
         'sequence' => 'integer',
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
+        'approved_primary_at' => 'datetime',
+        'approved_secondary_at' => 'datetime',
         'rejected_at' => 'datetime',
         'sla_due_at' => 'datetime',
         'sla_marked_at' => 'datetime',
@@ -165,6 +172,38 @@ class Letter extends Model
     public function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by_user_id');
+    }
+
+    /**
+     * Get the user who approved this letter (secondary approver).
+     */
+    public function approvedSecondaryBy()
+    {
+        return $this->belongsTo(User::class, 'approved_secondary_by_user_id');
+    }
+
+    /**
+     * Check if this letter requires secondary (dual) approval.
+     */
+    public function requiresSecondaryApproval(): bool
+    {
+        return !is_null($this->signer_type_secondary);
+    }
+
+    /**
+     * Check if primary approval has been completed.
+     */
+    public function isPrimaryApproved(): bool
+    {
+        return !is_null($this->approved_by_user_id);
+    }
+
+    /**
+     * Check if secondary approval has been completed.
+     */
+    public function isSecondaryApproved(): bool
+    {
+        return !is_null($this->approved_secondary_by_user_id);
     }
 
     /**

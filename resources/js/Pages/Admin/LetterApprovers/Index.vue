@@ -10,10 +10,14 @@
           <p class="text-sm text-neutral-500">Kelola delegasi persetujuan surat per unit.</p>
         </div>
         <div class="flex flex-wrap gap-3">
-          <Link href="/admin/letter-approvers/create" class="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-full shadow-lg shadow-blue-300/70 hover:bg-blue-700 transition transform hover:-translate-y-0.5">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <CtaButton href="/admin/letter-approvers/create">
+            <template #icon>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+              </svg>
+            </template>
             Tambah Approver
-          </Link>
+          </CtaButton>
         </div>
       </div>
 
@@ -21,12 +25,13 @@
       <CardContainer padding="default">
         <div class="flex flex-wrap gap-4 items-end">
           <div class="flex-1 min-w-[200px]">
-            <label class="block text-sm font-medium text-neutral-700 mb-1">Filter Unit</label>
-            <select v-model="selectedUnit" @change="applyFilter" class="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-              <option value="">Semua Unit</option>
-              <option value="pusat">Pusat (Admin Pusat)</option>
-              <option v-for="unit in units" :key="unit.id" :value="unit.id">{{ unit.name }}</option>
-            </select>
+            <SelectField
+              v-model="selectedUnit"
+              :options="unitOptions"
+              label="Filter Unit"
+              placeholder="Semua Unit"
+              @update:modelValue="applyFilter"
+            />
           </div>
         </div>
       </CardContainer>
@@ -105,8 +110,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { router, Link } from '@inertiajs/vue3'
+import { ref, computed } from 'vue'
+import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
 import IconButton from '@/Components/UI/IconButton.vue'
@@ -115,6 +120,8 @@ import ModalBase from '@/Components/UI/ModalBase.vue'
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
 import Pagination from '@/Components/UI/Pagination.vue'
+import CtaButton from '@/Components/UI/CtaButton.vue'
+import SelectField from '@/Components/UI/SelectField.vue'
 
 const props = defineProps({
   approvers: Object,
@@ -126,6 +133,22 @@ const selectedUnit = ref(props.filters?.unit_id || '')
 const showDelete = ref(false)
 const toDelete = ref(null)
 const deleting = ref(false)
+
+// Format units for SelectField component
+const unitOptions = computed(() => {
+  const options = [
+    { label: 'Semua Unit', value: '' },
+    { label: 'Pusat (Admin Pusat)', value: 'pusat' },
+  ]
+  
+  if (props.units && props.units.length > 0) {
+    props.units.forEach(unit => {
+      options.push({ label: unit.name, value: unit.id })
+    })
+  }
+  
+  return options
+})
 
 function applyFilter() {
   const params = {}
