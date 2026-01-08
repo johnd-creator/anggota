@@ -1,5 +1,5 @@
 <template>
-  <div :class="alertClasses" role="alert">
+  <div v-if="isVisible" :class="alertClasses" role="alert">
     <div class="flex items-start gap-3">
       <!-- Icon with background circle -->
       <div :class="iconWrapperClasses">
@@ -21,7 +21,7 @@
         <button
           type="button"
           :class="closeButtonClasses"
-          @click="$emit('dismiss')"
+          @click="handleDismiss"
         >
           <span class="sr-only">Dismiss</span>
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -34,7 +34,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
   type: {
@@ -54,9 +54,63 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  autoDismissMs: {
+    type: Number,
+    default: 0,
+  },
 });
 
-defineEmits(['dismiss']);
+const emit = defineEmits(['dismiss']);
+
+const isVisible = ref(true);
+let dismissTimer = null;
+
+const resolvedAutoDismissMs = computed(() => {
+  if (props.autoDismissMs > 0) {
+    return props.autoDismissMs;
+  }
+  if (props.dismissible && props.type === 'success') {
+    return 4000;
+  }
+  return 0;
+});
+
+function clearTimer() {
+  if (dismissTimer) {
+    clearTimeout(dismissTimer);
+    dismissTimer = null;
+  }
+}
+
+function startTimer() {
+  clearTimer();
+  const ms = resolvedAutoDismissMs.value;
+  if (ms > 0) {
+    dismissTimer = setTimeout(() => {
+      isVisible.value = false;
+      emit('dismiss');
+    }, ms);
+  }
+}
+
+function handleDismiss() {
+  isVisible.value = false;
+  clearTimer();
+  emit('dismiss');
+}
+
+watch(() => [props.message, props.title], () => {
+  isVisible.value = true;
+  startTimer();
+});
+
+onMounted(() => {
+  startTimer();
+});
+
+onBeforeUnmount(() => {
+  clearTimer();
+});
 
 const alertClasses = computed(() => {
   const base = 'relative rounded-xl p-4 shadow-sm border-l-4 transition-all duration-200';

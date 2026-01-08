@@ -931,3 +931,28 @@
   - Stage 1 approval: status remains 'submitted', only notifies secondary approver.
   - Superadmin cannot bypass status requirement for send/archive.
 - Next: none
+- Date: 2026-01-08 10:44
+- Scope: backend
+- Summary:
+  - Mutation Hardening: Implemented duplicate prevention and cancel flow.
+  - Block duplicate: `MutationController::store()` now checks for existing pending mutation before creating.
+  - Cancel flow: Added `cancel()` method to controller with status update, timestamps, and activity logging.
+  - Migration: Added `cancelled_at` and `cancelled_by_user_id` columns to `mutation_requests`.
+  - Route: Added `POST /admin/mutations/{mutation}/cancel`.
+- Files:
+  - app/Http/Controllers/Admin/MutationController.php
+  - app/Policies/MutationRequestPolicy.php
+  - routes/web.php
+  - database/migrations/2026_01_08_034500_add_cancelled_columns_to_mutation_requests.php
+  - resources/js/Pages/Admin/Mutations/Index.vue
+  - tests/Feature/MutationDuplicatePreventionTest.php (NEW)
+  - tests/Feature/MutationCancelFlowTest.php (NEW)
+- Commands:
+  - php artisan migrate
+  - php artisan test tests/Feature/MutationDuplicatePreventionTest.php
+  - php artisan test tests/Feature/MutationCancelFlowTest.php
+- Decisions/Risks:
+  - Active status = pending only (approved/rejected are final states).
+  - No DB-level unique constraint due to SQLite/MySQL partial index limitations; application guard is sufficient.
+- Next: none
+

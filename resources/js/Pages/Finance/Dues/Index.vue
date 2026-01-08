@@ -25,8 +25,6 @@
         </div>
       </CardContainer>
 
-      <AlertBanner v-if="$page.props.flash.success" type="success" :message="$page.props.flash.success" dismissible @dismiss="$page.props.flash.success = null" />
-
       <!-- Filters Card -->
       <CardContainer padding="sm">
         <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
@@ -210,7 +208,6 @@ import { ref, computed } from 'vue'
 import { router, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
-	import AlertBanner from '@/Components/UI/AlertBanner.vue'
 	import ModalBase from '@/Components/UI/ModalBase.vue'
 	import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 	import SecondaryButton from '@/Components/UI/SecondaryButton.vue'

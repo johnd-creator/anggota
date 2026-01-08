@@ -98,6 +98,14 @@
             </div>
           </template>
           <div class="space-y-4">
+            <AlertBanner
+              v-if="sessionMessage"
+              :type="sessionMessageType"
+              :message="sessionMessage"
+              dismissible
+              class="mb-2"
+              @dismiss="sessionMessage = ''"
+            />
             <div class="text-sm">Sesi Aktif: Request ID {{ requestId }}</div>
             <div class="flex gap-3">
               <SecondaryButton @click="forceLogout">Force Logout</SecondaryButton>
@@ -346,8 +354,12 @@ async function revokeOthers(){
        headers:{ 'X-CSRF-TOKEN': csrfToken.value, 'Content-Type':'application/json' }
     });
     if(r.ok) {
-        alert('Sesi lain berhasil dikeluarkan.');
+        sessionMessageType.value = 'success';
+        sessionMessage.value = 'Sesi lain berhasil dikeluarkan.';
         fetchMySessions();
+    } else {
+        sessionMessageType.value = 'error';
+        sessionMessage.value = 'Gagal mengeluarkan sesi lain.';
     }
   } catch(e){}
 }
@@ -372,6 +384,9 @@ if (isSuperAdmin) {
   fetch('/admin/sessions').then(r => r.json().catch(()=>null)).then(data => { if (data && data.sessions) sessions.value = data.sessions.data || []; }).catch(()=>{});
 }
 function revoke(s){ router.post('/admin/sessions/revoke', { session_id: s.session_id }); }
+
+const sessionMessage = ref('');
+const sessionMessageType = ref('success');
 
 // Check if user is effectively a member (has member_id or role anggota)
 const isMember = computed(() => !!page.props.auth?.user?.is_member || (page.props.auth?.user?.role?.name === 'anggota'));

@@ -1,8 +1,6 @@
 <template>
   <AppLayout :page-title="category ? 'Edit Kategori Surat' : 'Tambah Kategori Surat'">
     <CardContainer padding="lg" class="max-w-3xl mx-auto">
-      <AlertBanner v-if="$page.props.flash?.error" type="error" :message="$page.props.flash.error" />
-      
       <form @submit.prevent="submit">
         <div class="space-y-6">
           <!-- Basic Info Section -->
@@ -179,7 +177,6 @@ import CardContainer from '@/Components/UI/CardContainer.vue'
 import InputField from '@/Components/UI/InputField.vue'
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
-import AlertBanner from '@/Components/UI/AlertBanner.vue'
 import ColorBadge from '@/Components/UI/ColorBadge.vue'
 
 const props = defineProps({

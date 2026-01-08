@@ -1,8 +1,6 @@
 <template>
   <AppLayout page-title="Detail Surat">
     <div class="max-w-3xl mx-auto space-y-6">
-      <AlertBanner v-if="$page.props.flash?.success" type="success" :message="$page.props.flash.success" dismissible />
-
       <!-- Page Actions -->
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <SecondaryButton size="sm" @click="goBack">
@@ -196,7 +194,6 @@ import { ref, computed } from 'vue'
 import { router, Link, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
-import AlertBanner from '@/Components/UI/AlertBanner.vue'
 import StatusBadge from '@/Components/UI/StatusBadge.vue'
 import ColorBadge from '@/Components/UI/ColorBadge.vue'
 import ModalBase from '@/Components/UI/ModalBase.vue'

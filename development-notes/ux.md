@@ -59,6 +59,20 @@
   - Member list now routes operators to the import wizard for preview/commit visibility.
 - Next: none
 
+- Date: 2026-01-07 20:37
+- Scope: ux
+- Summary:
+  - AlertBanner now supports auto-dismiss and self-dismiss without parent state updates.
+  - Settings security feedback and member import errors use consistent UI alerts.
+- Files:
+  - resources/js/Components/UI/AlertBanner.vue
+  - resources/js/Pages/Settings/Index.vue
+  - resources/js/Pages/Admin/Members/Import.vue
+- Commands: none
+- Decisions/Risks:
+  - Success alerts auto-dismiss after 4s when dismissible; other types remain manual.
+- Next: none
+
 - Date: 2026-01-07 19:57
 - Scope: ux
 - Summary:
@@ -906,4 +920,83 @@ ACCEPTANCE CRITERIA
 - Decisions/Risks:
   - Address is optional (nullable in DB).
   - Line breaks preserved in Preview and PDF.
+- Next: none
+
+- Date: 2026-01-08 09:00
+- Scope: ux
+- Summary:
+  - Removed duplicate alert on `letters/outbox` by only rendering one banner (success takes priority; error uses flash).
+- Files:
+  - resources/js/Pages/Letters/Outbox.vue
+- Commands:
+  - npm run build
+- Decisions/Risks:
+  - Outbox no longer reads `errors.letter`; use `flash.error` for outbox-level failures if needed.
+- Next: none
+
+- Date: 2026-01-08 10:13
+- Scope: ux
+- Summary:
+  - Moved global flash messages into `AppLayout` using `AlertBanner` to standardize style + dismiss/auto-dismiss.
+  - Removed per-page flash banners in Letters pages to prevent duplicate alerts (Inbox/Outbox/Approvals/Show; create form keeps validation summary only).
+- Files:
+  - resources/js/Layouts/AppLayout.vue
+  - resources/js/Pages/Letters/Inbox.vue
+  - resources/js/Pages/Letters/Outbox.vue
+  - resources/js/Pages/Letters/Approvals.vue
+  - resources/js/Pages/Letters/Show.vue
+  - resources/js/Pages/Letters/Form.vue
+- Commands: none (build blocked by local permissions; rerun `npm run build` manually)
+- Decisions/Risks:
+  - Flash rendering is now centralized in layout; pages should avoid duplicating `flash.success/error`.
+- Next: If any other pages still show double alerts, remove their local flash banners and rely on layout.
+
+- Date: 2026-01-08 10:22
+- Scope: ux
+- Summary:
+  - Removed duplicate flash banner from Finance Ledgers page to rely on AppLayout alert.
+- Files:
+  - resources/js/Pages/Finance/Ledgers/Index.vue
+- Commands: none
+- Decisions/Risks:
+  - Keeps one global alert path for flash messages.
+- Next: none
+
+- Date: 2026-01-08 11:30
+- Scope: ux
+- Summary:
+  - Removed remaining per-page flash alerts/toasts to avoid double notifications; rely on `AppLayout` for `flash.success/error`.
+  - Updated Master Data, Finance, and Update Requests pages; kept non-flash validation/error banners where applicable.
+- Files:
+  - resources/js/Pages/Admin/LetterApprovers/Index.vue
+  - resources/js/Pages/Admin/LetterCategories/Index.vue
+  - resources/js/Pages/Admin/LetterCategories/Form.vue
+  - resources/js/Pages/Admin/Units/Index.vue
+  - resources/js/Pages/Admin/Roles/Show.vue
+  - resources/js/Pages/Admin/UnionPositions/Form.vue
+  - resources/js/Pages/Admin/Updates/Index.vue
+  - resources/js/Pages/Finance/Categories/Index.vue
+  - resources/js/Pages/Finance/Categories/Form.vue
+  - resources/js/Pages/Finance/Dues/Index.vue
+  - resources/js/Pages/Finance/Ledgers/Form.vue
+  - resources/js/Pages/Member/Profile.vue
+- Commands: none
+- Decisions/Risks:
+  - Flash messages now have a single render path (layout). Any page-level “success/error” UI should not mirror flash.
+- Next: Manually spot-check `onboarding`, `master data`, and `update requests` flows for single alert behavior after create/update/delete.
+- Date: 2026-01-08 10:44
+- Scope: ux
+- Summary:
+  - Mutation Cancel Button: Added "Batalkan" button in mutations index for pending rows.
+  - Confirm dialog before cancel action.
+  - Loading state while cancel is processing ("Membatalkan...").
+  - Cancelled mutations display with neutral gray badge and Indonesian label "Dibatalkan".
+  - Status labels now use Indonesian: Menunggu, Disetujui, Ditolak, Dibatalkan.
+  - Flash messages handled via existing global layout (no duplicate alerts).
+- Files:
+  - resources/js/Pages/Admin/Mutations/Index.vue
+- Commands: none
+- Decisions/Risks:
+  - Cancel button only appears for pending status.
+  - Uses `router.post()` with `preserveScroll: true` for smooth UX.
 - Next: none

@@ -739,3 +739,42 @@ Do not put secrets (tokens, passwords, `.env` contents) or production data here.
   - Role::firstOrCreate includes label field for schema compatibility.
 - Next: none
 
+- Date: 2026-01-08 10:44
+- Scope: testing
+- Summary:
+  - Created `MutationDuplicatePreventionTest.php` (4 tests):
+    - cannot_create_mutation_when_pending_exists_for_same_member
+    - can_create_mutation_after_cancelling_pending
+    - can_create_mutation_when_previous_was_approved
+    - can_create_mutation_when_previous_was_rejected
+  - Created `MutationCancelFlowTest.php` (7 tests):
+    - super_admin_can_cancel_pending_mutation
+    - admin_pusat_can_cancel_pending_mutation
+    - admin_unit_can_cancel_mutation_in_their_unit
+    - admin_unit_cannot_cancel_mutation_in_other_unit (403)
+    - cannot_cancel_approved_mutation (403)
+    - cannot_cancel_rejected_mutation (403)
+    - cancel_creates_activity_log
+- Files:
+  - tests/Feature/MutationDuplicatePreventionTest.php (NEW)
+  - tests/Feature/MutationCancelFlowTest.php (NEW)
+- Commands:
+  - php artisan test tests/Feature/MutationDuplicatePreventionTest.php
+  - php artisan test tests/Feature/MutationCancelFlowTest.php
+  - php artisan test tests/Feature/MutationWorkflowTest.php (regression)
+- Decisions/Risks:
+  - Tests use RefreshDatabase trait with SQLite.
+- Next: none
+
+- Date: 2026-01-08 11:30
+- Scope: testing
+- Summary:
+  - Verified frontend compiles after removing duplicate flash alerts across pages.
+  - Noted Vite build may fail if `node_modules/.vite-temp` has permission issues; deleting it fixes the build.
+- Files: none
+- Commands:
+  - rm -rf node_modules/.vite-temp
+  - npm run build
+- Decisions/Risks:
+  - Build artifacts refreshed; service worker may need hard reload to pick up new assets in browser.
+- Next: none

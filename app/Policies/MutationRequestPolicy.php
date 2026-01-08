@@ -79,6 +79,27 @@ class MutationRequestPolicy
     }
 
     /**
+     * Determine if user can cancel a mutation request.
+     * Global roles can cancel any; admin_unit can cancel only their unit's mutations.
+     */
+    public function cancel(User $user, MutationRequest $mutation): bool
+    {
+        if ($mutation->status !== 'pending') {
+            return false;
+        }
+
+        if ($user->hasGlobalAccess()) {
+            return true;
+        }
+
+        if ($user->hasRole('admin_unit')) {
+            return $this->isInvolvedUnit($user, $mutation);
+        }
+
+        return false;
+    }
+
+    /**
      * Check if user's unit is involved (from or to) in the mutation.
      */
     protected function isInvolvedUnit(User $user, MutationRequest $mutation): bool

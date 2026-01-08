@@ -16,14 +16,6 @@
         </div>
       </div>
       <!-- Success Message -->
-      <AlertBanner
-        v-if="$page.props.flash.success"
-        type="success"
-        :message="$page.props.flash.success"
-        dismissible
-        @dismiss="$page.props.flash.success = null"
-      />
-
       <!-- Search & Data Table -->
         <CardContainer padding="sm">
         <div class="flex items-center">

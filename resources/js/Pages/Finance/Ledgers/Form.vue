@@ -1,8 +1,6 @@
 <template>
   <AppLayout :page-title="ledger ? 'Edit Transaksi' : 'Tambah Transaksi'">
     <CardContainer padding="lg" class="max-w-3xl mx-auto">
-      <AlertBanner v-if="$page.props.flash.error" type="error" :message="$page.props.flash.error" />
-      
       <!-- Workflow info banner -->
       <div v-if="workflowEnabled && !ledger" class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
         <p class="text-sm text-blue-800">
@@ -129,7 +127,6 @@ import { router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
 import InputField from '@/Components/UI/InputField.vue'
-import AlertBanner from '@/Components/UI/AlertBanner.vue'
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
 

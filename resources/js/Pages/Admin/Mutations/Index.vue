@@ -44,13 +44,22 @@
                   :class="{
                     'bg-green-100 text-green-800': i.status === 'approved',
                     'bg-red-100 text-red-800': i.status === 'rejected',
-                    'bg-yellow-100 text-yellow-800': i.status === 'pending'
+                    'bg-yellow-100 text-yellow-800': i.status === 'pending',
+                    'bg-neutral-100 text-neutral-600': i.status === 'cancelled'
                   }">
-                  {{ i.status }}
+                  {{ statusLabel(i.status) }}
                 </span>
               </td>
-              <td class="px-6 py-4 text-right text-sm">
+              <td class="px-6 py-4 text-right text-sm space-x-2">
                 <Link :href="`/admin/mutations/${i.id}`" class="text-brand-primary-600 hover:text-brand-primary-900 font-medium">Detail</Link>
+                <button
+                  v-if="i.status === 'pending'"
+                  @click="confirmCancel(i)"
+                  class="text-red-600 hover:text-red-800 font-medium"
+                  :disabled="cancellingId === i.id"
+                >
+                  {{ cancellingId === i.id ? 'Membatalkan...' : 'Batalkan' }}
+                </button>
               </td>
             </tr>
             <tr v-if="items.data.length === 0">
@@ -66,14 +75,42 @@
 </template>
 
 <script setup>
+import { ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
 import Pagination from '@/Components/UI/Pagination.vue';
 import SummaryCard from '@/Components/UI/SummaryCard.vue';
 import CtaButton from '@/Components/UI/CtaButton.vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, usePage, router } from '@inertiajs/vue3';
 
 const page = usePage();
 const items = page.props.items;
 const stats = page.props.stats;
+
+const cancellingId = ref(null);
+
+const statusLabel = (status) => {
+  const labels = {
+    pending: 'Menunggu',
+    approved: 'Disetujui',
+    rejected: 'Ditolak',
+    cancelled: 'Dibatalkan'
+  };
+  return labels[status] || status;
+};
+
+const confirmCancel = (mutation) => {
+  if (!confirm(`Batalkan pengajuan mutasi untuk ${mutation.member.full_name}?`)) {
+    return;
+  }
+  
+  cancellingId.value = mutation.id;
+  
+  router.post(`/admin/mutations/${mutation.id}/cancel`, {}, {
+    preserveScroll: true,
+    onFinish: () => {
+      cancellingId.value = null;
+    }
+  });
+};
 </script>

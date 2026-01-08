@@ -1,9 +1,6 @@
 <template>
   <AppLayout page-title="Surat Keluar">
     <div class="space-y-6">
-      <AlertBanner v-if="$page.props.flash?.success" type="success" :message="$page.props.flash.success" dismissible />
-      <AlertBanner v-if="$page.props.errors?.letter" type="error" :message="$page.props.errors.letter" dismissible />
-
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 class="text-lg font-semibold text-neutral-900">Surat Keluar</h2>
@@ -174,7 +171,6 @@ import { router, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
 import InputField from '@/Components/UI/InputField.vue'
-import AlertBanner from '@/Components/UI/AlertBanner.vue'
 import StatusBadge from '@/Components/UI/StatusBadge.vue'
 import ColorBadge from '@/Components/UI/ColorBadge.vue'
 import ModalBase from '@/Components/UI/ModalBase.vue'

@@ -1,7 +1,6 @@
 <template>
   <AppLayout page-title="Letter Approvers">
     <div class="space-y-6">
-      <AlertBanner v-if="$page.props.flash?.success" type="success" :message="$page.props.flash.success" dismissible />
       <AlertBanner v-if="$page.props.errors?.user_id" type="error" :message="$page.props.errors.user_id" dismissible />
 
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -11,7 +11,6 @@
         </div>
       </form>
     </CardContainer>
-    <AlertBanner v-if="$page.props.flash.success" type="success" :message="$page.props.flash.success" dismissible @dismiss="$page.props.flash.success=null" />
   </AppLayout>
 </template>
 
@@ -19,7 +18,6 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
 import InputField from '@/Components/UI/InputField.vue';
-import AlertBanner from '@/Components/UI/AlertBanner.vue';
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import { router, usePage } from '@inertiajs/vue3';

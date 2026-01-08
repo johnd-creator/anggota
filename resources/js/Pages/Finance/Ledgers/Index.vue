@@ -46,8 +46,6 @@
         </div>
       </CardContainer>
 
-      <AlertBanner v-if="$page.props.flash.success" type="success" :message="$page.props.flash.success" dismissible @dismiss="$page.props.flash.success = null" />
-
       <CardContainer padding="sm">
         <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
           <InputField v-model="search" placeholder="Cari deskripsi..." />
@@ -201,7 +199,6 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
 import InputField from '@/Components/UI/InputField.vue'
 import IconButton from '@/Components/UI/IconButton.vue'
-	import AlertBanner from '@/Components/UI/AlertBanner.vue'
 	import ModalBase from '@/Components/UI/ModalBase.vue'
 	import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 	import SecondaryButton from '@/Components/UI/SecondaryButton.vue'

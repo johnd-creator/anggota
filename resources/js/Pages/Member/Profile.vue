@@ -2,26 +2,6 @@
   <AppLayout page-title="Profil Anggota">
     <AlertBanner type="info" title="Privasi" message="Data Anda digunakan untuk keperluan keanggotaan. Dengan melanjutkan, Anda menyetujui pengolahan data sesuai kebijakan privasi." />
 
-    <!-- Success Message Banner -->
-    <transition name="fade">
-      <AlertBanner 
-        v-if="successMessage" 
-        type="success" 
-        :message="successMessage" 
-        class="mb-4"
-      />
-    </transition>
-
-    <!-- Error Message Banner -->
-    <transition name="fade">
-      <AlertBanner 
-        v-if="errorMessage" 
-        type="error" 
-        :message="errorMessage" 
-        class="mb-4"
-      />
-    </transition>
-
     <CardContainer padding="lg" shadow="sm">
       <div v-if="member" class="space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -197,57 +177,12 @@ import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import AlertBanner from '@/Components/UI/AlertBanner.vue';
 import ModalBase from '@/Components/UI/ModalBase.vue';
 import { usePage, router } from '@inertiajs/vue3';
-import { reactive, ref, computed, onMounted, watch } from 'vue';
+import { reactive, ref, computed } from 'vue';
 
 const page = usePage();
 const member = page.props.member;
 const updateRequests = page.props.updateRequests || [];
 const tab = ref('profil');
-
-// Message handling
-const successMessage = ref('');
-const errorMessage = ref('');
-
-// Auto-hide messages after 4 seconds
-function showSuccess(message) {
-  successMessage.value = message;
-  errorMessage.value = '';
-  setTimeout(() => {
-    successMessage.value = '';
-  }, 4000);
-}
-
-function showError(message) {
-  errorMessage.value = message;
-  successMessage.value = '';
-  setTimeout(() => {
-    errorMessage.value = '';
-  }, 4000);
-}
-
-// Read flash messages on mount
-onMounted(() => {
-  const flash = page.props.flash;
-  if (flash?.success) {
-    showSuccess(flash.success);
-  }
-  if (flash?.error) {
-    showError(flash.error);
-  }
-});
-
-// Watch for flash changes (Inertia page reload)
-watch(() => page.props.flash?.success, (newVal) => {
-  if (newVal) {
-    showSuccess(newVal);
-  }
-});
-
-watch(() => page.props.flash?.error, (newVal) => {
-  if (newVal) {
-    showError(newVal);
-  }
-});
 
 try {
   const q = (page.url.split('?')[1] || '').split('&').reduce((a,p)=>{ const [k,v] = p.split('='); if (k) a[k]=decodeURIComponent(v||''); return a; }, {});
@@ -280,17 +215,9 @@ function submitUpdate() {
     errors.phone = ''; 
   } 
   router.post('/member/portal/request-update', form, {
-    onSuccess: (page) => {
+    onSuccess: () => {
       editOpen.value = false;
-      // Show message immediately from flash
-      const flash = page?.props?.flash;
-      if (flash?.success) {
-        showSuccess(flash.success);
-      }
-      if (flash?.error) {
-        showError(flash.error);
-      }
-    }
+    },
   }); 
 }
 

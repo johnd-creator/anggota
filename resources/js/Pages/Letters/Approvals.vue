@@ -1,8 +1,6 @@
 <template>
   <AppLayout page-title="Perlu Persetujuan">
     <div class="space-y-6">
-      <AlertBanner v-if="$page.props.flash?.success" type="success" :message="$page.props.flash.success" dismissible />
-
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 class="text-lg font-semibold text-neutral-900">Perlu Persetujuan</h2>
@@ -155,7 +153,6 @@ import { router, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
 import InputField from '@/Components/UI/InputField.vue'
-import AlertBanner from '@/Components/UI/AlertBanner.vue'
 import ModalBase from '@/Components/UI/ModalBase.vue'
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue'

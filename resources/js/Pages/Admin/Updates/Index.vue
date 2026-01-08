@@ -1,23 +1,5 @@
 <template>
   <AppLayout page-title="Permintaan Perubahan Data">
-    <!-- Success/Error Messages -->
-    <transition name="fade">
-      <AlertBanner 
-        v-if="successMessage" 
-        type="success" 
-        :message="successMessage" 
-        class="mb-4"
-      />
-    </transition>
-    <transition name="fade">
-      <AlertBanner 
-        v-if="errorMessage" 
-        type="error" 
-        :message="errorMessage" 
-        class="mb-4"
-      />
-    </transition>
-
     <div class="space-y-6">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -119,12 +101,11 @@ import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import SelectField from '@/Components/UI/SelectField.vue';
 import Badge from '@/Components/UI/Badge.vue';
-import AlertBanner from '@/Components/UI/AlertBanner.vue';
 import ModalBase from '@/Components/UI/ModalBase.vue';
 import Pagination from '@/Components/UI/Pagination.vue';
 import SummaryCard from '@/Components/UI/SummaryCard.vue';
 import { usePage, router } from '@inertiajs/vue3';
-import { computed, ref, watch, onMounted } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const page = usePage();
 const items = computed(() => page.props.items);
@@ -138,43 +119,12 @@ const statusOptions = [
 ];
 const processing = ref(false);
 
-// Message handling
-const successMessage = ref('');
-const errorMessage = ref('');
-
 // Reject modal state
 const rejectModalOpen = ref(false);
 const selectedRequest = ref(null);
 const rejectNotes = ref('');
 const rejectNotesError = ref('');
 
-// Auto-hide messages
-function showSuccess(message) {
-  successMessage.value = message;
-  errorMessage.value = '';
-  setTimeout(() => { successMessage.value = ''; }, 4000);
-}
-
-function showError(message) {
-  errorMessage.value = message;
-  successMessage.value = '';
-  setTimeout(() => { errorMessage.value = ''; }, 4000);
-}
-
-// Read flash on mount
-onMounted(() => {
-  const flash = page.props.flash;
-  if (flash?.success) showSuccess(flash.success);
-  if (flash?.error) showError(flash.error);
-});
-
-// Watch for flash changes
-watch(() => page.props.flash?.success, (newVal) => {
-  if (newVal) showSuccess(newVal);
-});
-watch(() => page.props.flash?.error, (newVal) => {
-  if (newVal) showError(newVal);
-});
 
 watch(() => page.props.filters?.status, (val) => {
   const next = val || '';
@@ -190,7 +140,6 @@ function approve(i) {
   router.post(`/admin/updates/${i.id}/approve`, {}, { 
     preserveScroll: true, 
     onSuccess: () => {
-      showSuccess('Permintaan berhasil disetujui');
       router.reload({ only: ['items'] });
     },
     onFinish: () => { processing.value = false; }
@@ -221,12 +170,11 @@ function confirmReject() {
   router.post(`/admin/updates/${selectedRequest.value.id}/reject`, { notes: rejectNotes.value }, { 
     preserveScroll: true, 
     onSuccess: () => {
-      showSuccess('Permintaan berhasil ditolak');
       closeRejectModal();
       router.reload({ only: ['items'] });
     },
     onFinish: () => { processing.value = false; }
-  });
+  }); 
 }
 
 function statusVariant(s) {

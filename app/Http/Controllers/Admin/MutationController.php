@@ -93,6 +93,18 @@ class MutationController extends Controller
         // Use policy to check if user can create mutation for this member
         Gate::authorize('createFor', [MutationRequest::class, $member]);
 
+        // Block duplicate: check if member already has an active/pending mutation
+        $activeMutation = MutationRequest::where('member_id', $member->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($activeMutation) {
+            return redirect()->back()->with(
+                'error',
+                'Anggota ini masih memiliki pengajuan mutasi yang menunggu proses. Batalkan pengajuan sebelumnya untuk mengajukan yang baru.'
+            );
+        }
+
         $path = $request->file('document') ? $request->file('document')->store('mutations', 'public') : null;
 
         $mutation = MutationRequest::create([
@@ -180,5 +192,29 @@ class MutationController extends Controller
             }
         }
         return back()->with('success', 'Mutasi ditolak');
+    }
+
+    public function cancel(Request $request, MutationRequest $mutation)
+    {
+        Gate::authorize('cancel', $mutation);
+
+        if ($mutation->status !== 'pending') {
+            return back()->with('error', 'Hanya pengajuan yang masih pending yang dapat dibatalkan.');
+        }
+
+        $mutation->status = 'cancelled';
+        $mutation->cancelled_at = now();
+        $mutation->cancelled_by_user_id = $request->user()->id;
+        $mutation->save();
+
+        ActivityLog::create([
+            'actor_id' => $request->user()->id,
+            'action' => 'mutation_cancelled',
+            'subject_type' => MutationRequest::class,
+            'subject_id' => $mutation->id,
+            'payload' => ['member_id' => $mutation->member_id],
+        ]);
+
+        return back()->with('success', 'Pengajuan mutasi berhasil dibatalkan.');
     }
 }

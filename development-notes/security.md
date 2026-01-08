@@ -529,3 +529,25 @@
   - XSS prevention via server-side HtmlSanitizerService (TE2).
   - Frontend only displays pre-sanitized HTML.
 - Next: none
+- Date: 2026-01-08 10:44
+- Scope: security
+- Summary:
+  - Mutation Cancel Authorization:
+    - `cancel()` policy added to `MutationRequestPolicy`.
+    - Super admin / admin_pusat: can cancel any pending mutation.
+    - Admin unit: can only cancel mutations involving their unit (from_unit or to_unit).
+    - Status check: Only pending mutations can be cancelled (policy returns false for approved/rejected).
+  - Duplicate Prevention:
+    - Backend guard in `store()` blocks creating new mutation when pending exists for same member.
+    - Error message returned via flash (no data leakage).
+- Protected Endpoints:
+  - POST /admin/mutations - duplicate guard before create
+  - POST /admin/mutations/{mutation}/cancel - policy authorization
+- Files:
+  - app/Http/Controllers/Admin/MutationController.php
+  - app/Policies/MutationRequestPolicy.php
+- Decisions/Risks:
+  - Policy-based authorization ensures consistent enforcement.
+  - No race condition DB lock; acceptable for low-volume mutation workflow.
+- Next: none
+

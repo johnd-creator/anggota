@@ -1,7 +1,6 @@
 <template>
   <AppLayout :page-title="letter ? 'Edit Surat' : 'Buat Surat Baru'">
     <CardContainer padding="lg" class="max-w-3xl mx-auto">
-      <AlertBanner v-if="$page.props.flash?.error" type="error" :message="$page.props.flash.error" />
       <AlertBanner v-if="Object.keys(form.errors).length > 0" type="error" message="Mohon perbaiki kesalahan di bawah ini." />
 
       <form @submit.prevent="saveDraft">

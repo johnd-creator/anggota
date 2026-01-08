@@ -1,8 +1,5 @@
 <template>
   <AppLayout page-title="Detail Role">
-    <AlertBanner v-if="$page.props.flash.success" type="success" :message="$page.props.flash.success" dismissible @dismiss="$page.props.flash.success = null" />
-    <AlertBanner v-if="$page.props.flash.error" type="error" :message="$page.props.flash.error" dismissible @dismiss="$page.props.flash.error = null" />
-
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
       <CardContainer padding="lg" shadow="sm">
         <div class="text-sm"><span class="font-semibold">Name:</span> {{ role.name }}</div>
@@ -76,7 +73,6 @@ import SelectField from '@/Components/UI/SelectField.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
 import ModalBase from '@/Components/UI/ModalBase.vue';
-import AlertBanner from '@/Components/UI/AlertBanner.vue';
 import { usePage, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -120,4 +116,3 @@ function doRemove() {
   });
 }
 </script>
-

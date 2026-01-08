@@ -470,18 +470,20 @@
               <slot name="actions" />
             </div>
             <!-- Flash Messages -->
-            <div v-if="flashSuccess" class="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 text-sm flex items-center gap-2">
-              <svg class="h-5 w-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {{ flashSuccess }}
-            </div>
-            <div v-if="flashError" class="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm flex items-center gap-2">
-              <svg class="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {{ flashError }}
-            </div>
+            <AlertBanner
+              v-if="$page.props.flash?.success"
+              class="mb-4"
+              type="success"
+              :message="$page.props.flash.success"
+              dismissible
+            />
+            <AlertBanner
+              v-else-if="$page.props.flash?.error"
+              class="mb-4"
+              type="error"
+              :message="$page.props.flash.error"
+              dismissible
+            />
             <slot />
           </div>
         </div>
@@ -494,6 +496,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import UserAvatar from '@/Components/UI/UserAvatar.vue';
+import AlertBanner from '@/Components/UI/AlertBanner.vue';
 import {
   MegaphoneIcon, 
 } from '@heroicons/vue/24/outline';
@@ -578,16 +581,7 @@ function markAllReadAndClear() {
   });
 }
 
-const flashSuccess = ref(page.props?.flash?.success || '');
-const flashError = ref(page.props?.flash?.error || '');
-
 onMounted(() => {
-  if (flashSuccess.value) {
-    setTimeout(() => { flashSuccess.value = ''; }, 4000);
-  }
-  if (flashError.value) {
-    setTimeout(() => { flashError.value = ''; }, 5000);
-  }
   syncExpandedToRoute(page.url || window.location.pathname || '');
 });
 

@@ -1,7 +1,6 @@
 <template>
   <AppLayout page-title="Kategori Surat">
     <div class="space-y-6">
-      <AlertBanner v-if="$page.props.flash?.success" type="success" :message="$page.props.flash.success" dismissible />
       <AlertBanner v-if="$page.props.errors?.category" type="error" :message="$page.props.errors.category" dismissible />
 
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

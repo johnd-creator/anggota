@@ -142,7 +142,7 @@
       </CardContainer>
 
       <!-- Error Alert -->
-      <AlertBanner v-if="errorMessage" type="danger" :message="errorMessage" @close="errorMessage=''" />
+      <AlertBanner v-if="errorMessage" type="error" :message="errorMessage" dismissible @dismiss="errorMessage=''" />
     </div>
   </AppLayout>
 </template>

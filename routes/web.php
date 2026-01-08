@@ -433,6 +433,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('mutations/{mutation}', [\App\Http\Controllers\Admin\MutationController::class, 'show'])->name('mutations.show');
         Route::post('mutations/{mutation}/approve', [\App\Http\Controllers\Admin\MutationController::class, 'approve'])->middleware(['role:super_admin', 'throttle:10,1'])->name('mutations.approve');
         Route::post('mutations/{mutation}/reject', [\App\Http\Controllers\Admin\MutationController::class, 'reject'])->middleware(['role:super_admin', 'throttle:10,1'])->name('mutations.reject');
+        Route::post('mutations/{mutation}/cancel', [\App\Http\Controllers\Admin\MutationController::class, 'cancel'])->name('mutations.cancel');
 
         Route::get('members-export', function (\Illuminate\Http\Request $request) {
             Gate::authorize('export', \App\Models\Member::class);

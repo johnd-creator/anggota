@@ -1,8 +1,6 @@
 <template>
   <AppLayout page-title="Kotak Masuk Surat">
     <div class="space-y-6">
-      <AlertBanner v-if="$page.props.flash?.success" type="success" :message="$page.props.flash.success" dismissible />
-
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 class="text-lg font-semibold text-neutral-900">Kotak Masuk</h2>
@@ -107,7 +105,6 @@ import SummaryCard from '@/Components/UI/SummaryCard.vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
 import InputField from '@/Components/UI/InputField.vue'
-import AlertBanner from '@/Components/UI/AlertBanner.vue'
 import StatusBadge from '@/Components/UI/StatusBadge.vue'
 import ColorBadge from '@/Components/UI/ColorBadge.vue'
 import Pagination from '@/Components/UI/Pagination.vue'
