@@ -170,13 +170,13 @@ function openReject(p){ rejectOpen.value = true; activeItem.value = p; rejectRea
 
 function submitApprove(){
   router.post(`/admin/onboarding/${activeItem.value.id}/approve`, approveForm, {
-    onSuccess(){ panelOpen.value=false; toast.message='Pengajuan disetujui'; toast.type='success'; toast.show=true; setTimeout(()=>toast.show=false,3000); },
+    onSuccess(){ panelOpen.value=false; },
     onError(){ toast.message='Gagal menyetujui pengajuan'; toast.type='error'; toast.show=true; setTimeout(()=>toast.show=false,3000); }
   })
 }
 function submitReject(){
   router.post(`/admin/onboarding/${activeItem.value.id}/reject`, { reason: rejectReason.value }, {
-    onSuccess(){ rejectOpen.value=false; panelOpen.value=false; toast.message='Pengajuan ditolak'; toast.type='warning'; toast.show=true; setTimeout(()=>toast.show=false,3000); },
+    onSuccess(){ rejectOpen.value=false; panelOpen.value=false; },
     onError(){ toast.message='Gagal menolak pengajuan'; toast.type='error'; toast.show=true; setTimeout(()=>toast.show=false,3000); }
   })
 }
