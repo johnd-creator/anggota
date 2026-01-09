@@ -25,9 +25,9 @@ class SecurityHeadersMiddleware
         ];
         $viteHostsStr = implode(' ', $viteHosts);
         $wsHostsStr = implode(' ', $wsHosts);
-        $scriptSrc = $dev ? "'self' 'unsafe-inline' 'unsafe-eval' {$viteHostsStr}" : "'self' 'unsafe-inline' 'unsafe-eval'";
+        $scriptSrc = $dev ? "'self' 'unsafe-inline' 'unsafe-eval' {$viteHostsStr} https://static.cloudflareinsights.com" : "'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com";
         $styleSrc = $dev ? "'self' 'unsafe-inline' https://fonts.googleapis.com {$viteHostsStr}" : "'self' 'unsafe-inline' https://fonts.googleapis.com";
-        $connectSrc = $dev ? "'self' {$wsHostsStr} {$viteHostsStr}" : "'self'";
+        $connectSrc = $dev ? "'self' {$wsHostsStr} {$viteHostsStr} https://cloudflareinsights.com" : "'self' https://cloudflareinsights.com";
         $imgSrc = "'self' data: https://ui-avatars.com https://*.googleusercontent.com";
         $fontSrc = "'self' https://fonts.gstatic.com";
         $csp = "default-src 'self'; script-src {$scriptSrc}; style-src {$styleSrc}; font-src {$fontSrc}; img-src {$imgSrc}; connect-src {$connectSrc}";
