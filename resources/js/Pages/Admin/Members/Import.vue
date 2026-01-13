@@ -81,21 +81,72 @@
         <!-- Error Sample -->
         <div v-if="errors.length" class="mb-6">
           <h4 class="font-medium text-amber-800 mb-2">Contoh Error (max 20 baris):</h4>
+          
+          <!-- Legend -->
+          <div class="flex items-center gap-6 mb-3 text-sm text-neutral-600 bg-neutral-50 rounded-lg p-3">
+            <span class="font-medium">Keterangan:</span>
+            <span class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+              Critical (wajib diperbaiki)
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+              Warning (opsional tapi perlu perbaikan)
+            </span>
+          </div>
+          
           <div class="border rounded overflow-hidden">
             <table class="min-w-full divide-y divide-neutral-200 text-sm">
               <thead class="bg-amber-50">
                 <tr>
-                  <th class="px-4 py-2 text-left font-medium text-amber-800">Baris</th>
-                  <th class="px-4 py-2 text-left font-medium text-amber-800">Error</th>
+                  <th class="px-3 py-2 text-left font-medium text-amber-800 w-16">Baris</th>
+                  <th class="px-3 py-2 text-left font-medium text-amber-800 w-32">Field</th>
+                  <th class="px-3 py-2 text-left font-medium text-amber-800 w-32">Nilai Saat Ini</th>
+                  <th class="px-3 py-2 text-left font-medium text-amber-800">Error</th>
+                  <th class="px-3 py-2 text-left font-medium text-amber-800 w-48">Format yang Benar</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-neutral-100 bg-white">
-                <tr v-for="e in errors.slice(0, 20)" :key="e.row_number">
-                  <td class="px-4 py-2 text-neutral-600">{{ e.row_number }}</td>
-                  <td class="px-4 py-2 text-amber-700">{{ e.errors.join('; ') }}</td>
-                </tr>
+                <template v-for="(row, rowIdx) in processedErrors.slice(0, 20)" :key="row.row_number">
+                  <template v-for="(err, errIdx) in row.errors" :key="`${row.row_number}-${errIdx}`">
+                    <tr :class="errIdx > 0 ? 'border-t border-neutral-50' : ''">
+                      <td v-if="errIdx === 0" :rowspan="row.errors.length" class="px-3 py-2 text-neutral-600 font-medium align-top border-r border-neutral-100">
+                        {{ row.row_number }}
+                      </td>
+                      <td class="px-3 py-2 text-neutral-700">
+                        <span class="flex items-center gap-1.5">
+                          <span 
+                            class="w-2 h-2 rounded-full flex-shrink-0" 
+                            :class="err.severity === 'critical' ? 'bg-red-500' : 'bg-amber-500'"
+                          ></span>
+                          {{ err.field || '-' }}
+                        </span>
+                      </td>
+                      <td class="px-3 py-2 text-neutral-500 font-mono text-xs">
+                        {{ err.current_value || '(kosong)' }}
+                      </td>
+                      <td 
+                        class="px-3 py-2"
+                        :class="err.severity === 'critical' ? 'text-red-700' : 'text-amber-700'"
+                      >
+                        {{ err.message }}
+                      </td>
+                      <td class="px-3 py-2 text-neutral-500 text-xs">
+                        {{ err.expected_format || '-' }}
+                      </td>
+                    </tr>
+                  </template>
+                </template>
               </tbody>
             </table>
+          </div>
+          
+          <!-- Total error count and download link -->
+          <div v-if="batch.invalid_rows > 20" class="mt-2 text-sm text-neutral-600">
+            Menampilkan 20 dari {{ batch.invalid_rows }} baris error. 
+            <button @click="downloadErrors" class="text-brand-primary-600 hover:underline">
+              Download semua errors
+            </button>
           </div>
         </div>
 
@@ -153,7 +204,7 @@ import CardContainer from '@/Components/UI/CardContainer.vue';
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import AlertBanner from '@/Components/UI/AlertBanner.vue';
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import axios from 'axios';
 
 const step = ref('upload');
@@ -166,6 +217,38 @@ const errorMessage = ref('');
 const batch = reactive({ id: null, total_rows: 0, valid_rows: 0, invalid_rows: 0, original_filename: '' });
 const errors = ref([]);
 const result = reactive({ created_count: 0, updated_count: 0, error_count: 0 });
+
+// Computed property to process errors for display
+const processedErrors = computed(() => {
+  return errors.value.map(row => {
+    // Ensure errors is always an array of structured objects
+    const normalizedErrors = (row.errors || []).map(err => {
+      // Handle new structured format
+      if (typeof err === 'object' && err.field) {
+        return {
+          field: err.field || '',
+          severity: err.severity || 'warning',
+          current_value: err.current_value,
+          message: err.message || '',
+          expected_format: err.expected_format || '',
+        };
+      }
+      // Handle legacy string format
+      return {
+        field: '',
+        severity: 'warning',
+        current_value: null,
+        message: String(err),
+        expected_format: '',
+      };
+    });
+    
+    return {
+      row_number: row.row ?? row.row_number,
+      errors: normalizedErrors,
+    };
+  });
+});
 
 function onFileChange(e) {
   file.value = e.target.files[0] || null;

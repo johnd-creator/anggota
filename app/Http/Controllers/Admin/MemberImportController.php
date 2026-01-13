@@ -65,47 +65,59 @@ class MemberImportController extends Controller
 
         $file = $request->file('file');
 
-        // Run preview
-        $batch = $this->importService->preview($file, $unitId, $user);
+        try {
+            // Run preview
+            $batch = $this->importService->preview($file, $unitId, $user);
 
-        // Audit log (no PII)
-        AuditLog::create([
-            'user_id' => $user->id,
-            'organization_unit_id' => $unitId,
-            'event' => 'import.members.preview',
-            'event_category' => 'export',
-            'subject_type' => 'import_batch',
-            'subject_id' => $batch->id,
-            'payload' => [
-                'batch_id' => $batch->id,
-                'unit_id' => $unitId,
-                'total_rows' => $batch->total_rows,
-                'valid_rows' => $batch->valid_rows,
-                'invalid_rows' => $batch->invalid_rows,
-            ],
-        ]);
-
-        // Get first 20 errors for display
-        $errorSample = $batch->errors()
-            ->orderBy('row_number')
-            ->limit(20)
-            ->get()
-            ->map(fn($e) => [
-                'row' => $e->row_number,
-                'errors' => $e->errors_json,
+            // Audit log (no PII)
+            AuditLog::create([
+                'user_id' => $user->id,
+                'organization_unit_id' => $unitId,
+                'event' => 'import.members.preview',
+                'event_category' => 'export',
+                'subject_type' => 'import_batch',
+                'subject_id' => $batch->id,
+                'payload' => [
+                    'batch_id' => $batch->id,
+                    'unit_id' => $unitId,
+                    'total_rows' => $batch->total_rows,
+                    'valid_rows' => $batch->valid_rows,
+                    'invalid_rows' => $batch->invalid_rows,
+                ],
             ]);
 
-        return response()->json([
-            'batch' => [
-                'id' => $batch->id,
-                'status' => $batch->status,
-                'original_filename' => $batch->original_filename,
-                'total_rows' => $batch->total_rows,
-                'valid_rows' => $batch->valid_rows,
-                'invalid_rows' => $batch->invalid_rows,
-            ],
-            'errors' => $errorSample,
-        ]);
+            // Get first 20 errors for display
+            $errorSample = $batch->errors()
+                ->orderBy('row_number')
+                ->limit(20)
+                ->get()
+                ->map(fn($e) => [
+                    'row' => $e->row_number,
+                    'errors' => $e->errors_json,
+                ]);
+
+            return response()->json([
+                'batch' => [
+                    'id' => $batch->id,
+                    'status' => $batch->status,
+                    'original_filename' => $batch->original_filename,
+                    'total_rows' => $batch->total_rows,
+                    'valid_rows' => $batch->valid_rows,
+                    'invalid_rows' => $batch->invalid_rows,
+                ],
+                'errors' => $errorSample,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Import preview error: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'Preview gagal: ' . $e->getMessage(),
+            ], 422);
+        }
     }
 
     /**
@@ -245,11 +257,41 @@ class MemberImportController extends Controller
 
         return response()->streamDownload(function () use ($errors) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['row_number', 'errors']);
+
+            // New header with 6 columns for structured errors
+            fputcsv($out, ['row_number', 'severity', 'field', 'current_value', 'message', 'expected_format']);
 
             foreach ($errors as $error) {
-                $messages = is_array($error['errors'] ?? null) ? implode('; ', $error['errors']) : (string) ($error['errors'] ?? '');
-                fputcsv($out, [$error['row_number'] ?? '', $messages]);
+                $rowNumber = $error['row_number'] ?? '';
+                $errorList = $error['errors'] ?? [];
+
+                if (!is_array($errorList)) {
+                    continue;
+                }
+
+                foreach ($errorList as $fieldError) {
+                    // Handle both new structured format and legacy string format
+                    if (is_array($fieldError) && isset($fieldError['field'])) {
+                        fputcsv($out, [
+                            $rowNumber,
+                            $fieldError['severity'] ?? 'warning',
+                            $fieldError['field'] ?? '',
+                            $fieldError['current_value'] ?? '',
+                            $fieldError['message'] ?? '',
+                            $fieldError['expected_format'] ?? '',
+                        ]);
+                    } else {
+                        // Legacy string format - convert to basic structure
+                        fputcsv($out, [
+                            $rowNumber,
+                            'warning',
+                            '',
+                            '',
+                            is_string($fieldError) ? $fieldError : '',
+                            '',
+                        ]);
+                    }
+                }
             }
 
             fclose($out);

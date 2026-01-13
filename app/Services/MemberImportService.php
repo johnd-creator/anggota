@@ -19,6 +19,43 @@ class MemberImportService
     private const VALID_STATUSES = ['aktif', 'cuti', 'suspended', 'resign', 'pensiun'];
 
     /**
+     * Valid employment types.
+     */
+    private const VALID_EMPLOYMENT_TYPES = ['organik', 'tkwt'];
+
+    /**
+     * Valid gender values.
+     */
+    private const VALID_GENDERS = ['L', 'P'];
+
+    /**
+     * Create structured field-level error.
+     *
+     * @param string $field Nama field yang error
+     * @param string $severity 'critical' atau 'warning'
+     * @param string|null $currentValue Nilai saat ini yang invalid
+     * @param string $message Pesan error dalam Bahasa Indonesia
+     * @param string $expectedFormat Format/contoh yang benar
+     * @return array Structured error object
+     */
+    private function createFieldError(
+        string $field,
+        string $severity,
+        ?string $currentValue,
+        string $message,
+        string $expectedFormat
+    ): array {
+        return [
+            'field' => $field,
+            'severity' => $severity,
+            'current_value' => $currentValue,
+            'message' => $message,
+            'expected_format' => $expectedFormat,
+        ];
+    }
+
+
+    /**
      * Normalize row keys/shape into the canonical schema used by this service.
      * Supports legacy templates that use `personal_*` and `company_email`.
      */
@@ -64,7 +101,7 @@ class MemberImportService
     /**
      * Validate and return error list for rows (includes internal duplicate detection).
      *
-     * @return array<int,array{row_number:int,errors:array<int,string>}>
+     * @return array<int,array{row_number:int,errors:array<int,array>}>
      */
     public function collectValidationErrors(array $rows, ?int $unitId): array
     {
@@ -82,12 +119,17 @@ class MemberImportService
             $nip = isset($row['nip']) ? strtoupper(trim((string) $row['nip'])) : null;
             $nra = isset($row['nra']) ? strtoupper(trim((string) $row['nra'])) : null;
             $email = isset($row['email']) ? strtolower(trim((string) $row['email'])) : null;
-            $ktaNumber = isset($row['kta_number']) ? strtoupper(trim((string) $row['kta_number'])) : null;
 
-            // Internal duplicates (file-level)
+            // Internal duplicates (file-level) - Critical severity
             if ($nip) {
                 if (isset($seenNip[$nip])) {
-                    $rowErrors[] = "NIP '{$nip}' duplikat dengan baris {$seenNip[$nip]}";
+                    $rowErrors[] = $this->createFieldError(
+                        'nip',
+                        'critical',
+                        $nip,
+                        "NIP '{$nip}' duplikat dengan baris {$seenNip[$nip]}",
+                        'NIP harus unik dalam file import'
+                    );
                 } else {
                     $seenNip[$nip] = $rowNumber;
                 }
@@ -95,7 +137,13 @@ class MemberImportService
 
             if ($nra) {
                 if (isset($seenNra[$nra])) {
-                    $rowErrors[] = "NRA '{$nra}' duplikat dengan baris {$seenNra[$nra]}";
+                    $rowErrors[] = $this->createFieldError(
+                        'nra',
+                        'critical',
+                        $nra,
+                        "NRA '{$nra}' duplikat dengan baris {$seenNra[$nra]}",
+                        'NRA harus unik dalam file import'
+                    );
                 } else {
                     $seenNra[$nra] = $rowNumber;
                 }
@@ -103,7 +151,13 @@ class MemberImportService
 
             if ($email) {
                 if (isset($seenEmail[$email])) {
-                    $rowErrors[] = "Email '{$this->maskEmail($email)}' duplikat dengan baris {$seenEmail[$email]}";
+                    $rowErrors[] = $this->createFieldError(
+                        'email',
+                        'critical',
+                        $this->maskEmail($email),
+                        "Email duplikat dengan baris {$seenEmail[$email]}",
+                        'Email harus unik dalam file import'
+                    );
                 } else {
                     $seenEmail[$email] = $rowNumber;
                 }
@@ -116,9 +170,7 @@ class MemberImportService
                 $effectiveUnitId = isset($row['organization_unit_id']) ? (int) trim((string) $row['organization_unit_id']) : null;
             }
             if ($effectiveUnitId) {
-                foreach ($this->dbConflictErrors($row, $effectiveUnitId) as $msg) {
-                    $rowErrors[] = $msg;
-                }
+                $rowErrors = array_merge($rowErrors, $this->dbConflictErrors($row, $effectiveUnitId));
             }
 
             if (!empty($rowErrors)) {
@@ -135,11 +187,11 @@ class MemberImportService
     /**
      * Detect conflicts with existing DB records that would violate constraints or enable cross-unit IDOR.
      *
-     * @return array<int,string>
+     * @return array<int,array> Array of structured field errors
      */
     private function dbConflictErrors(array $row, int $effectiveUnitId): array
     {
-        $messages = [];
+        $errors = [];
 
         $nra = isset($row['nra']) ? strtoupper(trim((string) $row['nra'])) : null;
         $email = isset($row['email']) ? strtolower(trim((string) $row['email'])) : null;
@@ -149,33 +201,58 @@ class MemberImportService
         if ($nra) {
             $existing = Member::where('nra', $nra)->first(['id', 'organization_unit_id']);
             if ($existing && (int) $existing->organization_unit_id !== (int) $effectiveUnitId) {
-                $messages[] = "NRA '{$nra}' sudah digunakan oleh unit lain";
+                $errors[] = $this->createFieldError(
+                    'nra',
+                    'critical',
+                    $nra,
+                    "NRA '{$nra}' sudah digunakan oleh unit lain",
+                    'Gunakan NRA yang unik atau import ke unit yang sesuai'
+                );
             }
         }
 
         if ($email) {
             $existing = Member::where('email', $email)->first(['id', 'organization_unit_id']);
             if ($existing && (int) $existing->organization_unit_id !== (int) $effectiveUnitId) {
-                $messages[] = "Email '{$this->maskEmail($email)}' sudah digunakan oleh unit lain";
+                $errors[] = $this->createFieldError(
+                    'email',
+                    'critical',
+                    $this->maskEmail($email),
+                    'Email sudah digunakan oleh unit lain',
+                    'Gunakan email yang berbeda atau import ke unit yang sesuai'
+                );
             }
         }
 
         if ($nip) {
             $existing = Member::where('nip', $nip)->first(['id', 'organization_unit_id']);
             if ($existing && (int) $existing->organization_unit_id !== (int) $effectiveUnitId) {
-                $messages[] = "NIP '{$nip}' sudah digunakan oleh unit lain";
+                $errors[] = $this->createFieldError(
+                    'nip',
+                    'critical',
+                    $nip,
+                    "NIP '{$nip}' sudah digunakan oleh unit lain",
+                    'Gunakan NIP yang unik atau import ke unit yang sesuai'
+                );
             }
         }
 
         if ($ktaNumber) {
             $existing = Member::where('kta_number', $ktaNumber)->first(['id', 'organization_unit_id']);
             if ($existing && (int) $existing->organization_unit_id !== (int) $effectiveUnitId) {
-                $messages[] = "KTA '{$ktaNumber}' sudah digunakan oleh unit lain";
+                $errors[] = $this->createFieldError(
+                    'kta_number',
+                    'critical',
+                    $ktaNumber,
+                    "KTA '{$ktaNumber}' sudah digunakan oleh unit lain",
+                    'Gunakan nomor KTA yang unik atau import ke unit yang sesuai'
+                );
             }
         }
 
-        return $messages;
+        return $errors;
     }
+
 
     /**
      * Preview an import file without committing.
@@ -229,7 +306,10 @@ class MemberImportService
 
     /**
      * Validate a single row.
-     * Returns array of error messages (empty if valid).
+     * Returns array of structured field-level errors (empty if valid).
+     * 
+     * Each error is an array with: field, severity, current_value, message, expected_format.
+     * Severity: 'critical' for required fields, 'warning' for optional field format issues.
      * 
      * SECURITY: For global batches (unitId null), organization_unit_id is required per row.
      */
@@ -237,69 +317,208 @@ class MemberImportService
     {
         $errors = [];
 
-        // Normalize
+        // Normalize field values
         $fullName = isset($row['full_name']) ? trim($row['full_name']) : '';
         $status = isset($row['status']) ? strtolower(trim($row['status'])) : '';
         $email = isset($row['email']) ? strtolower(trim($row['email'])) : '';
         $phone = isset($row['phone']) ? trim($row['phone']) : '';
         $nra = isset($row['nra']) ? strtoupper(trim($row['nra'])) : '';
-        $ktaNumber = isset($row['kta_number']) ? strtoupper(trim($row['kta_number'])) : '';
         $nip = isset($row['nip']) ? trim($row['nip']) : '';
         $joinDate = isset($row['join_date']) ? trim($row['join_date']) : '';
         $birthDate = isset($row['birth_date']) ? trim($row['birth_date']) : '';
         $gender = isset($row['gender']) ? strtoupper(trim((string) $row['gender'])) : '';
         $orgUnitId = isset($row['organization_unit_id']) ? trim($row['organization_unit_id']) : '';
+        $employmentType = isset($row['employment_type']) ? strtolower(trim((string) $row['employment_type'])) : '';
+        $unionPosCode = isset($row['union_position_code']) ? trim((string) $row['union_position_code']) : '';
 
-        // Required: full_name
+        // ========== REQUIRED FIELDS (Critical Severity) ==========
+
+        // full_name: Wajib diisi, min 2 karakter, max 255 karakter
         if (empty($fullName)) {
-            $errors[] = 'full_name wajib diisi';
-        } elseif (strlen($fullName) > 255) {
-            $errors[] = 'full_name terlalu panjang (max 255)';
+            $errors[] = $this->createFieldError(
+                'full_name',
+                'critical',
+                null,
+                'Nama lengkap wajib diisi',
+                'Minimal 2 karakter, contoh: Budi Santoso'
+            );
+        } elseif (mb_strlen($fullName) < 2) {
+            $errors[] = $this->createFieldError(
+                'full_name',
+                'critical',
+                $fullName,
+                'Nama lengkap terlalu pendek (minimal 2 karakter)',
+                'Contoh: Budi Santoso'
+            );
+        } elseif (mb_strlen($fullName) > 255) {
+            $errors[] = $this->createFieldError(
+                'full_name',
+                'critical',
+                mb_substr($fullName, 0, 50) . '...',
+                'Nama lengkap terlalu panjang (maksimal 255 karakter)',
+                'Maksimal 255 karakter'
+            );
         }
 
-        // Required: status (whitelist)
+        // status: Wajib diisi, salah satu dari: aktif, cuti, suspended, resign, pensiun
         if (empty($status)) {
-            $errors[] = 'status wajib diisi';
-        } elseif (!in_array($status, self::VALID_STATUSES)) {
-            $errors[] = "status harus salah satu dari: " . implode(', ', self::VALID_STATUSES);
+            $errors[] = $this->createFieldError(
+                'status',
+                'critical',
+                null,
+                'Status keanggotaan wajib diisi',
+                'Gunakan salah satu: ' . implode(', ', self::VALID_STATUSES)
+            );
+        } elseif (!in_array($status, self::VALID_STATUSES, true)) {
+            $errors[] = $this->createFieldError(
+                'status',
+                'critical',
+                $status,
+                "Status '{$status}' tidak valid",
+                'Gunakan salah satu: ' . implode(', ', self::VALID_STATUSES)
+            );
         }
 
-        // Optional: email format
+        // ========== OPTIONAL FIELDS (Warning Severity if format invalid) ==========
+
+        // email: Format email valid (hanya validasi jika diisi)
         if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'format email tidak valid';
+            $errors[] = $this->createFieldError(
+                'email',
+                'warning',
+                $email,
+                'Format email tidak valid',
+                'Contoh: nama@domain.com'
+            );
         }
 
-        // Optional: phone format (basic check)
+        // phone: Format telepon valid (digit, spasi, +, -, (, ))
         if (!empty($phone) && !preg_match('/^[\d\s\-\+\(\)]+$/', $phone)) {
-            $errors[] = 'format nomor telepon tidak valid';
+            $errors[] = $this->createFieldError(
+                'phone',
+                'warning',
+                $phone,
+                'Format nomor telepon tidak valid',
+                'Contoh: +62 812-3456-7890 atau 081234567890'
+            );
         }
 
-        // Optional: join_date format
-        if (!empty($joinDate) && !$this->parseDate($joinDate)) {
-            $errors[] = 'format tanggal bergabung tidak valid (gunakan YYYY-MM-DD)';
-        }
-
-        // Optional: birth_date format
+        // birth_date: Format tanggal valid
         if (!empty($birthDate) && !$this->parseDate($birthDate)) {
-            $errors[] = 'format tanggal lahir tidak valid (gunakan YYYY-MM-DD)';
+            $errors[] = $this->createFieldError(
+                'birth_date',
+                'warning',
+                $birthDate,
+                'Format tanggal lahir tidak valid',
+                'Gunakan format: YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY, atau YYYY/MM/DD'
+            );
         }
 
-        // Optional: gender format
-        if (!empty($gender) && !in_array($gender, ['L', 'P'], true)) {
-            $errors[] = 'gender harus L atau P';
+        // gender: L atau P
+        if (!empty($gender) && !in_array($gender, self::VALID_GENDERS, true)) {
+            $errors[] = $this->createFieldError(
+                'gender',
+                'warning',
+                $gender,
+                "Jenis kelamin '{$gender}' tidak valid",
+                'Gunakan: L (Laki-laki) atau P (Perempuan)'
+            );
         }
 
-        // SECURITY: Unit validation based on batch type
+        // join_date: Format tanggal valid
+        if (!empty($joinDate) && !$this->parseDate($joinDate)) {
+            $errors[] = $this->createFieldError(
+                'join_date',
+                'warning',
+                $joinDate,
+                'Format tanggal bergabung tidak valid',
+                'Gunakan format: YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY, atau YYYY/MM/DD'
+            );
+        }
+
+        // employment_type: organik atau tkwt
+        if (!empty($employmentType) && !in_array($employmentType, self::VALID_EMPLOYMENT_TYPES, true)) {
+            $errors[] = $this->createFieldError(
+                'employment_type',
+                'warning',
+                $employmentType,
+                "Tipe kepegawaian '{$employmentType}' tidak valid",
+                'Gunakan: organik atau tkwt'
+            );
+        }
+
+        // nip: Format alphanumeric (was numeric only)
+        if (!empty($nip) && !preg_match('/^[A-Za-z0-9]+$/', $nip)) {
+            $errors[] = $this->createFieldError(
+                'nip',
+                'warning',
+                $nip,
+                'Format NIP tidak valid (hanya boleh huruf dan angka)',
+                'Contoh: 19901234567890B'
+            );
+        }
+
+        // nra: Format UNIT-YEAR-SEQUENCE (pattern: ^[A-Z]-\d{4}-\d{3,4}$)
+        if (!empty($nra) && !preg_match('/^[A-Z]+-\d{4}-\d{3,4}$/', $nra)) {
+            $errors[] = $this->createFieldError(
+                'nra',
+                'warning',
+                $nra,
+                'Format NRA tidak valid',
+                'Contoh: A-2024-001 atau UP-2024-0012'
+            );
+        }
+
+        // union_position_code: Validasi exist di database
+        if (!empty($unionPosCode)) {
+            $posExists = \App\Models\UnionPosition::where('code', $unionPosCode)
+                ->orWhere('name', $unionPosCode)
+                ->exists();
+            if (!$posExists) {
+                // Try case-insensitive search or suggest checking Master Data
+                $errors[] = $this->createFieldError(
+                    'union_position_code',
+                    'warning',
+                    $unionPosCode,
+                    "Jabatan serikat '{$unionPosCode}' tidak ditemukan",
+                    'Gunakan kode atau nama jabatan yang terdaftar di Master Data > Jabatan Serikat'
+                );
+            }
+        }
+
+        // ========== CONDITIONAL REQUIRED: organization_unit_id (Critical for global batch) ==========
+        // If batch is global (unitId is null), then per-row unit ID is required.
+        // If batch is unit-scoped (unitId provided), then per-row unit ID is optional (will fallback to batch unit).
         if ($unitId === null) {
             // Global batch: organization_unit_id is REQUIRED per row
             if (empty($orgUnitId)) {
-                $errors[] = 'organization_unit_id wajib diisi untuk import global';
+                $errors[] = $this->createFieldError(
+                    'organization_unit_id',
+                    'critical',
+                    null,
+                    'Unit organisasi wajib diisi untuk import global',
+                    'Isi dengan ID unit organisasi yang valid'
+                );
             } elseif (!OrganizationUnit::where('id', $orgUnitId)->exists()) {
-                $errors[] = "organization_unit_id '{$orgUnitId}' tidak ditemukan";
+                $errors[] = $this->createFieldError(
+                    'organization_unit_id',
+                    'critical',
+                    $orgUnitId,
+                    "Unit organisasi dengan ID '{$orgUnitId}' tidak ditemukan",
+                    'Gunakan ID unit organisasi yang terdaftar di sistem'
+                );
             }
         } else {
-            // Scoped batch: row unit is ignored (batch unit enforced)
-            // No error needed, just informational - batch unit will be used
+            // Unit-scoped batch: Check if row tries to inject different unit
+            if (!empty($orgUnitId) && (int) $orgUnitId !== (int) $unitId) {
+                $errors[] = $this->createFieldError(
+                    'organization_unit_id',
+                    'critical',
+                    $orgUnitId,
+                    "ID Unit tidak sesuai dengan wewenang Anda (Unit {$unitId})",
+                    'Kosongkan kolom ini atau isi dengan ID unit Anda sendiri'
+                );
+            }
         }
 
         return $errors;
@@ -704,6 +923,32 @@ class MemberImportService
                     $sequenceNumber = (int) (Member::where('organization_unit_id', $effectiveUnitId)
                         ->where('join_year', $joinYear)
                         ->max('sequence_number') ?? 0) + 1;
+                }
+
+                // FIX: Generate KTA number if missing (KTA format: 010-SPPIPS-24001 vs NRA: 010-24-001)
+                // This ensures consistency with manual/google login creation
+                if (!$ktaNumber) {
+                    $ktaGen = \App\Services\KtaGenerator::generate($effectiveUnitId, $joinYear);
+                    $ktaNumber = $ktaGen['kta'];
+                    // Note: KtaGenerator also generates a sequence, but we already have one from NraGenerator or fallback.
+                    // Ideally both should use the same sequence, but for now we prioritize having a KTA valid format.
+                    // If sequence is critical for KTA to match NRA exactly, we should use the same sequence.
+                    // KtaGenerator uses lockForUpdate, so it's safe. 
+                    // Let's use the KTA's sequence for consistency if we just generated it.
+                    if (isset($ktaGen['sequence'])) {
+                        $sequenceNumber = $ktaGen['sequence'];
+                        // Re-generate NRA to match KTA sequence if needed, OR just update the sequence used.
+                        // Ideally NRA and KTA share the same sequence number.
+                        // Let's preserve the NRA prefix but update sequence to match KTA if possible.
+                        // However, NRA format is simpler. Let's just trust KTA generator's sequence 
+                        // and implicitely update NRA if we hadn't already fixed it?
+                        // Actually, let's keep it simple: Use generated KTA. 
+                        // If we didn't have NRA, regenerate NRA with new sequence?
+                        if (!$nra) {
+                            $yearTwoDigit = (int) substr((string) $joinYear, -2);
+                            $nra = sprintf('%03d-%02d-%03d', $effectiveUnitId, $yearTwoDigit, $sequenceNumber);
+                        }
+                    }
                 }
 
                 // Some environments enforce NOT NULL for email; generate a placeholder if missing.
