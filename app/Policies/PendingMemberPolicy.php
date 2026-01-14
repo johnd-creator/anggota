@@ -45,4 +45,19 @@ class PendingMemberPolicy
     {
         return $this->approve($user, $pending);
     }
+
+    public function delete(User $user, PendingMember $pending): bool
+    {
+        // Global users (super_admin, admin_pusat) can delete any pending member
+        if ($user->hasGlobalAccess()) {
+            return true;
+        }
+
+        // admin_unit can delete any pending member (no organization unit check)
+        if ($user->hasRole('admin_unit')) {
+            return true;
+        }
+
+        return false;
+    }
 }

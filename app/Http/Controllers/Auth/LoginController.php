@@ -166,6 +166,33 @@ class LoginController extends Controller
 
         // Redirect based on Role
         if ($user->role && $user->role->name === 'reguler') {
+            // Check if user has rejected pending member, delete it FIRST
+            // This must happen before checking existing member to allow retry
+            if (Schema::hasTable('pending_members')) {
+                $rejectedPending = PendingMember::where('user_id', $user->id)
+                    ->where('status', 'rejected')
+                    ->first();
+                
+                if ($rejectedPending) {
+                    // Log deletion
+                    ActivityLog::create([
+                        'actor_id' => $user->id,
+                        'action' => 'auto_delete_rejected_pending_member',
+                        'subject_type' => PendingMember::class,
+                        'subject_id' => $rejectedPending->id,
+                        'payload' => [
+                            'email' => $user->email,
+                            'previous_status' => 'rejected',
+                            'reason' => $rejectedPending->notes,
+                            'provider' => 'google',
+                        ],
+                    ]);
+                    
+                    // Delete rejected pending member
+                    $rejectedPending->delete();
+                }
+            }
+
             // Check if member already exists with this email
             $existingMember = \App\Models\Member::where('email', $user->email)->first();
 
@@ -285,6 +312,33 @@ class LoginController extends Controller
 
         // Redirect based on role
         if ($user->role && $user->role->name === 'reguler') {
+            // Check if user has rejected pending member, delete it FIRST
+            // This must happen before checking existing member to allow retry
+            if (Schema::hasTable('pending_members')) {
+                $rejectedPending = PendingMember::where('user_id', $user->id)
+                    ->where('status', 'rejected')
+                    ->first();
+                
+                if ($rejectedPending) {
+                    // Log deletion
+                    ActivityLog::create([
+                        'actor_id' => $user->id,
+                        'action' => 'auto_delete_rejected_pending_member',
+                        'subject_type' => PendingMember::class,
+                        'subject_id' => $rejectedPending->id,
+                        'payload' => [
+                            'email' => $user->email,
+                            'previous_status' => 'rejected',
+                            'reason' => $rejectedPending->notes,
+                            'provider' => 'microsoft',
+                        ],
+                    ]);
+                    
+                    // Delete rejected pending member
+                    $rejectedPending->delete();
+                }
+            }
+
             // Check if member already exists with this email
             $existingMember = \App\Models\Member::where('email', $user->email)->first();
 

@@ -35,8 +35,16 @@ class OnboardingController extends Controller
             }
         }
 
-        // Query for pending items
-        $query = (clone $baseQuery)->with('unit')->where('status', 'pending');
+        // Query for pending items (respect filter.status parameter)
+        $query = (clone $baseQuery)->with('unit');
+
+        if ($request->has('status') && $request->status) {
+            $query->where('status', $request->status);
+        } else {
+            // Default to show pending only
+            $query->where('status', 'pending');
+        }
+
         $pendings = $query->latest()->paginate(10)->withQueryString();
 
         // Stats from scoped base query (not global)
