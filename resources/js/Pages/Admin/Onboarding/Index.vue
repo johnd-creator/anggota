@@ -86,7 +86,7 @@
           <SelectField label="Jabatan Serikat" v-model="approveForm.union_position_id" :options="positionOptions" required />
           <InputField label="Email" type="email" v-model="approveForm.email" required />
           <InputField label="Join Date" type="date" v-model="approveForm.join_date" required />
-          <SelectField label="Unit" v-model="approveForm.organization_unit_id" :options="unitOptions" required />
+          <SelectField v-if="isGlobalUser" label="Unit" v-model="approveForm.organization_unit_id" :options="unitOptions" required />
           <div class="md:col-span-2 flex justify-end gap-2 pt-4 border-t border-neutral-100">
             <SecondaryButton type="button" @click="panelOpen=false">Batal</SecondaryButton>
             <PrimaryButton type="submit">Terima Anggota</PrimaryButton>
@@ -124,17 +124,22 @@ import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import Pagination from '@/Components/UI/Pagination.vue';
 import SummaryCard from '@/Components/UI/SummaryCard.vue';
-import { usePage, router } from '@inertiajs/vue3';
-import Toast from '@/Components/UI/Toast.vue';
-import { ref, reactive, watch } from 'vue';
+ import { usePage, router } from '@inertiajs/vue3';
+ import Toast from '@/Components/UI/Toast.vue';
+ import { ref, reactive, watch, computed } from 'vue';
 
-const page = usePage();
-const items = page.props.items;
-const units = page.props.units || [];
-const positions = page.props.positions || [];
-const stats = page.props.stats || [];
-const unitOptions = units.map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
-const positionOptions = positions.map(p => ({ label: p.name, value: p.id }));
+ const page = usePage();
+ const items = page.props.items;
+ const units = page.props.units || [];
+ const positions = page.props.positions || [];
+ const stats = page.props.stats || [];
+ const user = page.props.auth?.user || null;
+ const unitOptions = units.map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
+ const positionOptions = positions.map(p => ({ label: p.name, value: p.id }));
+
+ const isGlobalUser = computed(() => {
+   return user && (user.role?.name === 'super_admin' || user.role?.name === 'admin_pusat');
+ });
 const statusOptions = [
   {label:'Semua Status', value:''},
   {label:'Pending', value:'pending'},

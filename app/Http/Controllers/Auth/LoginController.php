@@ -166,6 +166,31 @@ class LoginController extends Controller
 
         // Redirect based on Role
         if ($user->role && $user->role->name === 'reguler') {
+            // Check if member already exists with this email
+            $existingMember = \App\Models\Member::where('email', $user->email)->first();
+
+            if ($existingMember) {
+                // Link user to existing member
+                $user->assignMember($existingMember);
+
+                // Log linkage
+                ActivityLog::create([
+                    'actor_id' => $user->id,
+                    'action' => 'user_linked_to_existing_member',
+                    'subject_type' => \App\Models\Member::class,
+                    'subject_id' => $existingMember->id,
+                    'payload' => [
+                        'email' => $user->email,
+                        'member_id' => $existingMember->id,
+                        'nra' => $existingMember->nra,
+                        'provider' => 'google',
+                    ],
+                ]);
+
+                return redirect()->route('dashboard');
+            }
+
+            // No member found, create onboarding entry
             if (Schema::hasTable('pending_members')) {
                 $pending = PendingMember::firstOrCreate(
                     ['user_id' => $user->id],
@@ -242,25 +267,6 @@ class LoginController extends Controller
                 'password' => bcrypt(Str::random(16)),
                 'role_id' => Role::where('name', 'reguler')->value('id'), // Default to reguler/onboarding
             ]);
-
-            // Create pending member entry for onboarding flow
-            if (Schema::hasTable('pending_members')) {
-                $pending = PendingMember::firstOrCreate(
-                    ['user_id' => $user->id],
-                    [
-                        'email' => $user->email,
-                        'name' => $user->name,
-                        'status' => 'pending',
-                    ]
-                );
-                ActivityLog::create([
-                    'actor_id' => $user->id,
-                    'action' => 'onboarding_pending_created',
-                    'subject_type' => PendingMember::class,
-                    'subject_id' => $pending->id,
-                    'payload' => ['email' => $pending->email, 'name' => $pending->name],
-                ]);
-            }
         } else {
             // Update/Link Existing User
             $user->forceFill([
@@ -279,6 +285,48 @@ class LoginController extends Controller
 
         // Redirect based on role
         if ($user->role && $user->role->name === 'reguler') {
+            // Check if member already exists with this email
+            $existingMember = \App\Models\Member::where('email', $user->email)->first();
+
+            if ($existingMember) {
+                // Link user to existing member
+                $user->assignMember($existingMember);
+
+                // Log linkage
+                ActivityLog::create([
+                    'actor_id' => $user->id,
+                    'action' => 'user_linked_to_existing_member',
+                    'subject_type' => \App\Models\Member::class,
+                    'subject_id' => $existingMember->id,
+                    'payload' => [
+                        'email' => $user->email,
+                        'member_id' => $existingMember->id,
+                        'nra' => $existingMember->nra,
+                        'provider' => 'microsoft',
+                    ],
+                ]);
+
+                return redirect()->route('dashboard');
+            }
+
+            // No member found, create onboarding entry
+            if (Schema::hasTable('pending_members')) {
+                $pending = PendingMember::firstOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'email' => $user->email,
+                        'name' => $user->name,
+                        'status' => 'pending',
+                    ]
+                );
+                ActivityLog::create([
+                    'actor_id' => $user->id,
+                    'action' => 'onboarding_pending_created',
+                    'subject_type' => PendingMember::class,
+                    'subject_id' => $pending->id,
+                    'payload' => ['email' => $pending->email, 'name' => $pending->name],
+                ]);
+            }
             return redirect()->route('itworks');
         }
 

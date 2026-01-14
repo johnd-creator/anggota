@@ -19,7 +19,8 @@ class PendingMemberPolicy
         }
 
         if ($user->hasRole('admin_unit')) {
-            return $user->currentUnitId() === $pending->organization_unit_id;
+            // admin_unit can view ANY pending member (no organization unit check)
+            return true;
         }
 
         return false;
@@ -32,7 +33,9 @@ class PendingMemberPolicy
         }
 
         if ($user->hasRole('admin_unit')) {
-            return $user->currentUnitId() === $pending->organization_unit_id;
+            // admin_unit can approve ANY pending member (no organization unit check)
+            // They will approve to their own unit (logic in controller)
+            return true;
         }
 
         return false;

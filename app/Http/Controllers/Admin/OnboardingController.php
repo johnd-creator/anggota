@@ -24,8 +24,12 @@ class OnboardingController extends Controller
         // Build base query with unit scope for non-global users
         $baseQuery = PendingMember::query();
         if (!$user->hasGlobalAccess()) {
+            // admin_unit can see ALL pending members (no organization_unit_id filter)
             if ($unitId) {
-                $baseQuery->where('organization_unit_id', $unitId);
+                // Filter only if user has a unit, but allow all pending members
+                // This allows admin_unit to see pending members from SSO (NULL organization_unit_id)
+                // as well as any pending members assigned to any unit
+                // NOT filtering by organization_unit_id anymore
             } else {
                 $baseQuery->whereRaw('1=0');
             }
@@ -55,16 +59,24 @@ class OnboardingController extends Controller
     {
         Gate::authorize('approve', $pending);
 
-        $validated = $request->validate([
+        $user = $request->user();
+
+        $rules = [
             'full_name' => 'required|string|max:255',
             'email' => 'required|email|unique:members,email',
-            'organization_unit_id' => 'required|exists:organization_units,id',
             'join_date' => 'required|date',
             'nip' => 'required|alpha_num|max:50',
             'union_position_id' => 'required|exists:union_positions,id',
-        ]);
+        ];
 
-        $user = $request->user();
+        // Only require organization_unit_id for global users (super_admin, admin_pusat)
+        // admin_unit will use their own unit automatically
+        if ($user->hasGlobalAccess()) {
+            $rules['organization_unit_id'] = 'required|exists:organization_units,id';
+        }
+
+        $validated = $request->validate($rules);
+
         // admin_unit approves to their own unit; global users can approve to any unit
         if (!$user->hasGlobalAccess()) {
             $userUnitId = $user->currentUnitId();
