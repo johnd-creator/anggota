@@ -453,7 +453,7 @@
             </div>
 
             <!-- Recent Activity Panel (Moved to Bottom) -->
-            <div class="bg-white rounded-xl shadow-sm border border-neutral-100 p-6">
+            <div class="hidden md:block bg-white rounded-xl shadow-sm border border-neutral-100 p-6">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-neutral-900">Recent Activity</h3>
                     <button class="p-1.5 rounded-lg hover:bg-neutral-100 transition-colors">
@@ -477,6 +477,27 @@
                     <div v-if="recentActivities.length === 0" class="text-center py-4 text-sm text-neutral-500">
                         Belum ada aktivitas terbaru
                     </div>
+                </div>
+            </div>
+
+            <!-- Mobile: Recent Activity Cards -->
+            <div v-if="recentActivities.length > 0" class="md:hidden space-y-3">
+                <h3 class="text-sm font-medium text-neutral-500 uppercase tracking-wide mb-2">Recent Activity</h3>
+                <DataCard
+                    v-for="(activity, index) in recentActivities"
+                    :key="index"
+                    :title="activity.message"
+                    :status="activity.type"
+                    :meta="[
+                        { label: 'Waktu', value: activity.time }
+                    ]"
+                >
+                    <template #actions>
+                        <div :class="['w-2 h-2 rounded-full flex-shrink-0', getActivityDotClass(activity.type)]"></div>
+                    </template>
+                </DataCard>
+                <div v-if="recentActivities.length === 0" class="text-center py-4 text-sm text-neutral-500">
+                    Belum ada aktivitas terbaru
                 </div>
             </div>
         </div>
@@ -525,6 +546,7 @@ import ProgressBar from '@/Components/UI/ProgressBar.vue';
 import StatusBadge from '@/Components/UI/StatusBadge.vue';
 import ModalBase from '@/Components/UI/ModalBase.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
+import DataCard from '@/Components/Mobile/DataCard.vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
@@ -683,6 +705,16 @@ const getActivityIconClass = (type) => {
         info: 'text-blue-500',
         warning: 'text-amber-500',
         error: 'text-red-500',
+    };
+    return classes[type] || classes.info;
+};
+
+const getActivityDotClass = (type) => {
+    const classes = {
+        success: 'bg-green-500',
+        info: 'bg-blue-500',
+        warning: 'bg-amber-500',
+        error: 'bg-red-500',
     };
     return classes[type] || classes.info;
 };

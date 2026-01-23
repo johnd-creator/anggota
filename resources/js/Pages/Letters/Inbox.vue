@@ -39,8 +39,8 @@
         </div>
       </CardContainer>
 
-      <!-- Letters Table -->
-      <CardContainer padding="none" class="overflow-hidden">
+      <!-- Letters Table (Desktop) -->
+      <CardContainer padding="none" class="hidden md:block overflow-hidden">
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-neutral-200">
             <thead class="bg-neutral-50">
@@ -94,6 +94,35 @@
         <!-- Pagination -->
         <Pagination :paginator="letters" />
       </CardContainer>
+
+      <!-- Letters Cards (Mobile) -->
+      <div v-if="letters.data.length > 0" class="md:hidden space-y-3">
+        <DataCard
+            v-for="letter in letters.data"
+            :key="letter.id"
+            :title="letter.subject"
+            :subtitle="letter.letter_number || `Kategori: ${letter.category?.code || '-'}`"
+            :status="letter.status"
+            :meta="[
+                { label: 'Dari', value: letter.from_unit?.name || 'Pusat' },
+                { label: 'Tanggal', value: formatDate(letter.created_at) }
+            ]"
+        >
+            <template #actions>
+                <Link :href="`/letters/${letter.id}`" class="text-brand-primary-600 text-sm font-medium">
+                    Detail
+                </Link>
+            </template>
+        </DataCard>
+        <div v-if="letters.data.length === 0" class="text-center py-8 text-neutral-500">
+            Tidak ada surat masuk.
+        </div>
+      </div>
+
+      <!-- Mobile Pagination -->
+      <div v-if="letters.data.length > 0" class="md:hidden mt-4">
+        <Pagination :paginator="letters" />
+      </div>
     </div>
   </AppLayout>
 </template>
@@ -108,6 +137,7 @@ import InputField from '@/Components/UI/InputField.vue'
 import StatusBadge from '@/Components/UI/StatusBadge.vue'
 import ColorBadge from '@/Components/UI/ColorBadge.vue'
 import Pagination from '@/Components/UI/Pagination.vue'
+import DataCard from '@/Components/Mobile/DataCard.vue'
 
 const props = defineProps({
   letters: Object,

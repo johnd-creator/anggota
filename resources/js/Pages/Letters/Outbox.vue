@@ -42,8 +42,8 @@
         </div>
       </CardContainer>
 
-      <!-- Letters Table -->
-      <CardContainer padding="none" class="overflow-hidden">
+      <!-- Letters Table (Desktop) -->
+      <CardContainer padding="none" class="hidden md:block overflow-hidden">
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-neutral-200">
             <thead class="bg-neutral-50">
@@ -144,10 +144,41 @@
           </table>
         </div>
 
-        <!-- Pagination -->
+         <!-- Pagination -->
         <!-- Pagination -->
         <Pagination :paginator="letters" />
       </CardContainer>
+
+      <!-- Letters Cards (Mobile) -->
+      <div v-if="letters.data.length > 0" class="md:hidden space-y-3">
+        <DataCard
+            v-for="letter in letters.data"
+            :key="letter.id"
+            :title="letter.subject"
+            :subtitle="letter.letter_number || `Kategori: ${letter.category?.code || '-'}`"
+            :status="letter.status"
+            :meta="[
+                { label: 'Kepada', value: getRecipient(letter) },
+                { label: 'Tanggal', value: formatDate(letter.created_at) }
+            ]"
+        >
+            <template #actions>
+                <div class="flex gap-2">
+                    <Link :href="`/letters/${letter.id}`" class="text-brand-primary-600 text-sm font-medium">
+                        Detail
+                    </Link>
+                </div>
+            </template>
+        </DataCard>
+        <div v-if="letters.data.length === 0" class="text-center py-8 text-neutral-500">
+            Tidak ada surat keluar.
+        </div>
+      </div>
+
+      <!-- Mobile Pagination -->
+      <div v-if="letters.data.length > 0" class="md:hidden mt-4">
+        <Pagination :paginator="letters" />
+      </div>
     </div>
 
     <!-- Delete Modal -->
@@ -179,6 +210,7 @@ import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
 import Pagination from '@/Components/UI/Pagination.vue'
 import CtaButton from '@/Components/UI/CtaButton.vue'
 import IconButton from '@/Components/UI/IconButton.vue'
+import DataCard from '@/Components/Mobile/DataCard.vue'
 
 const props = defineProps({
   letters: Object,

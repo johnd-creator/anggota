@@ -1,5 +1,6 @@
 <template>
-  <div class="min-h-screen bg-neutral-100 flex">
+  <!-- Desktop Layout -->
+  <div v-if="!isMobile" class="min-h-screen bg-neutral-100 flex">
     <!-- Sidebar (Desktop) -->
     <aside class="hidden md:flex flex-col w-64 fixed inset-y-0 z-50" style="background-color: #1A2B63;">
       <!-- Logo Section -->
@@ -490,6 +491,11 @@
       </main>
     </div>
   </div>
+
+  <!-- Mobile Layout -->
+  <MobileLayout v-else>
+    <slot />
+  </MobileLayout>
 </template>
 
 <script setup>
@@ -622,6 +628,12 @@ const canAccessMemberSelf = computed(() => {
   return isMember.value || isTreasurer.value || !!user?.is_member;
 });
 const userUnitName = computed(() => page.props?.auth?.user?.organization_unit?.name || null);
+
+// Menu item styling - using inline styles for colors
+import MobileLayout from '@/Layouts/MobileLayout.vue';
+import { useMobile } from '@/Composables/useMobile';
+
+const { isMobile } = useMobile();
 
 function doLogout() {
   router.post('/logout', {}, { onFinish() { userMenuOpen.value = false; } });

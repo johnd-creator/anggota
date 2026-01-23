@@ -46,8 +46,8 @@
         </div>
       </div>
 
-      <!-- Payments Table -->
-      <div v-if="hasMember" class="bg-white rounded-lg shadow overflow-hidden">
+      <!-- Payments Table (Desktop) -->
+      <div v-if="hasMember" class="hidden md:block bg-white rounded-lg shadow overflow-hidden">
         <div class="px-6 py-4 border-b border-neutral-100">
           <h3 class="font-semibold text-neutral-800">Riwayat Iuran (12 Bulan Terakhir)</h3>
         </div>
@@ -86,12 +86,29 @@
           </table>
         </div>
       </div>
+
+      <!-- Payments Cards (Mobile) -->
+      <div v-if="hasMember && payments.length > 0" class="md:hidden space-y-3">
+        <h3 class="font-semibold text-neutral-800 mb-3 px-1">Riwayat Iuran (12 Bulan Terakhir)</h3>
+        <DataCard
+            v-for="payment in payments"
+            :key="payment.period"
+            :title="formatPeriod(payment.period)"
+            :subtitle="`Rp ${formatCurrency(payment.amount)}`"
+            :status="payment.status"
+            :meta="[
+                { label: 'Tanggal Bayar', value: payment.paid_at || '-' },
+                { label: 'Catatan', value: payment.notes || '-' }
+            ]"
+        />
+      </div>
     </div>
   </AppLayout>
 </template>
 
 <script setup>
-import AppLayout from '@/Layouts/AppLayout.vue'
+ import AppLayout from '@/Layouts/AppLayout.vue'
+ import DataCard from '@/Components/Mobile/DataCard.vue'
 
 const props = defineProps({
   hasMember: Boolean,
