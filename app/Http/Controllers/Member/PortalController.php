@@ -8,7 +8,6 @@ use App\Models\MemberDocument;
 use App\Models\MemberUpdateRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class PortalController extends Controller
@@ -17,6 +16,7 @@ class PortalController extends Controller
     {
         $user = Auth::user();
         $member = Member::with(['unit', 'documents', 'statusLogs'])->where('user_id', $user->id)->first();
+
         return Inertia::render('Member/Portal', [
             'member' => $member,
             'updateRequests' => $member ? MemberUpdateRequest::where('member_id', $member->id)->latest()->limit(10)->get() : [],
@@ -31,7 +31,7 @@ class PortalController extends Controller
 
         $validated = $request->validate([
             'address' => 'nullable|string',
-            'phone' => ['nullable', 'regex:/^\+?[1-9]\d{7,14}$/'],
+            'phone' => ['nullable', 'regex:/^(\+62|62)8\d{7,11}$|^0[8-9]\d{7,11}$/'],
             'emergency_contact' => 'nullable|string|max:100',
             'company_join_date' => 'nullable|date',
         ]);
@@ -59,7 +59,7 @@ class PortalController extends Controller
             }
         }
 
-        if (!$hasChanges) {
+        if (! $hasChanges) {
             return redirect()->back()->with('error', 'Tidak ada perubahan data yang terdeteksi');
         }
 
@@ -75,6 +75,7 @@ class PortalController extends Controller
                 'notes' => $request->input('notes'),
                 'updated_at' => now(),
             ]);
+
             return redirect()->back()->with('success', 'Permintaan perubahan berhasil diperbarui');
         }
 
@@ -119,4 +120,3 @@ class PortalController extends Controller
         return redirect()->back()->with('success', 'Dokumen berhasil diupload');
     }
 }
-

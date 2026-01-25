@@ -3,15 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Member;
 use App\Models\MemberDocument;
 use App\Models\OrganizationUnit;
-use App\Models\ActivityLog;
 use App\Services\NraGenerator;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
@@ -37,7 +36,7 @@ class MemberController extends Controller
         if ($statuses = $request->get('statuses')) {
             $values = is_array($statuses) ? $statuses : [$statuses];
             $values = array_filter($values); // remove empty
-            if (!empty($values)) {
+            if (! empty($values)) {
                 $query->whereIn('status', $values);
             }
         } elseif ($status = $request->get('status')) {
@@ -45,7 +44,7 @@ class MemberController extends Controller
         }
 
         // admin_unit only sees their own unit, global access roles see all
-        if (!$isGlobal) {
+        if (! $isGlobal) {
             // Non-global users must be scoped to their effective unit
             if ($unitId) {
                 $query->where('organization_unit_id', $unitId);
@@ -80,9 +79,9 @@ class MemberController extends Controller
 
         $units = [];
         if ($isGlobal) {
-            $units = \Illuminate\Support\Facades\Cache::remember('units_select_options:global', 300, fn() => OrganizationUnit::select('id', 'name', 'code')->orderBy('name')->get());
+            $units = \Illuminate\Support\Facades\Cache::remember('units_select_options:global', 300, fn () => OrganizationUnit::select('id', 'name', 'code')->orderBy('name')->get());
         } elseif ($unitId) {
-            $units = \Illuminate\Support\Facades\Cache::remember("units_select_options:unit:{$unitId}", 300, fn() => OrganizationUnit::where('id', $unitId)->select('id', 'name', 'code')->get());
+            $units = \Illuminate\Support\Facades\Cache::remember("units_select_options:unit:{$unitId}", 300, fn () => OrganizationUnit::where('id', $unitId)->select('id', 'name', 'code')->get());
         }
 
         $adminUnitId = $user?->hasRole('admin_unit') ? $unitId : null;
@@ -92,7 +91,7 @@ class MemberController extends Controller
             'filters' => $request->only(['search', 'status', 'statuses', 'units', 'sort', 'dir']),
             'units' => $units,
             'admin_unit_id' => $adminUnitId,
-            'admin_unit_missing' => $user?->hasRole('admin_unit') && !$unitId,
+            'admin_unit_missing' => $user?->hasRole('admin_unit') && ! $unitId,
         ]);
     }
 
@@ -125,7 +124,7 @@ class MemberController extends Controller
             'email' => 'required|email|unique:members,email',
             'nip' => 'required|alpha_num|max:50',
             'union_position_id' => 'required|exists:union_positions,id',
-            'phone' => ['nullable', 'regex:/^\+?[1-9]\d{7,14}$/'],
+            'phone' => ['nullable', 'regex:/^(\+62|62)8\d{7,11}$|^0[8-9]\d{7,11}$/'],
             'birth_place' => 'nullable|string|max:100',
             'birth_date' => 'nullable|date',
             'address' => 'nullable|string',
@@ -218,6 +217,7 @@ class MemberController extends Controller
             'subject_id' => $member->id,
             'payload' => ['nra' => $member->nra],
         ]);
+
         return Inertia::render('Admin/Members/Show', [
             'member' => $member,
         ]);
@@ -250,11 +250,11 @@ class MemberController extends Controller
         $validated = $request->validate([
             'full_name' => 'required|string|max:255',
             'employee_id' => 'nullable|string|max:50',
-            'email' => 'required|email|unique:members,email,' . $member->id,
-            'kta_number' => ['nullable', 'regex:/^\d{3}-SPPIPS-\d{2}\d{3}$/', 'unique:members,kta_number,' . $member->id],
+            'email' => 'required|email|unique:members,email,'.$member->id,
+            'kta_number' => ['nullable', 'regex:/^\d{3}-SPPIPS-\d{2}\d{3}$/', 'unique:members,kta_number,'.$member->id],
             'nip' => 'required|alpha_num|max:50',
             'union_position_id' => 'required|exists:union_positions,id',
-            'phone' => ['nullable', 'regex:/^\+?[1-9]\d{7,14}$/'],
+            'phone' => ['nullable', 'regex:/^(\+62|62)8\d{7,11}$|^0[8-9]\d{7,11}$/'],
             'birth_place' => 'nullable|string|max:100',
             'birth_date' => 'nullable|date',
             'address' => 'nullable|string',
@@ -318,6 +318,7 @@ class MemberController extends Controller
                 'member_id' => $member->id,
                 'error' => $e->getMessage(),
             ]);
+
             return back()->withErrors(['general' => 'Terjadi kesalahan pada server'])
                 ->with('error', 'Terjadi kesalahan pada server')
                 ->withInput();

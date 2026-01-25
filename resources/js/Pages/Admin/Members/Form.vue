@@ -15,7 +15,7 @@
               <InputField label="NIP" v-model="form.nip" :error="err('nip')" :disabled="submitting" required />
               <InputField label="Email Pribadi" type="email" v-model="form.email" :error="err('email')" :disabled="submitting" required />
               <InputField label="Email Perusahaan (Microsoft)" type="email" v-model="form.company_email" :error="err('company_email')" :disabled="submitting" />
-              <InputField label="Phone (+62...)" type="tel" v-model="form.phone" :error="err('phone')" :disabled="submitting" />
+              <InputField label="Phone" type="tel" v-model="form.phone" :error="err('phone')" :disabled="submitting" helper="Format: 08123456789 atau +628123456789" />
               <InputField label="Birth Place" v-model="form.birth_place" :error="err('birth_place')" :disabled="submitting" />
               <div class="grid grid-cols-2 gap-3">
                 <InputField label="Birth Date" type="date" v-model="form.birth_date" :error="err('birth_date')" :disabled="submitting" />
