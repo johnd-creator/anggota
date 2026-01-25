@@ -12,15 +12,48 @@
         </div>
         <div class="flex flex-col md:flex-row items-stretch md:items-center gap-2 w-full md:w-auto">
           <SecondaryButton @click="markAllRead" class="justify-center">Tandai semua sudah dibaca</SecondaryButton>
+          
+          <!-- Mobile: Toggle Advanced Filters Button -->
+          <button 
+            @click="toggleAdvancedFilters" 
+            class="md:hidden flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded hover:bg-neutral-50 transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <span>{{ showAdvancedFilters ? 'Sembunyikan Filter' : 'Filter Tanggal' }}</span>
+            <svg 
+              class="w-4 h-4 transition-transform duration-200" 
+              :class="{ 'rotate-180': showAdvancedFilters }"
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
           <div class="flex items-center gap-2">
               <input v-model="search" type="text" placeholder="Cari..." class="flex-1 px-2 py-1 border rounded text-sm w-full md:w-auto" />
               <SecondaryButton @click="applyFilters" class="md:hidden">Go</SecondaryButton>
           </div>
-          <div class="flex items-center gap-2">
-              <input v-model="dateStart" type="date" class="flex-1 px-2 py-1 border rounded text-sm" />
-              <span class="text-sm">s/d</span>
-              <input v-model="dateEnd" type="date" class="flex-1 px-2 py-1 border rounded text-sm" />
+          
+          <!-- Date Filters: Collapsible on mobile, always visible on desktop -->
+          <div 
+            class="md:flex md:items-center md:gap-2"
+            :class="{ 'hidden': !showAdvancedFilters }"
+          >
+            <div class="flex flex-col md:flex-row items-stretch md:items-center gap-2 w-full transition-all duration-200">
+              <div class="flex items-center gap-2">
+                <input v-model="dateStart" type="date" class="flex-1 px-2 py-1 border rounded text-sm" />
+                <span class="text-sm">s/d</span>
+                <input v-model="dateEnd" type="date" class="flex-1 px-2 py-1 border rounded text-sm" />
+              </div>
+              <!-- Mobile: Apply button inside collapsible section -->
+              <SecondaryButton @click="applyFilters" class="md:hidden w-full">Terapkan</SecondaryButton>
+            </div>
           </div>
+          
           <SecondaryButton @click="applyFilters" class="hidden md:inline-flex">Terapkan</SecondaryButton>
         </div>
       </div>
@@ -106,9 +139,11 @@ const tab = ref(page.props.filters?.category || 'all');
 const search = ref(page.props.filters?.search || '');
 const dateStart = ref(page.props.filters?.date_start || '');
 const dateEnd = ref(page.props.filters?.date_end || '');
+const showAdvancedFilters = ref(false);
 const toast = reactive({ show:false, message:'', type:'info' });
 
 function setTab(t){ tab.value = t; }
+function toggleAdvancedFilters(){ showAdvancedFilters.value = !showAdvancedFilters.value; }
 function tabClass(t){
   const base = 'px-3 py-1.5 rounded border transition-colors';
   return [base, tab.value===t ? 'bg-brand-primary-50 text-brand-primary-800 border-brand-primary-600 shadow-sm' : 'bg-neutral-100 text-neutral-700 border-neutral-300'].join(' ');

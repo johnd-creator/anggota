@@ -1,6 +1,12 @@
 <template>
   <AppLayout page-title="Detail Role">
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+    <!-- Kembali Button at Top -->
+    <div class="flex justify-end mb-4">
+      <SecondaryButton @click="back">Kembali</SecondaryButton>
+    </div>
+    
+    <div class="flex flex-col gap-6 mt-4">
+      <!-- Role Details & Assign Form Card -->
       <CardContainer padding="lg" shadow="sm">
         <div class="text-sm"><span class="font-semibold">Name:</span> {{ role.name }}</div>
         <div class="text-sm"><span class="font-semibold">Label:</span> {{ role.label }}</div>
@@ -16,11 +22,9 @@
         </div>
       </CardContainer>
 
-      <CardContainer padding="lg" shadow="sm" class="lg:col-span-2">
-        <div class="flex items-center justify-between">
-          <div class="text-sm font-semibold">Pengguna dengan role ini</div>
-          <SecondaryButton @click="back">Kembali</SecondaryButton>
-        </div>
+      <!-- Users Table Card -->
+      <CardContainer padding="lg" shadow="sm">
+        <div class="text-sm font-semibold mb-3">Pengguna dengan role ini</div>
         <div class="mt-3" v-if="!users.data.length">Belum ada pengguna.</div>
         <table v-else class="min-w-full divide-y divide-neutral-200 mt-3">
           <thead class="bg-neutral-50">

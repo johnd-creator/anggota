@@ -1,45 +1,109 @@
-# Plan: Minors & Nits Fixes
+# Implementation Plan: Role Detail Page Stacked Layout
 
 ## Goal
-Clean up technical debt identified in the Codebase Review (4 Minors, 3 Nits).
+Convert the role detail page from a 2-column side-by-side layout to a stacked (vertical) layout to give the "Assign ke User" form more horizontal space and improve UX.
 
-## Assumptions
-- Code logic checks for `Letter` filtering will be moved to Model Scopes.
-- Brand colors are `#1A2B63` (Primary) and `#2E4080` (Secondary/Border) — will add to Tailwind config.
+## Current State Analysis
 
-## Plan
+**File:** [`resources/js/Pages/Admin/Roles/Show.vue`](file:///var/www/html/anggota/resources/js/Pages/Admin/Roles/Show.vue)
 
-### Minor 1 & 2: Letter Filtering & Query Styles
-Standardize filtering in `LetterController` using Model Scopes.
-- **Files:** `app/Models/Letter.php`, `app/Http/Controllers/LetterController.php`
-- **Change:**
-    - Method: Add `scopeVisibleTo($query, User $user)` to `Letter` model. This scope will encapsulate the role-based logic (Anggota vs Admin Unit vs Admin Pusat).
-    - Method: Add `scopeFilterByRequest($query, Request $request)` to encapsulate search, status, and category filters.
-    - Update `LetterController::inbox`, `outbox`, `approvals` to use these scopes.
-- **Verify:** Run feature tests (`LetterInboxTest` if exists, or manually check Inbox/Approvals).
+**Current Layout (Line 3):**
+```vue
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+```
 
-### Minor 3: Hardcoded Inline Styles
-Replace sidebar inline styles with Tailwind classes.
-- **Files:** `tailwind.config.js`, `resources/js/Layouts/AppLayout.vue`
-- **Change:**
-    - Add `brand-sidebar: '#1A2B63'` and `brand-sidebar-border: '#2E4080'` to `tailwind.config.js`.
-    - Update `AppLayout.vue` to use `bg-brand-sidebar` and `border-brand-sidebar-border`.
-- **Verify:** `npm run build` and visual check (sidebar color remains same).
+- Left card (col-span-1): Role details + Assign form
+- Right card (col-span-2): Users table
 
-### Minor 4: CSP Configuration
-Move CSP logic to a cleaner configuration or service.
-- **Files:** `app/Http/Middleware/SecurityHeadersMiddleware.php`
-- **Change:** Use `config('app.debug')` as the primary flag and possibly move host lists to `config/cors.php` or `config/security.php` if needed. For now, just ensuring strict `app()->isLocal()` usage and strictly splitting dev vs prod headers logic.
-- **Verify:** Visit site, check Response Headers -> CSP should be correct.
+**Problem:**
+- Left card is too narrow (~33% width on desktop)
+- Email input and Unit dropdown are cramped
+- Assign button positioning is awkward
 
-### Nits
-1.  **Schema Checks**: Remove `Schema::hasTable` in `DashboardController` (assumed location based on review, will check).
-2.  **Optional Helper**: Replace `optional($foo)->bar` with `$foo?->bar` in `SettingsController` and others.
-3.  **Comments**: Remove "Menu item styling" noise.
+## Proposed Changes
 
-## Risks & mitigations
-- **Risk:** Scope refactor might miss a specific "OR" condition for a role.
-    - **Mitigation:** I will strictly copy the existing logic into the Scope first, ensuring parity.
+### Change 1: Convert to Stacked Layout
+**File:** `resources/js/Pages/Admin/Roles/Show.vue` (Line 3)
 
-## Rollback plan
-- Revert changes to `Letter.php` and `LetterController.php`.
+**From:**
+```vue
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+```
+
+**To:**
+```vue
+<div class="flex flex-col gap-6 mt-4">
+```
+
+**Rationale:** Remove the grid-cols-3 layout and use flex-col to stack cards vertically.
+
+### Change 2: Adjust Card Widths
+**File:** `resources/js/Pages/Admin/Roles/Show.vue` (Lines 4-17, 19-48)
+
+**Changes:**
+- Remove `lg:col-span-2` from the table card (line 19)
+- Optionally add max-width constraints for better readability
+- Ensure both cards take full width
+
+### Change 3: Improve Form Layout
+**File:** `resources/js/Pages/Admin/Roles/Show.vue` (Line 11)
+
+**Current:**
+```vue
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+```
+
+**Potential improvement:**
+- Keep as-is for now (already responsive)
+- Form will automatically benefit from wider parent container
+
+## Verification Plan
+
+### Step 1: Build Verification
+```bash
+npm run build
+```
+**Expected:** Build completes successfully with no errors
+
+### Step 2: Visual Testing (Browser)
+1. Navigate to `http://localhost:8000/admin/roles/3`
+2. Verify layout changes:
+   - [ ] Role details card is at the top (full width)
+   - [ ] Users table card is below (full width)
+   - [ ] Email input is wider and more readable
+   - [ ] Unit dropdown has more space
+   - [ ] Assign button is well-positioned
+
+### Step 3: Functionality Testing
+1. Test "Assign ke User" form:
+   - [ ] Enter email address
+   - [ ] Select unit (if admin_unit role)
+   - [ ] Click "Assign" button
+   - [ ] Verify user is added to table
+2. Test remove user:
+   - [ ] Click delete icon on a user
+   - [ ] Confirm removal in modal
+   - [ ] Verify user is removed from table
+
+### Step 4: Responsive Testing
+1. Test at different breakpoints:
+   - [ ] Desktop (1024px+): Stacked layout
+   - [ ] Tablet (768px): Stacked layout
+   - [ ] Mobile (375px): Stacked layout, form fields stack vertically
+
+## Risk Mitigation
+
+- **Minimal changes:** Only modifying layout classes, no logic changes
+- **Responsive:** Layout already stacks on mobile, so no regression
+- **Reversible:** Easy to revert if needed
+- **No functionality impact:** All existing features remain unchanged
+
+## Success Criteria
+
+- ✅ Cards are stacked vertically on all screen sizes
+- ✅ "Assign ke User" form has more horizontal space
+- ✅ Email input is wider and easier to read
+- ✅ Unit dropdown is more comfortable to use
+- ✅ All existing functionality works correctly
+- ✅ No visual glitches or layout issues
+- ✅ Responsive behavior is maintained

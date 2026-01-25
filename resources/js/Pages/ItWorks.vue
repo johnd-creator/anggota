@@ -33,11 +33,41 @@
             :message="`Pengajuan ditolak. Catatan: ${$page.props.onboarding.notes || '-'}`"
           />
           <AlertBanner
+            v-else-if="$page.props.onboarding && $page.props.onboarding.status==='approved'"
+            type="success"
+            title="Onboarding Berhasil!"
+            message="Selamat! Akun Anda telah disetujui dan Anda sekarang memiliki akses penuh ke sistem."
+          />
+          <AlertBanner
             v-else
             type="success"
             title="Login Successful"
             message="You are logged in as a Reguler user."
           />
+
+          <!-- Dashboard Navigation (shown when approved) -->
+          <div v-if="$page.props.onboarding && $page.props.onboarding.status==='approved'" class="bg-gradient-to-r from-brand-primary-500 to-brand-secondary-500 rounded-lg p-6 text-center">
+            <div class="mb-4">
+              <svg class="w-12 h-12 mx-auto text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.018-4.764a9 9 0 11-9.017 9.036m0 0a9 9 0 019.017-9.036M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" />
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2">
+              Akun Anda Sudah Aktif!
+            </h3>
+            <p class="text-white text-opacity-90 mb-4">
+              Anda sekarang dapat mengakses dashboard dan semua fitur sistem.
+            </p>
+            <a
+              href="/dashboard"
+              class="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-brand-primary-600 bg-white rounded-lg hover:bg-neutral-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            >
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              Masuk ke Dashboard
+            </a>
+          </div>
 
           <!-- Info Section -->
           <div class="bg-neutral-50 rounded-lg p-6 border border-neutral-200">
