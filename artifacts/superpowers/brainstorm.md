@@ -1,43 +1,66 @@
-# Brainstorm: Completing the Mobile Experience
+# Member Import Preview 500 Error - Brainstorm
 
 ## Goal
-Finalize the Mobile UX implementation by addressing the identified "missing pieces" and fixing specific bugs found during testing (Preview Logo CSP).
+Resolve the 500 Internal Server Error yang terjadi saat user mengklik tombol "Preview" pada halaman member import (`/admin/members/import`). Error message di UI: "Preview gagal, periksa format file".
 
 ## Constraints
-- **Security:** CSP is essential; we cannot just remove it. We must allow specific valid sources.
-- **Scope:** Mobile Layout, Mobile Login, Mobile Data Tables (Cards), and now fixing Preview issues.
+1. **Minimal Downtime** - Fix harus cepat dan tidak mengganggu operasi yang sedang berjalan
+2. **Data Integrity** - Tidak boleh merusak data existing
+3. **Backward Compatibility** - Flow import yang sudah ada harus tetap berfungsi
 
-## Known context
-- **Mobile Navigation:** `BottomNav.vue` implemented (needs verification).
-- **Mobile Layout:** `MobileLayout.vue` implemented (needs verification).
-- **Login:** Updated (needs verification).
-- **Data Tables:** `DataCard` and implementation in Dashboard/Inbox **PENDING** (not yet executed).
-- **CSP Issue:** User provided screenshot showing blocked images in `Preview.vue`.
-    - Error: `Violates Content Security Policy directive: "img-src 'self' data: ..."`
-    - The code uses `new URL(...).href` for default logo which might resolve to `blob:` or be treated strangely in dev mode.
-    - Also, user input could come from external storage (S3/Minio) not yet whitelisted? (Current middleware only has `ui-avatars`, `google`, `self`, `data:`).
+## Known Context
+1. **Log Analysis**: Laravel log menunjukkan:
+   ```
+   SQLSTATE[HY000]: General error: 1 no such table: import_batches
+   ```
+
+2. **Code Flow**:
+   - `MemberImportController@preview()` (line 70) → `$this->importService->preview()`
+   - `MemberImportService@preview()` (line 269) → `ImportBatch::create()`
+   - Model `ImportBatch` requires table `import_batches` yang **belum ada di database**
+
+3. **Migration Files Exist** (belum dijalankan):
+   - `database/migrations/2025_12_24_152000_create_import_batches_table.php`
+   - `database/migrations/2025_12_24_152001_create_import_batch_errors_table.php`
+   - `database/migrations/2025_12_24_154000_add_commit_columns_to_import_batches_table.php`
 
 ## Risks
-- **Incomplete Mobile Flow:** We did Navigation + Login, but **Data Cards** (the big "Excel" fix) are still just a plan, not code.
-- **CSP Fragility:** Whitelisting `*` is bad. We need to find *exactly* why the logo is blocked.
 
-## Options
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| Migration gagal karena dependencies | Medium | High | Run `php artisan migrate --pretend` dulu |
+| Foreign key constraint error | Low | Medium | Cek `users` dan `organization_units` table exists |
+| Konflik dengan migration lain | Low | Low | `php artisan migrate:status` |
 
-### Option 1: Fix CSP (Acceptance Criteria 1)
-Modify `SecurityHeadersMiddleware.php`.
-- Adding `blob:` to `img-src` (often needed for `URL.createObjectURL` or Vite assets in some modes).
-- Adding the Vite dev server URL explicitly if not covered? (It is covered: `http://127.0.0.1:5173`).
-- **Hypothesis:** The logo might be loaded from a different port or protocol in the screenshot context? Or `blob:`.
+## Options (3)
 
-### Option 2: Implement Missing Data Cards (Acceptance Criteria 2)
-The user asked "apakah ada yang kurang?". **YES!** We planned the Data Cards but stopped after Step 2 (Integration). We haven't built `DataCard.vue` or updated `Dashboard.vue` yet.
--   **Action:** Continue the execution plan to build `DataCard.vue`.
+### Option 1: Run Pending Migrations ⭐ Recommended
+**Effort**: Low (5 menit)
+```bash
+php artisan migrate
+```
+
+### Option 2: Run Specific Migrations Only
+**Effort**: Low (5 menit)
+```bash
+php artisan migrate --path=database/migrations/2025_12_24_152000_create_import_batches_table.php
+php artisan migrate --path=database/migrations/2025_12_24_152001_create_import_batch_errors_table.php
+php artisan migrate --path=database/migrations/2025_12_24_154000_add_commit_columns_to_import_batches_table.php
+```
+
+### Option 3: Create Tables via Raw SQL
+**Effort**: Medium | **Risk**: Medium | **Not Recommended**
 
 ## Recommendation
-1.  **Fix CSP:** Add `blob:` to `img-src` in `SecurityHeadersMiddleware.php`.
-2.  **Continue Execution:** Proceed to **Step 4** of the original plan (Data Cards). This is the biggest missing piece for a "complete" mobile experience.
 
-## Acceptance criteria
-- [ ] Update `SecurityHeadersMiddleware.php` to include `blob:` in `img-src`.
-- [ ] Create `DataCard.vue`.
-- [ ] Implement `DataCard` in `Dashboard.vue` and `Letters/Inbox.vue`.
+**Option 1: Run `php artisan migrate`**
+
+Ini solusi paling simple. Migration files sudah lengkap dan tested.
+
+## Acceptance Criteria
+
+- [ ] Table `import_batches` exists in database
+- [ ] Table `import_batch_errors` exists in database  
+- [ ] User dapat upload file di `/admin/members/import`
+- [ ] Klik "Preview" tidak menghasilkan 500 error
+- [ ] Preview response mengembalikan batch data

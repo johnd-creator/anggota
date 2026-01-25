@@ -66,23 +66,41 @@ class DevelopmentDataSeeder extends Seeder
                 $position = $posBendahara;
             }
 
+            $ktaNumber = 'KTA-' . str_pad($i, 6, '0', STR_PAD_LEFT);
+            $nraNumber = 'NRA-' . str_pad($i, 8, '0', STR_PAD_LEFT);
+            $email = fake()->unique()->safeEmail();
+            $nip = fake()->unique()->numerify('NIP-################');
+            $joinDate = fake()->dateTimeBetween('-10 years', 'now')->format('Y-m-d');
+            $joinYear = (int) date('Y', strtotime($joinDate));
+
+            $conflict = Member::withTrashed()
+                ->where('email', $email)
+                ->orWhere('kta_number', $ktaNumber)
+                ->orWhere('nra', $nraNumber)
+                ->orWhere('nip', $nip)
+                ->exists();
+
+            if ($conflict) {
+                continue;
+            }
+
             $member = Member::create([
                 'full_name' => fake()->name(),
-                'email' => fake()->unique()->safeEmail(),
+                'email' => $email,
                 'phone' => fake()->phoneNumber(),
                 'birth_place' => fake()->city(),
                 'birth_date' => fake()->date('Y-m-d', '-25 years'),
                 'job_title' => fake()->jobTitle(),
                 'employment_type' => fake()->randomElement(['organik', 'tkwt']),
                 'status' => fake()->randomElement(['aktif', 'aktif', 'aktif', 'resign']), // 75% aktif
-                'join_date' => fake()->dateTimeBetween('-10 years', 'now')->format('Y-m-d'),
+                'join_date' => $joinDate,
                 'company_join_date' => fake()->dateTimeBetween('-15 years', 'now')->format('Y-m-d'),
                 'organization_unit_id' => $unit->id,
                 'union_position_id' => $position?->id,
-                'kta_number' => 'KTA-' . str_pad($i, 6, '0', STR_PAD_LEFT),
-                'nra' => 'NRA-' . str_pad($i, 8, '0', STR_PAD_LEFT),
-                'nip' => fake()->numerify('NIP-################'),
-                'join_year' => (int) date('Y', strtotime(fake()->dateTimeBetween('-10 years', 'now')->format('Y-m-d'))),
+                'kta_number' => $ktaNumber,
+                'nra' => $nraNumber,
+                'nip' => $nip,
+                'join_year' => $joinYear,
                 'sequence_number' => $i,
             ]);
 
@@ -95,19 +113,28 @@ class DevelopmentDataSeeder extends Seeder
 
         // ==================== STEP 2: Users linked to some members (200) ====================
         $this->command->info('👤 Creating 200 users linked to members...');
-        foreach (array_slice($members, 0, 200) as $i => $member) {
-            User::create([
-                'name' => $member->full_name,
-                'email' => $member->email,
-                'password' => bcrypt('password'),
-                'role_id' => $roleAnggota->id,
-                'member_id' => $member->id,
-                'organization_unit_id' => $member->organization_unit_id,
-            ]);
+        foreach (array_slice($members, 0, 200) as $member) {
+            $user = User::firstOrCreate(
+                ['email' => $member->email],
+                [
+                    'name' => $member->full_name,
+                    'password' => bcrypt('password'),
+                    'role_id' => $roleAnggota?->id,
+                    'member_id' => $member->id,
+                    'organization_unit_id' => $member->organization_unit_id,
+                ]
+            );
 
-            // Link back
-            $member->user_id = User::where('email', $member->email)->first()->id;
-            $member->save();
+            if (!$user->member_id) {
+                $user->member_id = $member->id;
+                $user->organization_unit_id = $member->organization_unit_id;
+                $user->save();
+            }
+
+            if (!$member->user_id) {
+                $member->user_id = $user->id;
+                $member->save();
+            }
         }
 
         // ==================== STEP 3: Announcements (150) ====================
@@ -151,14 +178,18 @@ class DevelopmentDataSeeder extends Seeder
 
             $user = $userMembers->random();
             $member = Member::find($user->member_id);
+            if (!$member || $categories->isEmpty()) {
+                continue;
+            }
 
             Aspiration::create([
                 'title' => fake()->sentence(5),
-                'description' => fake()->paragraphs(2, true),
-                'category_id' => $categories->random()->id ?? null,
+                'body' => fake()->paragraphs(2, true),
+                'category_id' => $categories->random()->id,
+                'member_id' => $member->id,
                 'user_id' => $user->id,
                 'organization_unit_id' => $member->organization_unit_id,
-                'status' => fake()->randomElement(['new', 'new', 'reviewed', 'approved', 'rejected']),
+                'status' => fake()->randomElement(['new', 'new', 'in_progress', 'resolved']),
                 'created_at' => fake()->dateTimeBetween('-6 months', 'now'),
             ]);
         }
@@ -177,21 +208,32 @@ class DevelopmentDataSeeder extends Seeder
 
             $toUnitId = $toType === 'unit' ? $units->random()->id : null;
             $toMemberId = $toType === 'member' && $userMembers->isNotEmpty() ? $userMembers->random()->member_id : null;
+            $letterNumber = 'ST-' . date('Y') . '-' . str_pad($i, 4, '0', STR_PAD_LEFT);
+
+            if ($letterCategories->isEmpty()) {
+                continue;
+            }
+            if (Letter::withTrashed()->where('letter_number', $letterNumber)->exists()) {
+                continue;
+            }
 
             Letter::create([
-                'number' => 'ST-' . date('Y') . '-' . str_pad($i, 4, '0', STR_PAD_LEFT),
+                'letter_number' => $letterNumber,
                 'subject' => fake()->sentence(6),
-                'content' => fake()->paragraphs(4, true),
-                'category_id' => $letterCategories->random()->id ?? null,
+                'body' => fake()->paragraphs(4, true),
+                'letter_category_id' => $letterCategories->random()->id,
                 'urgency' => fake()->randomElement(['biasa', 'segera', 'kilat']),
                 'confidentiality' => fake()->randomElement(['biasa', 'terbatas', 'rahasia']),
-                'status' => fake()->randomElement(['draft', 'submitted', 'approved', 'sent']),
+                'status' => fake()->randomElement(['draft', 'submitted', 'revision', 'approved', 'sent', 'archived', 'rejected']),
                 'from_unit_id' => $sender->organization_unit_id,
                 'creator_user_id' => $sender->id,
                 'to_type' => $toType,
                 'to_unit_id' => $toUnitId,
                 'to_member_id' => $toMemberId,
                 'signer_type' => fake()->randomElement(['ketua', 'sekretaris']),
+                'month' => (int) date('n'),
+                'year' => (int) date('Y'),
+                'sequence' => $i,
                 'created_at' => fake()->dateTimeBetween('-3 months', 'now'),
             ]);
         }
@@ -201,19 +243,31 @@ class DevelopmentDataSeeder extends Seeder
         $financeCategories = FinanceCategory::all();
 
         foreach (range(1, 250) as $i) {
+            if ($financeCategories->isEmpty()) {
+                break;
+            }
             $type = fake()->randomElement(['income', 'income', 'expense', 'expense', 'expense']); // More expenses
             $amount = $type === 'income'
                 ? fake()->numberBetween(100000, 5000000)
                 : fake()->numberBetween(50000, 2000000);
+
+            $status = fake()->randomElement(['draft', 'submitted', 'approved', 'rejected']);
+            $approvedBy = $status === 'approved' ? $creator->id : null;
+            $approvedAt = $status === 'approved' ? fake()->dateTimeBetween('-1 year', 'now') : null;
+            $rejectedReason = $status === 'rejected' ? fake()->sentence(6) : null;
 
             FinanceLedger::create([
                 'type' => $type,
                 'amount' => $amount,
                 'description' => fake()->sentence(5),
                 'date' => fake()->dateTimeBetween('-1 year', 'now')->format('Y-m-d'),
-                'category_id' => $financeCategories->random()->id ?? null,
+                'finance_category_id' => $financeCategories->random()->id,
                 'organization_unit_id' => $units->random()->id,
-                'status' => fake()->randomElement(['pending', 'approved', 'approved', 'rejected']),
+                'status' => $status,
+                'approved_by' => $approvedBy,
+                'approved_at' => $approvedAt,
+                'rejected_reason' => $rejectedReason,
+                'submitted_at' => fake()->dateTimeBetween('-1 year', 'now'),
                 'created_by' => $creator->id,
                 'created_at' => fake()->dateTimeBetween('-1 year', 'now'),
             ]);
@@ -230,15 +284,20 @@ class DevelopmentDataSeeder extends Seeder
             $member = $activeMembers->random();
             $fromUnit = $member->organization_unit_id;
             $toUnit = $units->where('id', '!=', $fromUnit)->random()->id;
+            $status = fake()->randomElement(['pending', 'approved', 'rejected']);
+            $submitterId = $member->user_id ?? $creator->id;
+            $approverId = $status === 'approved' ? $creator->id : null;
 
             MutationRequest::create([
                 'member_id' => $member->id,
                 'from_unit_id' => $fromUnit,
                 'to_unit_id' => $toUnit,
                 'reason' => fake()->paragraph(),
-                'status' => fake()->randomElement(['pending', 'approved', 'rejected']),
+                'status' => $status,
                 'effective_date' => fake()->dateTimeBetween('now', '+3 months')->format('Y-m-d'),
                 'sla_status' => fake()->randomElement(['normal', 'warning', 'breach']),
+                'submitted_by' => $submitterId,
+                'approved_by' => $approverId,
                 'created_at' => fake()->dateTimeBetween('-2 months', 'now'),
             ]);
         }
@@ -248,18 +307,17 @@ class DevelopmentDataSeeder extends Seeder
         $usersWithoutMember = User::whereNull('member_id')->limit(50)->get();
 
         foreach (range(1, min(50, $usersWithoutMember->count())) as $i) {
+            $status = fake()->randomElement(['pending', 'approved', 'rejected']);
+            $reviewerId = $status === 'pending' ? null : $creator->id;
+
             PendingMember::create([
                 'user_id' => $usersWithoutMember[$i - 1]->id ?? null,
-                'full_name' => fake()->name(),
+                'name' => fake()->name(),
                 'email' => fake()->unique()->safeEmail(),
-                'phone' => fake()->phoneNumber(),
-                'birth_place' => fake()->city(),
-                'birth_date' => fake()->date('Y-m-d', '-30 years'),
-                'job_title' => fake()->jobTitle(),
-                'employment_type' => fake()->randomElement(['organik', 'tkwt']),
-                'join_date' => fake()->dateTimeBetween('-6 months', 'now')->format('Y-m-d'),
                 'organization_unit_id' => $units->random()->id,
-                'status' => fake()->randomElement(['pending', 'approved', 'rejected']),
+                'notes' => fake()->sentence(8),
+                'status' => $status,
+                'reviewer_id' => $reviewerId,
                 'created_at' => fake()->dateTimeBetween('-3 months', 'now'),
             ]);
         }

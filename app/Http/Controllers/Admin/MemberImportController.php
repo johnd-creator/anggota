@@ -7,10 +7,13 @@ use App\Models\AuditLog;
 use App\Models\Member;
 use App\Services\MemberImportService;
 use App\Services\NraGenerator;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class MemberImportController extends Controller
@@ -28,6 +31,7 @@ class MemberImportController extends Controller
     public function index()
     {
         Gate::authorize('create', Member::class);
+
         return Inertia::render('Admin/Members/Import');
     }
 
@@ -49,8 +53,10 @@ class MemberImportController extends Controller
         $unitId = null;
         if ($user->hasRole('admin_unit')) {
             $unitId = $user->currentUnitId();
-            if (!$unitId) {
-                return back()->withErrors(['file' => 'Akun admin unit belum memiliki unit organisasi']);
+            if (! $unitId) {
+                return response()->json([
+                    'message' => 'Akun admin unit belum memiliki unit organisasi.',
+                ], 422);
             }
         } elseif ($user->hasRole('super_admin') || $user->hasRole('admin_pusat')) {
             // Global admins can optionally specify unit
@@ -59,13 +65,8 @@ class MemberImportController extends Controller
             abort(403);
         }
 
-        $request->validate([
-            'file' => 'required|file|mimes:csv,xlsx,xls|max:5120',
-        ]);
-
-        $file = $request->file('file');
-
         try {
+            $file = $this->validateImportFile($request);
             // Run preview
             $batch = $this->importService->preview($file, $unitId, $user);
 
@@ -91,7 +92,7 @@ class MemberImportController extends Controller
                 ->orderBy('row_number')
                 ->limit(20)
                 ->get()
-                ->map(fn($e) => [
+                ->map(fn ($e) => [
                     'row' => $e->row_number,
                     'errors' => $e->errors_json,
                 ]);
@@ -107,15 +108,38 @@ class MemberImportController extends Controller
                 ],
                 'errors' => $errorSample,
             ]);
-        } catch (\Exception $e) {
-            \Log::error('Import preview error: ' . $e->getMessage(), [
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => $e->validator->errors()->first('file') ?: 'Validasi file gagal.',
+            ], 422);
+        } catch (QueryException $e) {
+            $message = 'Preview gagal karena masalah database.';
+            $error = strtolower($e->getMessage());
+            if (str_contains($error, 'import_batches')) {
+                $message = 'Tabel import belum tersedia. Jalankan migrasi database terlebih dahulu.';
+            } elseif (str_contains($error, 'readonly')) {
+                $message = 'Database bersifat read-only. Periksa permission file database.';
+            }
+
+            return response()->json([
+                'message' => $message,
+            ], 422);
+        } catch (\Throwable $e) {
+            \Log::error('Import preview error: '.$e->getMessage(), [
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
+            $message = 'Preview gagal: '.$e->getMessage();
+            if (str_contains(strtolower($e->getMessage()), 'memory')) {
+                $message = 'Preview gagal: File terlalu besar atau format kompleks. Coba kurangi jumlah baris atau gunakan file CSV.';
+            } elseif (str_contains(strtolower($e->getMessage()), 'allowed memory size')) {
+                $message = 'Preview gagal: File terlalu besar. Silakan kurangi jumlah baris (max 1000 baris disarankan) atau gunakan format CSV.';
+            }
+
             return response()->json([
-                'message' => 'Preview gagal: ' . $e->getMessage(),
+                'message' => $message,
             ], 422);
         }
     }
@@ -128,7 +152,7 @@ class MemberImportController extends Controller
         $user = $request->user();
 
         // Authorization: only actor or super_admin can commit
-        if ($batch->actor_user_id !== $user->id && !$user->hasRole('super_admin')) {
+        if ($batch->actor_user_id !== $user->id && ! $user->hasRole('super_admin')) {
             abort(403, 'Anda tidak memiliki akses untuk commit batch ini.');
         }
 
@@ -220,7 +244,7 @@ class MemberImportController extends Controller
 
             return response()->json([
                 'status' => 'failed',
-                'error' => 'Import gagal: ' . $e->getMessage(),
+                'error' => 'Import gagal: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -233,7 +257,7 @@ class MemberImportController extends Controller
         $user = $request->user();
 
         // Authorization: only actor or super_admin
-        if ($batch->actor_user_id !== $user->id && !$user->hasRole('super_admin')) {
+        if ($batch->actor_user_id !== $user->id && ! $user->hasRole('super_admin')) {
             abort(403);
         }
 
@@ -241,7 +265,7 @@ class MemberImportController extends Controller
         // If the stored file is not available (e.g. synthetic test batches), fall back to stored preview errors.
         $rows = $this->importService->parseStoredFile($batch->stored_path);
         $errors = collect();
-        if (!empty($rows)) {
+        if (! empty($rows)) {
             $errors = collect($this->importService->collectValidationErrors($rows, $batch->organization_unit_id))
                 ->sortBy('row_number')
                 ->values();
@@ -249,7 +273,7 @@ class MemberImportController extends Controller
             $errors = $batch->errors()
                 ->orderBy('row_number')
                 ->get()
-                ->map(fn($e) => ['row_number' => $e->row_number, 'errors' => $e->errors_json])
+                ->map(fn ($e) => ['row_number' => $e->row_number, 'errors' => $e->errors_json])
                 ->values();
         }
 
@@ -265,7 +289,7 @@ class MemberImportController extends Controller
                 $rowNumber = $error['row_number'] ?? '';
                 $errorList = $error['errors'] ?? [];
 
-                if (!is_array($errorList)) {
+                if (! is_array($errorList)) {
                     continue;
                 }
 
@@ -300,7 +324,7 @@ class MemberImportController extends Controller
 
     /**
      * Legacy import endpoint - now uses batch flow for audit and idempotency.
-     * 
+     *
      * @deprecated Use preview() + commit() flow for new implementations.
      */
     public function store(Request $request)
@@ -308,20 +332,16 @@ class MemberImportController extends Controller
         Gate::authorize('create', Member::class);
         $user = $request->user();
 
-        if (!$user || !$user->role || $user->role->name !== 'admin_unit') {
+        if (! $user || ! $user->role || $user->role->name !== 'admin_unit') {
             abort(403);
         }
 
         $userUnitId = $user->currentUnitId();
-        if (!$userUnitId) {
+        if (! $userUnitId) {
             return redirect()->route('admin.members.index')->with('error', 'Akun admin unit belum memiliki unit organisasi');
         }
 
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls,csv|max:5120',
-        ]);
-
-        $file = $request->file('file');
+        $file = $this->validateImportFile($request);
 
         try {
             // Use batch flow: preview first
@@ -347,10 +367,11 @@ class MemberImportController extends Controller
 
             // Check if there are valid rows to commit
             if ($batch->valid_rows === 0) {
-                $msg = "Import gagal. Tidak ada data valid.";
+                $msg = 'Import gagal. Tidak ada data valid.';
                 if ($batch->invalid_rows > 0) {
                     $msg .= " {$batch->invalid_rows} baris error.";
                 }
+
                 return redirect()->route('admin.members.index')->with('error', $msg);
             }
 
@@ -410,148 +431,52 @@ class MemberImportController extends Controller
             return redirect()->route('admin.members.index')
                 ->with('success', "Berhasil mengimpor {$total} anggota.");
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return redirect()->route('admin.members.index')
-                ->with('error', 'Import gagal: ' . $e->getMessage());
+                ->with('error', 'Import gagal: '.$e->getMessage());
         }
     }
 
-    /**
-     * Read spreadsheet file to array (supports CSV, XLSX (inlineStr), and XLS SpreadsheetML XML).
-     * Returns array of sheets, each sheet is array of rows (array of cell values).
-     */
-    private function readSpreadsheetToArray(UploadedFile $file): array
+    private function validateImportFile(Request $request): UploadedFile
     {
-        $ext = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: '');
+        $request->validate([
+            'file' => ['required', 'file', 'max:5120'],
+        ]);
 
-        // Handle SpreadsheetML 2003 saved with .xls extension (XML).
-        if ($ext === 'xls') {
-            $content = $file->get();
-            $trimmed = ltrim((string) $content);
-            if (str_starts_with($trimmed, '<?xml') || str_contains($trimmed, '<Workbook')) {
-                return [$this->parseSpreadsheetMlXml((string) $content)];
-            }
+        $file = $request->file('file');
+        if (! $file instanceof UploadedFile || ! $file->isValid()) {
+            throw ValidationException::withMessages([
+                'file' => 'Upload file gagal. Coba ulangi.',
+            ]);
         }
 
-        // Handle minimal XLSX (inlineStr) without relying on Laravel-Excel's detection.
-        if ($ext === 'xlsx') {
-            try {
-                return [$this->parseXlsxInlineStrings($file->getRealPath())];
-            } catch (\Throwable $e) {
-                // Fallback to Laravel-Excel if our parser can't handle the file.
-            }
+        $extension = strtolower((string) ($file->getClientOriginalExtension() ?: $file->extension() ?: ''));
+        $originalName = $file->getClientOriginalName();
+        $mimeType = $file->getMimeType();
+        $extension2 = $file->extension();
+
+        Log::info('File validation details', [
+            'original_name' => $originalName,
+            'extension' => $extension,
+            'extension2' => $extension2,
+            'mime_type' => $mimeType,
+            'is_valid' => $file->isValid(),
+            'client_extension' => $file->getClientOriginalExtension(),
+            'guessed_extension' => $file->guessExtension(),
+        ]);
+
+        if (! in_array($extension, ['csv', 'xlsx', 'xls'], true)) {
+            Log::warning('File extension not allowed', [
+                'extension' => $extension,
+                'allowed' => ['csv', 'xlsx', 'xls'],
+                'original_name' => $originalName,
+            ]);
+            throw ValidationException::withMessages([
+                'file' => 'Format file harus CSV, XLSX, atau XLS.',
+            ]);
         }
 
-        return \Maatwebsite\Excel\Facades\Excel::toArray(new \App\Imports\SimpleArrayImport, $file);
-    }
-
-    private function parseSpreadsheetMlXml(string $xmlContent): array
-    {
-        $xml = @simplexml_load_string($xmlContent);
-        if (!$xml) {
-            throw new \RuntimeException('Format XLS (XML) tidak valid.');
-        }
-
-        $ns = 'urn:schemas-microsoft-com:office:spreadsheet';
-        $xml->registerXPathNamespace('s', $ns);
-
-        $rows = [];
-        foreach ($xml->xpath('//s:Row') ?: [] as $rowNode) {
-            $row = [];
-            // NOTE: XPath namespaces are not inherited on SimpleXMLElement nodes,
-            // so we use children($ns) instead of $rowNode->xpath('./s:Cell').
-            foreach ($rowNode->children($ns)->Cell ?: [] as $cell) {
-                $data = $cell->children($ns)->Data;
-                $row[] = isset($data[0]) ? (string) $data[0] : '';
-            }
-            $rows[] = $row;
-        }
-
-        return $rows;
-    }
-
-    private function parseXlsxInlineStrings(?string $path): array
-    {
-        if (!$path || !is_file($path)) {
-            throw new \RuntimeException('File XLSX tidak ditemukan.');
-        }
-
-        $zip = new \ZipArchive();
-        if ($zip->open($path) !== true) {
-            throw new \RuntimeException('Gagal membuka file XLSX.');
-        }
-
-        $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
-        $zip->close();
-
-        if (!$sheetXml) {
-            throw new \RuntimeException('Sheet XLSX tidak ditemukan.');
-        }
-
-        // Some test-generated XLSX XML strings contain literal "\n" sequences.
-        $sheetXml = str_replace(['\\n', '\\r'], ["\n", "\r"], $sheetXml);
-
-        $xml = @simplexml_load_string($sheetXml);
-        if (!$xml) {
-            throw new \RuntimeException('Format XLSX tidak valid.');
-        }
-
-        $ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
-        $xml->registerXPathNamespace('s', $ns);
-
-        $rows = [];
-        foreach ($xml->xpath('//s:sheetData/s:row') ?: [] as $rowNode) {
-            $row = [];
-            // NOTE: XPath namespaces are not inherited on SimpleXMLElement nodes,
-            // so we use children($ns) instead of $rowNode->xpath('./s:c').
-            foreach ($rowNode->children($ns)->c ?: [] as $cell) {
-                $attrs = $cell->attributes() ?: [];
-                $ref = isset($attrs['r']) ? (string) $attrs['r'] : '';
-                $colLetters = preg_replace('/[^A-Z]/', '', strtoupper($ref));
-                $colIndex = $this->xlsxColumnIndex($colLetters);
-                $value = '';
-
-                $type = isset($attrs['t']) ? (string) $attrs['t'] : '';
-                if ($type === 'inlineStr') {
-                    $is = $cell->children($ns)->is;
-                    $t = $is ? $is->children($ns)->t : null;
-                    $value = $t ? (string) $t : '';
-                } else {
-                    $v = $cell->children($ns)->v;
-                    $value = $v ? (string) $v : '';
-                }
-
-                if ($colIndex !== null) {
-                    $row[$colIndex] = $value;
-                } else {
-                    $row[] = $value;
-                }
-            }
-
-            if (!empty($row)) {
-                ksort($row);
-                $rows[] = array_values($row);
-            }
-        }
-
-        return $rows;
-    }
-
-    private function xlsxColumnIndex(?string $letters): ?int
-    {
-        if (!$letters) {
-            return null;
-        }
-        $letters = strtoupper($letters);
-        $idx = 0;
-        for ($i = 0; $i < strlen($letters); $i++) {
-            $c = ord($letters[$i]);
-            if ($c < 65 || $c > 90) {
-                return null;
-            }
-            $idx = ($idx * 26) + ($c - 64);
-        }
-        return $idx - 1;
+        return $file;
     }
 
     private function importRow(array $item, $user, int &$success, int &$failed, array &$errors, int $row)
@@ -580,13 +505,15 @@ class MemberImportController extends Controller
         if ($fullName === '') {
             $failed++;
             $errors[] = ['row' => $row, 'message' => 'Nama lengkap wajib'];
+
             return;
         }
 
         // Validation: Company Email Domain
-        if ($companyEmail && !str_ends_with($companyEmail, '@plnipservices.co.id')) {
+        if ($companyEmail && ! str_ends_with($companyEmail, '@plnipservices.co.id')) {
             $failed++;
             $errors[] = ['row' => $row, 'message' => 'Email perusahaan harus @plnipservices.co.id'];
+
             return;
         }
 
@@ -608,18 +535,20 @@ class MemberImportController extends Controller
 
             // Find existing
             $member = null;
-            if ($nip)
+            if ($nip) {
                 $member = Member::where('nip', $nip)->first();
-            if (!$member && $email)
+            }
+            if (! $member && $email) {
                 $member = Member::where('email', $email)->first();
+            }
 
-            $isNew = !$member;
+            $isNew = ! $member;
 
             if ($isNew) {
                 $gen = NraGenerator::generate($unitId, $joinYear);
                 $nraVal = $gen['nra'];
 
-                $member = new Member();
+                $member = new Member;
                 $member->nra = $nraVal;
                 $member->join_year = $joinYear;
                 $member->sequence_number = $gen['sequence'];
@@ -652,7 +581,7 @@ class MemberImportController extends Controller
                 // Ensure user exists
                 $targetUser = \App\Models\User::where('email', $targetEmail)->first();
 
-                if (!$targetUser) {
+                if (! $targetUser) {
                     $targetUser = \App\Models\User::create([
                         'name' => $fullName,
                         'email' => $targetEmail,
@@ -664,7 +593,7 @@ class MemberImportController extends Controller
                     ]);
                 } else {
                     // User exists, link member
-                    if (!$targetUser->member_id) {
+                    if (! $targetUser->member_id) {
                         $targetUser->member_id = $member->id;
                         $targetUser->organization_unit_id = $unitId;
                         $targetUser->save();

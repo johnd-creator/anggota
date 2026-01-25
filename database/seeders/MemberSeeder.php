@@ -31,23 +31,32 @@ class MemberSeeder extends Seeder
             $gen = NraGenerator::generate((int)$unit->id, $joinYear);
 
             $posId = optional(UnionPosition::firstOrCreate(['name' => $row['position_name']]))->id;
-            Member::firstOrCreate(
-                ['email' => $row['email']],
-                [
-                    'full_name' => $row['full_name'],
-                    'email' => $row['email'],
-                    'kta_number' => $row['kta_number'],
-                    'nip' => $row['nip'],
-                    'union_position_id' => $posId,
-                    'employment_type' => 'organik',
-                    'status' => 'aktif',
-                    'join_date' => $joinDate->toDateString(),
-                    'organization_unit_id' => $unit->id,
-                    'nra' => $gen['nra'],
-                    'join_year' => $joinYear,
-                    'sequence_number' => $gen['sequence'],
-                ]
-            );
+            $conflict = Member::withTrashed()
+                ->where('email', $row['email'])
+                ->orWhere('kta_number', $row['kta_number'])
+                ->orWhere('nip', $row['nip'])
+                ->orWhere('nra', $gen['nra'])
+                ->first();
+
+            if ($conflict) {
+                $this->command?->warn("Skipping member seed for {$row['email']} due to existing record.");
+                continue;
+            }
+
+            Member::create([
+                'full_name' => $row['full_name'],
+                'email' => $row['email'],
+                'kta_number' => $row['kta_number'],
+                'nip' => $row['nip'],
+                'union_position_id' => $posId,
+                'employment_type' => 'organik',
+                'status' => 'aktif',
+                'join_date' => $joinDate->toDateString(),
+                'organization_unit_id' => $unit->id,
+                'nra' => $gen['nra'],
+                'join_year' => $joinYear,
+                'sequence_number' => $gen['sequence'],
+            ]);
         }
     }
 }

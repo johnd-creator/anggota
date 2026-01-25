@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class UserSeeder extends Seeder
@@ -15,12 +14,13 @@ class UserSeeder extends Seeder
         $superAdminRole = \App\Models\Role::where('name', 'super_admin')->first();
 
         // Gunakan kredensial dari ENV agar bisa diganti di prod tanpa ubah kode
-        $email = env('SUPERADMIN_EMAIL', 'superadmin@example.com');
-        $password = env('SUPERADMIN_PASSWORD', 'password');
+        // Default ke superadmin@waspro.com sesuai setup baru
+        $email = env('SUPERADMIN_EMAIL', 'superadmin@waspro.com');
+        $password = env('SUPERADMIN_PASSWORD', 'password123');
         $name = env('SUPERADMIN_NAME', 'Super Admin');
 
         if ($superAdminRole) {
-            \App\Models\User::updateOrCreate(
+            $user = \App\Models\User::updateOrCreate(
                 ['email' => $email],
                 [
                     'name' => $name,
@@ -30,6 +30,12 @@ class UserSeeder extends Seeder
                     'role_id' => $superAdminRole->id,
                 ]
             );
+
+            // Update role if user exists and has wrong role
+            if ($user && $user->role_id !== $superAdminRole->id) {
+                $user->role_id = $superAdminRole->id;
+                $user->save();
+            }
         }
     }
 }

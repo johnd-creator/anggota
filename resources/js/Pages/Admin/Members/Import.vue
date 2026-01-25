@@ -250,9 +250,28 @@ const processedErrors = computed(() => {
   });
 });
 
-function onFileChange(e) {
-  file.value = e.target.files[0] || null;
-}
+  function onFileChange(e) {
+    const f = e.target.files[0] || null;
+    if (f) {
+      // Validate file extension
+      const ext = f.name.split('.').pop().toLowerCase();
+      const validExts = ['csv', 'xlsx', 'xls'];
+      if (!validExts.includes(ext)) {
+        errorMessage.value = `Tipe file tidak didukung. Gunakan file CSV, XLSX, atau XLS. File terpilih: .${ext}`;
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (f.size > maxSize) {
+        errorMessage.value = `Ukuran file terlalu besar. Maksimal 5MB. File terpilih: ${formatBytes(f.size)}`;
+        return;
+      }
+      
+      errorMessage.value = '';
+      file.value = f;
+    }
+  }
 
 function onDrop(e) {
   dragOver.value = false;
@@ -293,7 +312,13 @@ async function doPreview() {
     errors.value = data.errors || [];
     step.value = 'preview';
   } catch (err) {
-    errorMessage.value = err.response?.data?.message || 'Preview gagal. Periksa format file.';
+    const data = err.response?.data;
+    const validationError =
+      data?.errors ? Object.values(data.errors).flat()[0] : null;
+    errorMessage.value =
+      data?.message ||
+      validationError ||
+      (err.response ? `Preview gagal (HTTP ${err.response.status}).` : 'Preview gagal. Periksa format file.');
   } finally {
     previewing.value = false;
   }
@@ -314,7 +339,14 @@ async function doCommit() {
     if (err.response?.status === 409) {
       errorMessage.value = 'Batch sudah di-commit sebelumnya.';
     } else {
-      errorMessage.value = err.response?.data?.error || 'Commit gagal.';
+      const data = err.response?.data;
+      const validationError =
+        data?.errors ? Object.values(data.errors).flat()[0] : null;
+      errorMessage.value =
+        data?.error ||
+        data?.message ||
+        validationError ||
+        (err.response ? `Commit gagal (HTTP ${err.response.status}).` : 'Commit gagal.');
     }
   } finally {
     committing.value = false;

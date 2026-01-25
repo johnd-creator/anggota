@@ -1,33 +1,45 @@
-# Plan: Final Mobile Polish (Data Cards, CSP & Login)
+# Plan: Minors & Nits Fixes
 
 ## Goal
-Complete the Mobile UX transformation by implementing the missing pieces (Data Cards), fixing the Preview CSP bug, and polishing the Mobile Login screen to look "branded" rather than plain white.
+Clean up technical debt identified in the Codebase Review (4 Minors, 3 Nits).
 
 ## Assumptions
-- "Mobile" < 768px.
-- Login background image for mobile header can reuse the "abstract" red background from desktop but resized/cropped, or we use a solid brand color with the white Logo.
+- Code logic checks for `Letter` filtering will be moved to Model Scopes.
+- Brand colors are `#1A2B63` (Primary) and `#2E4080` (Secondary/Border) — will add to Tailwind config.
 
 ## Plan
 
-### 1. Fix CSP for Preview Logo
-Allow `blob:` images so Dynamic/Object URLs work (often used for previews or local component assets).
-- **Files:** `app/Http/Middleware/SecurityHeadersMiddleware.php`
-- **Change:** Add `blob:` to `img-src` directive.
-- **Verify:** Refresh Letter Preview page -> Logo should appear.
-
-### 2. Polish Mobile Login UI
-Make it look premium and branded, not just a white form.
-- **Files:** `resources/js/Pages/Auth/Login.vue`
+### Minor 1 & 2: Letter Filtering & Query Styles
+Standardize filtering in `LetterController` using Model Scopes.
+- **Files:** `app/Models/Letter.php`, `app/Http/Controllers/LetterController.php`
 - **Change:**
-    -   Add a **Blue/Red Header** block (h-48) at the top with the White Logo centered.
-    -   Move the form into a white **Card** that overlaps the header (negative margin-top).
-    -   Add "Selamat Datang" text inside the card.
--   **Visual Reference:** Similar to many banking/fintech apps (Header color + Overlapping Card).
-- **Verify:** Check mobile login view -> looks "Official".
+    - Method: Add `scopeVisibleTo($query, User $user)` to `Letter` model. This scope will encapsulate the role-based logic (Anggota vs Admin Unit vs Admin Pusat).
+    - Method: Add `scopeFilterByRequest($query, Request $request)` to encapsulate search, status, and category filters.
+    - Update `LetterController::inbox`, `outbox`, `approvals` to use these scopes.
+- **Verify:** Run feature tests (`LetterInboxTest` if exists, or manually check Inbox/Approvals).
+
+### Minor 3: Hardcoded Inline Styles
+Replace sidebar inline styles with Tailwind classes.
+- **Files:** `tailwind.config.js`, `resources/js/Layouts/AppLayout.vue`
+- **Change:**
+    - Add `brand-sidebar: '#1A2B63'` and `brand-sidebar-border: '#2E4080'` to `tailwind.config.js`.
+    - Update `AppLayout.vue` to use `bg-brand-sidebar` and `border-brand-sidebar-border`.
+- **Verify:** `npm run build` and visual check (sidebar color remains same).
+
+### Minor 4: CSP Configuration
+Move CSP logic to a cleaner configuration or service.
+- **Files:** `app/Http/Middleware/SecurityHeadersMiddleware.php`
+- **Change:** Use `config('app.debug')` as the primary flag and possibly move host lists to `config/cors.php` or `config/security.php` if needed. For now, just ensuring strict `app()->isLocal()` usage and strictly splitting dev vs prod headers logic.
+- **Verify:** Visit site, check Response Headers -> CSP should be correct.
+
+### Nits
+1.  **Schema Checks**: Remove `Schema::hasTable` in `DashboardController` (assumed location based on review, will check).
+2.  **Optional Helper**: Replace `optional($foo)->bar` with `$foo?->bar` in `SettingsController` and others.
+3.  **Comments**: Remove "Menu item styling" noise.
 
 ## Risks & mitigations
-- **Risk:** Overlapping layout might break on very small SE/iPhone 5 screens.
-    -   **Mitigation:** Use safe padding and `min-height`.
+- **Risk:** Scope refactor might miss a specific "OR" condition for a role.
+    - **Mitigation:** I will strictly copy the existing logic into the Scope first, ensuring parity.
 
 ## Rollback plan
-- Revert changes to `SecurityHeadersMiddleware.php`, `Login.vue`, `Dashboard.vue`.
+- Revert changes to `Letter.php` and `LetterController.php`.

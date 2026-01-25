@@ -98,7 +98,9 @@
         </div>
     </div>
 
-    <BottomNav :menu-active="menuOpen" @toggle-menu="menuOpen = !menuOpen" />
+    <Teleport to="body">
+        <BottomNav :menu-active="menuOpen" @toggle-menu="menuOpen = !menuOpen" />
+    </Teleport>
   </div>
 </template>
 

@@ -19,6 +19,10 @@
   color: #FFFFFF;
 }
 
+.bg-sidebar-bg {
+  background-color: #1A2B63;
+}
+
 /* Custom Animations */
 @keyframes fadeIn {
   0% {

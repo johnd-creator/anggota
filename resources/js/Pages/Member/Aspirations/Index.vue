@@ -124,7 +124,7 @@
       <!-- Pagination -->
       <div v-if="aspirations.links?.length > 3" class="flex justify-center">
         <nav class="flex gap-1">
-          <template v-for="(link, i) in aspirations.links" :key="i">
+          <template v-for="(link, i) in paginationLinks" :key="i">
             <Link
               v-if="link.url"
               :href="link.url"
@@ -141,13 +141,14 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue';
+import { reactive, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
 import CtaButton from '@/Components/UI/CtaButton.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import IconButton from '@/Components/UI/IconButton.vue';
+import { useMobile } from '@/Composables/useMobile';
 
 const props = defineProps({
   aspirations: Object,
@@ -159,6 +160,24 @@ const localFilters = reactive({
   category: props.filters.category || '',
   status: props.filters.status || '',
   sort: props.filters.sort || 'latest',
+});
+
+const { isMobile } = useMobile();
+
+const paginationLinks = computed(() => {
+  if (!props.aspirations.links) return [];
+  
+  if (isMobile.value) {
+    // On mobile: show only Previous, current page (active), and Next
+    return props.aspirations.links.filter(link => 
+      link.label.includes('Previous') || 
+      link.label.includes('Next') || 
+      link.active
+    );
+  }
+  
+  // On desktop: show all links
+  return props.aspirations.links;
 });
 
 function applyFilters() {

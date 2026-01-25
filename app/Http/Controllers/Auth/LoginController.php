@@ -10,17 +10,17 @@ use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\InvalidStateException;
-use Illuminate\Support\Str;
 
 class LoginController extends Controller
 {
     public function __construct(
         protected AuditService $auditService
-    ) {
-    }
+    ) {}
 
     public function login(Request $request)
     {
@@ -66,6 +66,7 @@ class LoginController extends Controller
                     'subject_id' => $pending->id,
                     'payload' => ['email' => $pending->email, 'name' => $pending->name],
                 ]);
+
                 return redirect()->route('itworks');
             }
 
@@ -101,6 +102,7 @@ class LoginController extends Controller
                 'request_id' => $request->headers->get('X-Request-Id'),
                 'error' => $e->getMessage(),
             ]);
+
             return redirect('/login')->withErrors([
                 'email' => 'Sesi login Google kadaluarsa, silakan coba lagi.',
             ]);
@@ -110,6 +112,7 @@ class LoginController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return redirect('/login')->withErrors([
                 'email' => 'Google Login Failed',
             ]);
@@ -121,9 +124,9 @@ class LoginController extends Controller
         // Role Mapping Logic
         $roleName = 'reguler'; // Default
 
-        // Example Whitelist Logic (Adjust as needed or move to config)
+        // Domain Whitelist for Role Assignment (Adjust as needed)
         $whitelist = [
-            'superadmin.com' => 'super_admin', // Example domain
+            'waspro.com' => 'super_admin',    // Production domain
             'adminunit.com' => 'admin_unit',   // Example domain
         ];
 
@@ -147,7 +150,7 @@ class LoginController extends Controller
         // "mapping role berdasarkan domain whitelist (untuk Super Admin/Admin), fallback auto-assign Reguler untuk user baru"
         // Implies we set it on creation. If we want to enforce it on login, we can do that too.
         // Let's set it only if role_id is null to avoid demoting manually promoted users.
-        if (!$user->role_id) {
+        if (! $user->role_id) {
             $role = Role::where('name', $roleName)->first();
             if ($role) {
                 $user->role_id = $role->id;
@@ -172,7 +175,7 @@ class LoginController extends Controller
                 $rejectedPending = PendingMember::where('user_id', $user->id)
                     ->where('status', 'rejected')
                     ->first();
-                
+
                 if ($rejectedPending) {
                     // Log deletion
                     ActivityLog::create([
@@ -187,7 +190,7 @@ class LoginController extends Controller
                             'provider' => 'google',
                         ],
                     ]);
-                    
+
                     // Delete rejected pending member
                     $rejectedPending->delete();
                 }
@@ -235,6 +238,7 @@ class LoginController extends Controller
                     'payload' => ['email' => $pending->email, 'name' => $pending->name],
                 ]);
             }
+
             return redirect()->route('itworks');
         }
 
@@ -248,6 +252,7 @@ class LoginController extends Controller
             /** @var \Laravel\Socialite\Two\AbstractProvider $driver */
             $driver->stateless();
         }
+
         return $driver->redirect();
     }
 
@@ -263,6 +268,7 @@ class LoginController extends Controller
             $msUser = $driver->user();
         } catch (\Throwable $e) {
             \Log::error('Microsoft login failed', ['error' => $e->getMessage()]);
+
             return redirect('/login')->withErrors(['email' => 'Microsoft Login Failed']);
         }
 
@@ -279,13 +285,13 @@ class LoginController extends Controller
             ->orWhere('company_email', $email)
             ->first();
 
-        if (!$user) {
+        if (! $user) {
             // Check if standard email exists to link
             $user = User::where('email', $email)->first();
         }
 
         // Auto-Create if not found (Registration)
-        if (!$user) {
+        if (! $user) {
             $user = User::create([
                 'name' => $msUser->getName(),
                 'email' => $email,
@@ -318,7 +324,7 @@ class LoginController extends Controller
                 $rejectedPending = PendingMember::where('user_id', $user->id)
                     ->where('status', 'rejected')
                     ->first();
-                
+
                 if ($rejectedPending) {
                     // Log deletion
                     ActivityLog::create([
@@ -333,7 +339,7 @@ class LoginController extends Controller
                             'provider' => 'microsoft',
                         ],
                     ]);
-                    
+
                     // Delete rejected pending member
                     $rejectedPending->delete();
                 }
@@ -381,6 +387,7 @@ class LoginController extends Controller
                     'payload' => ['email' => $pending->email, 'name' => $pending->name],
                 ]);
             }
+
             return redirect()->route('itworks');
         }
 

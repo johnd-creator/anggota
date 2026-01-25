@@ -274,7 +274,7 @@ Telp. (021) 5290-1234"
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, defineAsyncComponent } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
@@ -282,7 +282,8 @@ import InputField from '@/Components/UI/InputField.vue'
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue'
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue'
 import AlertBanner from '@/Components/UI/AlertBanner.vue'
-import RichTextEditor from '@/Components/UI/RichTextEditor.vue'
+
+const RichTextEditor = defineAsyncComponent(() => import('@/Components/UI/RichTextEditor.vue'))
 
 const props = defineProps({ 
   letter: Object, 

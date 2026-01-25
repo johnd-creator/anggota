@@ -2,9 +2,9 @@
   <!-- Desktop Layout -->
   <div v-if="!isMobile" class="min-h-screen bg-neutral-100 flex">
     <!-- Sidebar (Desktop) -->
-    <aside class="hidden md:flex flex-col w-64 fixed inset-y-0 z-50" style="background-color: #1A2B63;">
+    <aside class="hidden md:flex flex-col w-64 fixed inset-y-0 z-50 bg-sidebar-bg">
       <!-- Logo Section -->
-      <div class="flex items-center gap-3 h-16 px-4 border-b" style="border-color: #2E4080;">
+      <div class="flex items-center gap-3 h-16 px-4 border-b border-sidebar-border">
         <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
           <img src="/img/logo.png" alt="Logo" class="w-8 h-8 object-contain" />
         </div>
@@ -629,7 +629,7 @@ const canAccessMemberSelf = computed(() => {
 });
 const userUnitName = computed(() => page.props?.auth?.user?.organization_unit?.name || null);
 
-// Menu item styling - using inline styles for colors
+
 import MobileLayout from '@/Layouts/MobileLayout.vue';
 import { useMobile } from '@/Composables/useMobile';
 
@@ -639,7 +639,7 @@ function doLogout() {
   router.post('/logout', {}, { onFinish() { userMenuOpen.value = false; } });
 }
 
-// Menu item styling - using inline styles for colors
+
 function menuItemClass(path) {
   const isActive = page.url === path || page.url.startsWith(path + '/');
   return [

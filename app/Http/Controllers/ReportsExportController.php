@@ -11,6 +11,8 @@ use App\Models\OrganizationUnit;
 use App\Services\ExportScopeHelper;
 use App\Services\ReportExporter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -51,7 +53,7 @@ class ReportsExportController extends Controller
     public function export(Request $request, \App\Services\ReportExportStatus $statusService)
     {
         $validated = $request->validate([
-            'type' => 'required|string',
+            'type' => ['required', 'string', \Illuminate\Validation\Rule::in(self::ALLOWED_TYPES)],
             'unit_id' => 'nullable|integer',
             'date_start' => 'nullable|date',
             'date_end' => 'nullable|date',
@@ -673,5 +675,152 @@ class ReportsExportController extends Controller
             'error' => 'Not implemented',
             'message' => "Report type '{$type}' is not yet implemented.",
         ], 501);
+    }
+
+    /**
+     * Legacy per-type export (kept for backward compatibility).
+     * Mapped from POST /reports/{type}/export
+     */
+    public function legacyExport(Request $request, string $type)
+    {
+        $user = Auth::user();
+        $requestedUnitId = $request->filled('unit_id') ? (int) $request->input('unit_id') : null;
+
+        // Enforce unit scope: non-global users are forced to their own unit
+        $unitId = ExportScopeHelper::getEffectiveUnitId($user, $requestedUnitId);
+        //$maskPii = ExportScopeHelper::shouldMaskPii($user); // Unused in this legacy block in web.php, but let's check
+
+        if ($type === 'growth') {
+            Gate::authorize('export', Member::class);
+
+            $dateStart = $request->input('date_start');
+            $dateEnd = $request->input('date_end');
+            $query = Member::query();
+            if ($unitId)
+                $query->where('organization_unit_id', $unitId);
+            if ($dateStart)
+                $query->whereDate('join_date', '>=', $dateStart);
+            if ($dateEnd)
+                $query->whereDate('join_date', '<=', $dateEnd);
+            $filename = 'report_growth_' . now()->format('Ymd_His') . '.csv';
+            ExportScopeHelper::auditExport($user, 'reports.growth', $unitId, 12, [
+                'date_start' => $dateStart,
+                'date_end' => $dateEnd,
+            ]);
+            return ReportExporter::streamCsv($filename, ['Month', 'Count'], function ($out) use ($query) {
+                $months = collect(range(0, 11))->map(fn($i) => now()->subMonths(11 - $i)->format('Y-m'));
+                $rows = $query->select(DB::raw("strftime('%Y-%m', join_date) as ym"), DB::raw('count(*) as c'))->groupBy('ym')->get()->keyBy('ym');
+                foreach ($months as $m)
+                    fputcsv($out, [$m, (int) optional($rows->get($m))->c]);
+            });
+        } elseif ($type === 'mutations') {
+            Gate::authorize('viewAny', \App\Models\MutationRequest::class);
+
+            $status = $request->input('status');
+            $dateStart = $request->input('date_start');
+            $dateEnd = $request->input('date_end');
+            $query = \App\Models\MutationRequest::query()->with(['member', 'fromUnit', 'toUnit']);
+            if ($unitId)
+                $query->where(function ($q) use ($unitId) {
+                    $q->where('from_unit_id', $unitId)->orWhere('to_unit_id', $unitId);
+                });
+            if ($status)
+                $query->where('status', $status);
+            if ($dateStart)
+                $query->whereDate('effective_date', '>=', $dateStart);
+            if ($dateEnd)
+                $query->whereDate('effective_date', '<=', $dateEnd);
+            $filename = 'report_mutations_' . now()->format('Ymd_His') . '.csv';
+            $rowCount = (clone $query)->count();
+            ExportScopeHelper::auditExport($user, 'reports.mutations', $unitId, $rowCount, [
+                'status' => $status,
+                'date_start' => $dateStart,
+                'date_end' => $dateEnd,
+            ]);
+            return ReportExporter::streamCsv($filename, ['ID', 'Anggota', 'Asal', 'Tujuan', 'Status', 'Tanggal Efektif'], function ($out) use ($query) {
+                $query->orderBy('id')->chunk(500, function ($rows) use (&$out) {
+                    foreach ($rows as $r)
+                        fputcsv($out, [$r->id, optional($r->member)->full_name, optional($r->fromUnit)->name, optional($r->toUnit)->name, $r->status, $r->effective_date]);
+                });
+            });
+        }
+
+        return response()->json(['error' => 'Unknown report'], 404);
+    }
+
+    /**
+     * Admin Members Export.
+     * Mapped from GET /admin/members-export
+     */
+    public function adminMembersExport(Request $request)
+    {
+        Gate::authorize('export', Member::class);
+
+        $user = Auth::user();
+        $requestedUnitId = $request->filled('unit_id') ? (int) $request->query('unit_id') : null;
+
+        // Enforce unit scope: non-global users are forced to their own unit
+        $unitId = ExportScopeHelper::getEffectiveUnitId($user, $requestedUnitId);
+        $maskPii = ExportScopeHelper::shouldMaskPii($user);
+
+        $query = Member::query()->select(['id', 'full_name', 'email', 'phone', 'status', 'organization_unit_id', 'nra', 'kta_number', 'nip', 'union_position_id', 'join_date'])->with(['unit', 'unionPosition']);
+        if ($unitId)
+            $query->where('organization_unit_id', $unitId);
+        $rowCount = (clone $query)->count();
+        $filename = 'members_export_' . now()->format('Ymd_His') . '.csv';
+        Cache::put('export:members:' . $user->id, ['status' => 'started', 'time' => now()->toISOString()], 300);
+        ExportScopeHelper::auditExport($user, 'members', $unitId, $rowCount);
+        return response()->streamDownload(function () use ($query, $user, $unitId, $maskPii) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['ID', 'Nama', 'Email', 'Telepon', 'Status', 'Unit', 'NRA', 'KTA', 'NIP', 'Jabatan Serikat', 'Join Date']);
+            $count = 0;
+            $query->orderBy('id')->chunk(500, function ($rows) use (&$out, &$count, $maskPii) {
+                foreach ($rows as $m) {
+                    $email = $maskPii ? ExportScopeHelper::maskPii($m->email, 'email') : $m->email;
+                    $phone = $maskPii ? ExportScopeHelper::maskPii($m->phone, 'phone') : $m->phone;
+                    $nip = $maskPii ? ExportScopeHelper::maskPii($m->nip, 'nip') : $m->nip;
+                    fputcsv($out, [$m->id, $m->full_name, $email, $phone, $m->status, $m->unit?->name, $m->nra, $m->kta_number, $nip, optional($m->unionPosition)->name, $m->join_date]);
+                    $count++;
+                }
+            });
+            Cache::put('export:members:' . $user->id, ['status' => 'completed', 'count' => $count, 'time' => now()->toISOString()], 300);
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * Admin Mutations Export.
+     * Mapped from GET /admin/mutations/export
+     */
+    public function adminMutationsExport(Request $request)
+    {
+        Gate::authorize('viewAny', \App\Models\MutationRequest::class);
+
+        $user = Auth::user();
+        $requestedUnitId = $request->filled('unit_id') ? (int) $request->query('unit_id') : null;
+
+        // Enforce unit scope: non-global users are forced to their own unit
+        $unitId = ExportScopeHelper::getEffectiveUnitId($user, $requestedUnitId);
+
+        $query = \App\Models\MutationRequest::query()->select(['id', 'member_id', 'from_unit_id', 'to_unit_id', 'status', 'effective_date'])->with(['member', 'fromUnit', 'toUnit']);
+        if ($unitId)
+            $query->where(function ($q) use ($unitId) {
+                $q->where('from_unit_id', $unitId)->orWhere('to_unit_id', $unitId);
+            });
+        $rowCount = (clone $query)->count();
+        $filename = 'mutations_export_' . now()->format('Ymd_His') . '.csv';
+        ExportScopeHelper::auditExport($user, 'mutations', $unitId, $rowCount);
+        return response()->streamDownload(function () use ($query, $user, $unitId) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['ID', 'Anggota', 'Asal', 'Tujuan', 'Status', 'Tanggal Efektif']);
+            $count = 0;
+            $query->orderBy('id')->chunk(500, function ($rows) use (&$out, &$count) {
+                foreach ($rows as $r) {
+                    fputcsv($out, [$r->id, optional($r->member)->full_name, optional($r->fromUnit)->name, optional($r->toUnit)->name, $r->status, $r->effective_date]);
+                    $count++;
+                }
+            });
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv']);
     }
 }

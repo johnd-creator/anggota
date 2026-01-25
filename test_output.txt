@@ -1,10 +1,33 @@
-PHPUnit 12.4.4 by Sebastian Bergmann and contributors.
 
-Runtime:       PHP 8.4.16
-Configuration: /var/www/html/anggota/phpunit.xml
+   FAIL  Tests\Feature\LetterQrPreviewTest
+  ✓ approved letter preview has qr and is final true                     0.23s  
+  ✓ draft letter preview has no qr and is final false                    0.02s  
+  ✓ submitted letter preview has no qr and is final false                0.02s  
+  ⨯ approved letter qr endpoint returns 200 with image                   0.02s  
+  ✓ draft letter qr endpoint returns 403                                 0.02s  
+  ✓ submitted letter qr endpoint returns 403                             0.01s  
+  ✓ sent letter preview has qr and is final true                         0.03s  
+  ✓ archived letter preview has qr and is final true                     0.02s  
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\LetterQrPreviewTest > approved letter qr endpoint r…   
+  Header [Content-Type] was found, but value [image/svg+xml] does not match [image/png].
+Failed asserting that two strings are equal.
+  -'image/png'
+  +'image/svg+xml'
+  
 
-...                                                                 3 / 3 (100%)
+  at tests/Feature/LetterQrPreviewTest.php:136
+    132▕         $response = $this->actingAs($this->adminUnit)
+    133▕             ->get("/letters/{$letter->id}/qr.png");
+    134▕ 
+    135▕         $response->assertStatus(200);
+  ➜ 136▕         $response->assertHeader('Content-Type', 'image/png');
+    137▕     }
+    138▕ 
+    139▕     public function test_draft_letter_qr_endpoint_returns_403(): void
+    140▕     {
 
-Time: 00:00.223, Memory: 61.00 MB
 
-OK (3 tests, 9 assertions)
+  Tests:    1 failed, 7 passed (72 assertions)
+  Duration: 0.41s
+

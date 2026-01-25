@@ -27,15 +27,21 @@ class LetterController extends Controller
     protected LetterNumberService $numberService;
     protected LetterTemplateRenderer $templateRenderer;
     protected HtmlSanitizerService $sanitizer;
+    protected \App\Services\LetterQrService $qrService;
+    protected \App\Services\LetterPdfService $pdfService;
 
     public function __construct(
         LetterNumberService $numberService,
         LetterTemplateRenderer $templateRenderer,
-        HtmlSanitizerService $sanitizer
+        HtmlSanitizerService $sanitizer,
+        \App\Services\LetterQrService $qrService,
+        \App\Services\LetterPdfService $pdfService
     ) {
         $this->numberService = $numberService;
         $this->templateRenderer = $templateRenderer;
         $this->sanitizer = $sanitizer;
+        $this->qrService = $qrService;
+        $this->pdfService = $pdfService;
     }
 
     /**
@@ -44,54 +50,11 @@ class LetterController extends Controller
     public function inbox(Request $request)
     {
         $user = $request->user();
-        $unitId = $user->currentUnitId();
 
         $query = Letter::with(['category', 'creator', 'fromUnit', 'toUnit', 'toMember'])
-            ->whereIn('status', ['submitted', 'approved', 'sent', 'archived']);
-
-        // Filter based on user role
-        $roleName = $user->role?->name;
-
-        if (in_array($roleName, ['anggota', 'bendahara'])) {
-            $query->where(function ($q) use ($user, $unitId) {
-                // Letters sent to this member
-                if ($user->member_id) {
-                    $q->orWhere(function ($sub) use ($user) {
-                        $sub->where('to_type', 'member')
-                            ->where('to_member_id', $user->member_id);
-                    });
-                }
-                // Letters sent to user's unit
-                if ($unitId) {
-                    $q->orWhere(function ($sub) use ($unitId) {
-                        $sub->where('to_type', 'unit')
-                            ->where('to_unit_id', $unitId);
-                    });
-                }
-            });
-        } elseif ($roleName === 'admin_unit') {
-            $query->where(function ($q) use ($unitId) {
-                // Letters sent to user's unit
-                if ($unitId) {
-                    $q->where('to_type', 'unit')
-                        ->where('to_unit_id', $unitId);
-                }
-            });
-        } else {
-            // admin_pusat, super_admin - see letters to admin_pusat
-            $query->where('to_type', 'admin_pusat');
-        }
-
-        // Apply filters
-        if ($request->filled('search')) {
-            $query->where('subject', 'like', '%' . $request->search . '%');
-        }
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('category_id')) {
-            $query->where('letter_category_id', $request->category_id);
-        }
+            ->whereIn('status', ['submitted', 'approved', 'sent', 'archived'])
+            ->visibleTo($user)
+            ->filterByRequest($request);
 
         $letters = $query->latest()->paginate(15)->withQueryString();
         $categories = LetterCategory::active()->ordered()->get(['id', 'name', 'code']);
@@ -195,12 +158,7 @@ class LetterController extends Controller
         }
 
         // Apply filters
-        if ($request->filled('search')) {
-            $query->where('subject', 'like', '%' . $request->search . '%');
-        }
-        if ($request->filled('category_id')) {
-            $query->where('letter_category_id', $request->category_id);
-        }
+        $query->filterByRequest($request);
         if ($request->filled('sla_status')) {
             if ($request->sla_status === 'overdue') {
                 $query->where('sla_due_at', '<', now());
@@ -455,9 +413,9 @@ class LetterController extends Controller
         $qrBase64 = null;
         $qrMime = null;
         if ($isFinal) {
-            $qrData = app(QrCodeService::class)->generate($verifyUrl, 150, 1);
+            $qrData = $this->qrService->generate($verifyUrl, 150, 1);
             if ($qrData) {
-                $qrBase64 = base64_encode($qrData['data']);
+                $qrBase64 = $qrData['base64'];
                 $qrMime = $qrData['mime'];
             }
         }
@@ -546,23 +504,13 @@ class LetterController extends Controller
 
         $verifyUrl = route('letters.verify', $letter->verification_token);
 
-        $qrData = app(QrCodeService::class)->generate($verifyUrl, 150, 1);
+        $qrData = $this->qrService->generate($verifyUrl, 150, 1);
         if ($qrData) {
-            return response($qrData['data'])->header('Content-Type', $qrData['mime']);
+            return response($qrData['raw'])->header('Content-Type', $qrData['mime']);
         }
 
         try {
-            // Fallback: return a simple 1x1 transparent PNG
-            $img = imagecreatetruecolor(150, 150);
-            $white = imagecolorallocate($img, 255, 255, 255);
-            imagefill($img, 0, 0, $white);
-            $black = imagecolorallocate($img, 0, 0, 0);
-            imagestring($img, 3, 10, 65, 'QR unavailable', $black);
-            ob_start();
-            imagepng($img);
-            $data = ob_get_clean();
-            imagedestroy($img);
-            return response($data)->header('Content-Type', 'image/png');
+            return response($this->qrService->generateFallbackImage())->header('Content-Type', 'image/png');
         } catch (\Throwable $e) {
             abort(404);
         }
@@ -651,9 +599,9 @@ class LetterController extends Controller
         // Generate QR code offline
         $qrBase64 = null;
         $qrMime = null;
-        $qrData = app(QrCodeService::class)->generate($verifyUrl, 80, 1);
+        $qrData = $this->qrService->generate($verifyUrl, 80, 1);
         if ($qrData) {
-            $qrBase64 = base64_encode($qrData['data']);
+            $qrBase64 = $qrData['base64'];
             $qrMime = $qrData['mime'];
         }
 
@@ -668,14 +616,10 @@ class LetterController extends Controller
             'qrMime' => $qrMime,
         ])->render();
 
-        $dompdf = new \Dompdf\Dompdf();
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
-        $dompdf->render();
-
+        $pdfOutput = $this->pdfService->generate($html);
         $filename = 'Surat-' . ($letter->letter_number ?: $letter->id) . '.pdf';
 
-        return response($dompdf->output())
+        return response($pdfOutput)
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }

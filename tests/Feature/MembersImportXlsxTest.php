@@ -1,14 +1,14 @@
 <?php
 
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Http\UploadedFile;
-use App\Models\Role;
-use App\Models\User;
 use App\Models\Member;
 use App\Models\OrganizationUnit;
+use App\Models\Role;
+use App\Models\User;
+use Illuminate\Http\UploadedFile;
 
-function makeMinimalXlsx(array $rows): string {
-    $zip = new ZipArchive();
+function makeMinimalXlsx(array $rows): string
+{
+    $zip = new ZipArchive;
     $tmp = tempnam(sys_get_temp_dir(), 'xlsx');
     $zip->open($tmp, ZipArchive::CREATE | ZipArchive::OVERWRITE);
     $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">\n  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>\n  <Default Extension="xml" ContentType="application/xml"/>\n  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>\n  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>\n</Types>');
@@ -22,33 +22,33 @@ function makeMinimalXlsx(array $rows): string {
         $col = 0;
         foreach ($cells as $cell) {
             $colLetter = chr(ord('A') + $col);
-            $rowXml .= "<c r=\"{$colLetter}{$r}\" t=\"inlineStr\"><is><t>" . htmlspecialchars($cell, ENT_XML1) . "</t></is></c>";
+            $rowXml .= "<c r=\"{$colLetter}{$r}\" t=\"inlineStr\"><is><t>".htmlspecialchars($cell, ENT_XML1).'</t></is></c>';
             $col++;
         }
         $rowXml .= '</row>';
     }
-    $sheet = '<?xml version="1.0" encoding="UTF-8"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">\n  <sheetData>' . $rowXml . '</sheetData>\n</worksheet>';
+    $sheet = '<?xml version="1.0" encoding="UTF-8"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">\n  <sheetData>'.$rowXml.'</sheetData>\n</worksheet>';
     $zip->addFromString('xl/worksheets/sheet1.xml', $sheet);
     $zip->close();
     $data = file_get_contents($tmp);
     @unlink($tmp);
+
     return $data;
 }
 
-test('admin_unit can import members from xlsx', function(){
-    Artisan::call('migrate', ['--force' => true]);
-    $unit = OrganizationUnit::create(['code' => '013', 'name' => 'Unit XLSX', 'address' => 'Alamat']);
+test('admin_unit can import members from xlsx', function () {
+    $unit = OrganizationUnit::firstOrCreate(['code' => '998'], ['name' => 'Unit XLSX', 'address' => 'Alamat']);
     $roleAdmin = Role::firstOrCreate(['name' => 'admin_unit'], ['label' => 'Admin Unit']);
     $admin = User::factory()->create(['role_id' => $roleAdmin->id, 'organization_unit_id' => $unit->id]);
 
     $rows = [
-        ['full_name','email','nip','join_date','status','phone'],
-        ['Excel Modern','xlsx1@example.com','NIP-X1','2025-01-07','aktif','0810000001'],
+        ['full_name', 'email', 'nip', 'join_date', 'status', 'phone'],
+        ['Excel Modern', 'xlsx1@example.com', '19901234567890', '2025-01-07', 'aktif', '0810000001'],
     ];
     $data = makeMinimalXlsx($rows);
     $file = UploadedFile::fake()->createWithContent('import.xlsx', $data);
     $resp = test()->actingAs($admin)->post(route('admin.members.import'), ['file' => $file]);
-    $resp->assertRedirect(route('admin.members.index'));
-    expect(Member::where('organization_unit_id',$unit->id)->where('email','xlsx1@example.com')->exists())->toBeTrue();
-});
 
+    $resp->assertRedirect(route('admin.members.index'));
+    expect(Member::where('organization_unit_id', $unit->id)->where('email', 'xlsx1@example.com')->exists())->toBeTrue();
+});

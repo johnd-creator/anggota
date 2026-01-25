@@ -91,7 +91,6 @@
         </div>
 
         <!-- Pagination -->
-        <!-- Pagination -->
         <Pagination :paginator="letters" />
       </CardContainer>
 
@@ -114,9 +113,9 @@
                 </Link>
             </template>
         </DataCard>
-        <div v-if="letters.data.length === 0" class="text-center py-8 text-neutral-500">
-            Tidak ada surat masuk.
-        </div>
+      </div>
+      <div v-if="letters.data.length === 0" class="md:hidden text-center py-8 text-neutral-500">
+          Tidak ada surat masuk.
       </div>
 
       <!-- Mobile Pagination -->

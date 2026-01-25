@@ -421,7 +421,9 @@
                 <div class="px-6 py-4 border-b border-neutral-100">
                     <h3 class="text-lg font-semibold text-neutral-900">Recent Mutasi Pending</h3>
                 </div>
-                <div class="overflow-x-auto">
+                
+                <!-- Desktop Table -->
+                <div class="hidden md:block overflow-x-auto">
                     <table class="min-w-full divide-y divide-neutral-200">
                         <thead class="bg-neutral-50">
                             <tr>
@@ -450,35 +452,27 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
 
-            <!-- Recent Activity Panel (Moved to Bottom) -->
-            <div class="hidden md:block bg-white rounded-xl shadow-sm border border-neutral-100 p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-neutral-900">Recent Activity</h3>
-                    <button class="p-1.5 rounded-lg hover:bg-neutral-100 transition-colors">
-                        <svg class="h-4 w-4 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                    </button>
-                </div>
-
-                <div class="space-y-4">
-                    <div v-for="(activity, index) in recentActivities" :key="index" class="flex items-start gap-3">
-                        <div class="flex-shrink-0 mt-1">
-                            <component :is="getActivityIcon(activity.type)" class="h-4 w-4" :class="getActivityIconClass(activity.type)" />
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm text-neutral-800">{{ activity.message }}</p>
-                            <p class="text-xs text-neutral-500 mt-0.5">{{ activity.time }}</p>
-                        </div>
-                    </div>
-
-                    <div v-if="recentActivities.length === 0" class="text-center py-4 text-sm text-neutral-500">
-                        Belum ada aktivitas terbaru
+                <!-- Mobile Data Cards -->
+                <div class="md:hidden space-y-3 p-4">
+                    <DataCard
+                        v-for="mutation in recentMutations"
+                        :key="mutation.id"
+                        :title="mutation.member_name"
+                        :subtitle="`ID: ${mutation.id} • ${mutation.type}`"
+                        :status="{ label: mutation.status_label, color: mutation.status }"
+                        :meta="[
+                            { label: 'Tanggal', value: formatDate(mutation.date) }
+                        ]"
+                    >
+                    </DataCard>
+                    <div v-if="recentMutations.length === 0" class="text-center py-4 text-sm text-neutral-500">
+                        Tidak ada mutasi pending saat ini
                     </div>
                 </div>
             </div>
+
+
 
             <!-- Mobile: Recent Activity Cards -->
             <div v-if="recentActivities.length > 0" class="md:hidden space-y-3">
@@ -496,9 +490,9 @@
                         <div :class="['w-2 h-2 rounded-full flex-shrink-0', getActivityDotClass(activity.type)]"></div>
                     </template>
                 </DataCard>
-                <div v-if="recentActivities.length === 0" class="text-center py-4 text-sm text-neutral-500">
-                    Belum ada aktivitas terbaru
-                </div>
+            </div>
+            <div v-if="recentActivities.length === 0" class="md:hidden text-center py-4 text-sm text-neutral-500">
+                Belum ada aktivitas terbaru
             </div>
         </div>
 
@@ -597,10 +591,10 @@ const formatShortCurrency = (value) => {
 };
 
 		const showUnitMembersCard = computed(() => ['admin_unit', 'bendahara', 'anggota'].includes(roleName.value));
-	    const showApprovalsCard = computed(() => {
-	        if (roleName.value === 'super_admin') return true;
-	        return pg.auth?.user?.union_position && ['ketua', 'sekretaris'].includes((pg.auth?.user?.union_position?.name || '').toLowerCase());
-	    });
+const showApprovalsCard = computed(() => {
+    if (roleName.value === 'super_admin') return true;
+    return pg.auth?.user?.union_position && ['ketua', 'sekretaris'].includes((pg.auth?.user?.union_position?.name || '').toLowerCase());
+});
 const showDuesCard = computed(() => {
     // Hide old card if finance dashboard is shown
     if (finance.value) return false;

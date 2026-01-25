@@ -260,4 +260,60 @@ class Letter extends Model
     {
         return $query->whereDoesntHave('reads', fn($q) => $q->where('user_id', $user->id));
     }
+
+    /**
+     * Scope to filter letters visible to a specific user based on role.
+     */
+    public function scopeVisibleTo($query, User $user)
+    {
+        $roleName = $user->role?->name;
+        $unitId = $user->currentUnitId();
+
+        if (in_array($roleName, ['anggota', 'bendahara'])) {
+            return $query->where(function ($q) use ($user, $unitId) {
+                // Letters sent to this member
+                if ($user->member_id) {
+                    $q->orWhere(function ($sub) use ($user) {
+                        $sub->where('to_type', 'member')
+                            ->where('to_member_id', $user->member_id);
+                    });
+                }
+                // Letters sent to user's unit
+                if ($unitId) {
+                    $q->orWhere(function ($sub) use ($unitId) {
+                        $sub->where('to_type', 'unit')
+                            ->where('to_unit_id', $unitId);
+                    });
+                }
+            });
+        } elseif ($roleName === 'admin_unit') {
+            return $query->where(function ($q) use ($unitId) {
+                // Letters sent to user's unit
+                if ($unitId) {
+                    $q->where('to_type', 'unit')
+                        ->where('to_unit_id', $unitId);
+                }
+            });
+        } else {
+            // admin_pusat, super_admin - see letters to admin_pusat
+            return $query->where('to_type', 'admin_pusat');
+        }
+    }
+
+    /**
+     * Scope to apply common filters from request.
+     */
+    public function scopeFilterByRequest($query, $request)
+    {
+        if ($request->filled('search')) {
+            $query->where('subject', 'like', '%' . $request->search . '%');
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('category_id')) {
+            $query->where('letter_category_id', $request->category_id);
+        }
+        return $query;
+    }
 }

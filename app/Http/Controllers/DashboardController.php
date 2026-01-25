@@ -122,12 +122,9 @@ class DashboardController extends Controller
             ->take(5)
         ;
 
-        // Avoid crashing if migrations haven't been run yet in a fresh/dev environment.
-        if (Schema::hasTable('announcement_dismissals')) {
-            $query->whereDoesntHave('dismissals', function ($q) use ($user) {
-                $q->where('user_id', $user->id);
-            });
-        }
+        $query->whereDoesntHave('dismissals', function ($q) use ($user) {
+            $q->where('user_id', $user->id);
+        });
 
         return $query->get()
             ->map(function ($announcement) {
@@ -149,11 +146,11 @@ class DashboardController extends Controller
 
     private function getLettersSummary($user)
     {
-        if (!$user || !Schema::hasTable('letters')) {
+        if (!$user) {
             return null;
         }
 
-        $roleName = optional(optional($user)->role)->name;
+        $roleName = $user->role?->name;
         if (!in_array($roleName, ['super_admin', 'admin_pusat', 'admin_unit', 'anggota', 'bendahara'], true)) {
             return null;
         }
@@ -173,10 +170,7 @@ class DashboardController extends Controller
         $startMonth = now()->startOfMonth();
         $endMonth = now()->endOfMonth();
 
-        $unread = 0;
-        if (Schema::hasTable('letter_reads')) {
-            $unread = (clone $inboxBase)->unreadFor($user)->count();
-        }
+        $unread = (clone $inboxBase)->unreadFor($user)->count();
 
         $thisMonth = (clone $inboxBase)
             ->whereBetween('created_at', [$startMonth, $endMonth])
@@ -227,7 +221,7 @@ class DashboardController extends Controller
             return null;
         }
 
-        $roleName = optional(optional($user)->role)->name;
+        $roleName = $user->role?->name;
         $unitId = $user->currentUnitId();
 
         $query = Letter::query()
@@ -385,7 +379,7 @@ class DashboardController extends Controller
 
     private function getDuesSummary($user)
     {
-        $roleName = optional(optional($user)->role)->name;
+        $roleName = $user->role?->name;
         if (in_array($roleName, ['admin_unit', 'bendahara'], true)) {
             $unitId = $user->currentUnitId();
             return \App\Http\Controllers\Finance\FinanceDuesController::getDashboardSummary($unitId);
@@ -397,7 +391,7 @@ class DashboardController extends Controller
 
     private function getUnpaidMembers($user)
     {
-        $roleName = optional(optional($user)->role)->name;
+        $roleName = $user->role?->name;
         if (in_array($roleName, ['admin_unit', 'bendahara'], true)) {
             $unitId = $user->currentUnitId();
             return \App\Http\Controllers\Finance\FinanceDuesController::getUnpaidMembers($unitId, null, 20);
@@ -409,7 +403,7 @@ class DashboardController extends Controller
 
     private function getFinanceData($user)
     {
-        $roleName = optional(optional($user)->role)->name;
+        $roleName = $user->role?->name;
         if (!in_array($roleName, ['admin_unit', 'bendahara', 'super_admin'], true)) {
             return null;
         }

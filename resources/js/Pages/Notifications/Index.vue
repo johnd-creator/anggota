@@ -2,7 +2,7 @@
   <AppLayout page-title="Notification Center">
     <CardContainer padding="lg" shadow="sm">
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div class="flex items-center gap-2 text-sm">
+        <div class="flex items-center gap-2 text-sm w-full overflow-x-auto whitespace-nowrap pb-2 md:pb-0 md:w-auto no-scrollbar">
           <button :class="tabClass('all')" @click="setTab('all')">All</button>
           <button :class="tabClass('surat')" @click="setTab('surat')">Surat</button>
           <button :class="tabClass('mutations')" @click="setTab('mutations')">Mutations</button>
@@ -10,36 +10,72 @@
           <button :class="tabClass('onboarding')" @click="setTab('onboarding')">Onboarding</button>
           <button :class="tabClass('security')" @click="setTab('security')">Security</button>
         </div>
-        <div class="flex items-center gap-2">
-          <SecondaryButton @click="markAllRead">Tandai semua sudah dibaca</SecondaryButton>
-          <input v-model="search" type="text" placeholder="Cari..." class="px-2 py-1 border rounded text-sm" />
-          <input v-model="dateStart" type="date" class="px-2 py-1 border rounded text-sm" />
-          <span class="text-sm">s/d</span>
-          <input v-model="dateEnd" type="date" class="px-2 py-1 border rounded text-sm" />
-          <SecondaryButton @click="applyFilters">Terapkan</SecondaryButton>
+        <div class="flex flex-col md:flex-row items-stretch md:items-center gap-2 w-full md:w-auto">
+          <SecondaryButton @click="markAllRead" class="justify-center">Tandai semua sudah dibaca</SecondaryButton>
+          <div class="flex items-center gap-2">
+              <input v-model="search" type="text" placeholder="Cari..." class="flex-1 px-2 py-1 border rounded text-sm w-full md:w-auto" />
+              <SecondaryButton @click="applyFilters" class="md:hidden">Go</SecondaryButton>
+          </div>
+          <div class="flex items-center gap-2">
+              <input v-model="dateStart" type="date" class="flex-1 px-2 py-1 border rounded text-sm" />
+              <span class="text-sm">s/d</span>
+              <input v-model="dateEnd" type="date" class="flex-1 px-2 py-1 border rounded text-sm" />
+          </div>
+          <SecondaryButton @click="applyFilters" class="hidden md:inline-flex">Terapkan</SecondaryButton>
         </div>
       </div>
 
       <div v-if="!filtered.length" class="p-8 text-center text-neutral-600">Tidak ada notifikasi untuk tab ini.</div>
       <div v-else class="divide-y divide-neutral-200">
-        <div v-for="n in filtered" :key="n.id" class="py-3 flex items-start gap-3">
-          <div class="mt-1">
-            <span :class="n.read_at ? 'bg-neutral-300' : 'bg-brand-primary-600'" class="inline-block w-2 h-2 rounded-full"></span>
-          </div>
-          <div class="flex-1">
-            <div class="text-sm font-medium text-neutral-900 flex items-center gap-2">
-              <span>{{ n.title || messageOf(n) }}</span>
-              <Badge :variant="n.read_at ? 'neutral' : 'brand'">{{ n.read_at ? 'Dibaca' : 'Baru' }}</Badge>
+        <!-- Desktop List -->
+        <div class="hidden md:block">
+            <div v-for="n in filtered" :key="n.id" class="py-3 flex items-start gap-3">
+            <div class="mt-1">
+                <span :class="n.read_at ? 'bg-neutral-300' : 'bg-brand-primary-600'" class="inline-block w-2 h-2 rounded-full"></span>
             </div>
-            <div class="text-xs text-neutral-500">{{ relativeTime(n.created_at) }}</div>
-            <div class="mt-1 text-sm text-neutral-700">{{ messageOf(n) }}</div>
-            <div class="mt-2">
-              <a v-if="ctaUrlOf(n)" :href="ctaUrlOf(n)" class="text-brand-primary-600">{{ ctaLabelOf(n) }}</a>
+            <div class="flex-1">
+                <div class="text-sm font-medium text-neutral-900 flex items-center gap-2">
+                <span>{{ n.title || messageOf(n) }}</span>
+                <Badge :variant="n.read_at ? 'neutral' : 'brand'">{{ n.read_at ? 'Dibaca' : 'Baru' }}</Badge>
+                </div>
+                <div class="text-xs text-neutral-500">{{ relativeTime(n.created_at) }}</div>
+                <div class="mt-1 text-sm text-neutral-700">{{ messageOf(n) }}</div>
+                <div class="mt-2">
+                <a v-if="ctaUrlOf(n)" :href="ctaUrlOf(n)" class="text-brand-primary-600">{{ ctaLabelOf(n) }}</a>
+                </div>
             </div>
-          </div>
-          <div>
-            <IconButton @click="toggleRead(n)">{{ n.read_at ? 'Tandai belum dibaca' : 'Tandai dibaca' }}</IconButton>
-          </div>
+            <div>
+                <IconButton @click="toggleRead(n)">{{ n.read_at ? 'Tandai belum dibaca' : 'Tandai dibaca' }}</IconButton>
+            </div>
+            </div>
+        </div>
+
+        <!-- Mobile Data Cards -->
+        <div class="md:hidden space-y-3 pt-2">
+            <DataCard
+                v-for="n in filtered"
+                :key="n.id"
+                :title="n.title || messageOf(n)"
+                :subtitle="messageOf(n)"
+                :status="{ label: n.read_at ? 'Dibaca' : 'Baru', color: n.read_at ? 'neutral' : 'brand' }"
+                :meta="[
+                    { label: 'Waktu', value: relativeTime(n.created_at) }
+                ]"
+            >
+                <template #actions>
+                    <div class="flex justify-between items-center w-full">
+                         <a v-if="ctaUrlOf(n)" :href="ctaUrlOf(n)" class="text-xs font-semibold text-brand-primary-600">
+                             {{ ctaLabelOf(n) }}
+                         </a>
+                         <button 
+                            @click="toggleRead(n)" 
+                            class="text-xs text-neutral-500 hover:text-neutral-800"
+                        >
+                            {{ n.read_at ? 'Tandai belum dibaca' : 'Tandai dibaca' }}
+                        </button>
+                    </div>
+                </template>
+            </DataCard>
         </div>
       </div>
 
@@ -61,6 +97,7 @@ import Badge from '@/Components/UI/Badge.vue';
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import IconButton from '@/Components/UI/IconButton.vue';
+import DataCard from '@/Components/Mobile/DataCard.vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { ref, reactive, computed, onMounted, watchEffect } from 'vue';
 const page = usePage();

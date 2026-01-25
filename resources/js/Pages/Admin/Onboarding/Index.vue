@@ -176,13 +176,25 @@ function openReject(p){ rejectOpen.value = true; activeItem.value = p; rejectRea
 function submitApprove(){
   router.post(`/admin/onboarding/${activeItem.value.id}/approve`, approveForm, {
     onSuccess(){ panelOpen.value=false; },
-    onError(){ toast.message='Gagal menyetujui pengajuan'; toast.type='error'; toast.show=true; setTimeout(()=>toast.show=false,3000); }
+    onError(errors){
+      const first = errors ? Object.values(errors).flat()[0] : null;
+      toast.message = first || 'Gagal menyetujui pengajuan';
+      toast.type = 'error';
+      toast.show = true;
+      setTimeout(() => (toast.show = false), 3000);
+    }
   })
 }
 function submitReject(){
   router.post(`/admin/onboarding/${activeItem.value.id}/reject`, { reason: rejectReason.value }, {
     onSuccess(){ rejectOpen.value=false; panelOpen.value=false; },
-    onError(){ toast.message='Gagal menolak pengajuan'; toast.type='error'; toast.show=true; setTimeout(()=>toast.show=false,3000); }
+    onError(errors){
+      const first = errors ? Object.values(errors).flat()[0] : null;
+      toast.message = first || 'Gagal menolak pengajuan';
+      toast.type = 'error';
+      toast.show = true;
+      setTimeout(() => (toast.show = false), 3000);
+    }
   })
 }
 

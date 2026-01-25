@@ -7,9 +7,11 @@ use App\Models\PendingMember;
 use App\Models\Member;
 use App\Models\ActivityLog;
 use App\Services\NraGenerator;
-use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class OnboardingController extends Controller
@@ -71,7 +73,11 @@ class OnboardingController extends Controller
 
         $rules = [
             'full_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:members,email',
+            'email' => [
+                'required',
+                'email',
+                Rule::unique('members', 'email')->whereNull('deleted_at'),
+            ],
             'join_date' => 'required|date',
             'nip' => 'required|alpha_num|max:50',
             'union_position_id' => 'required|exists:union_positions,id',
@@ -85,39 +91,76 @@ class OnboardingController extends Controller
 
         $validated = $request->validate($rules);
 
-        // admin_unit approves to their own unit; global users can approve to any unit
-        if (!$user->hasGlobalAccess()) {
-            $userUnitId = $user->currentUnitId();
-            if ($userUnitId) {
-                $validated['organization_unit_id'] = $userUnitId;
+        // Resolve unit id:
+        // - admin_unit approves into their own unit
+        // - global users approve into selected unit
+        $unitId = null;
+        if ($user->hasGlobalAccess()) {
+            $unitId = (int) $validated['organization_unit_id'];
+        } else {
+            $unitId = $user->currentUnitId();
+            if (!$unitId) {
+                throw ValidationException::withMessages([
+                    'organization_unit_id' => 'Akun admin unit belum memiliki unit organisasi.',
+                ]);
             }
         }
 
         $joinYear = (int) date('Y', strtotime($validated['join_date']));
-        $unitId = (int) $validated['organization_unit_id'];
-        $gen = NraGenerator::generate($unitId, $joinYear);
 
-        $kta = \App\Services\KtaGenerator::generate($unitId, $joinYear);
-        $member = Member::create([
-            'full_name' => $validated['full_name'],
-            'email' => $validated['email'],
-            'employment_type' => 'organik',
-            'status' => 'aktif',
-            'join_date' => $validated['join_date'],
-            'organization_unit_id' => $unitId,
-            'nra' => $gen['nra'],
-            'join_year' => $joinYear,
-            'sequence_number' => $gen['sequence'],
-            'user_id' => $pending->user_id,
-            'kta_number' => $kta['kta'],
-            'nip' => $validated['nip'],
-            'union_position_id' => $validated['union_position_id'],
-        ]);
+        $member = DB::transaction(function () use ($pending, $validated, $unitId, $joinYear) {
+            $existing = Member::withTrashed()->where('email', $validated['email'])->first();
+
+            $gen = NraGenerator::generate($unitId, $joinYear);
+            $kta = \App\Services\KtaGenerator::generate($unitId, $joinYear);
+
+            if ($existing) {
+                if (!$existing->trashed()) {
+                    throw ValidationException::withMessages([
+                        'email' => 'Email sudah terdaftar sebagai anggota.',
+                    ]);
+                }
+
+                $existing->restore();
+                $existing->fill([
+                    'full_name' => $validated['full_name'],
+                    'employment_type' => 'organik',
+                    'status' => 'aktif',
+                    'join_date' => $validated['join_date'],
+                    'organization_unit_id' => $unitId,
+                    'nra' => $gen['nra'],
+                    'join_year' => $joinYear,
+                    'sequence_number' => $gen['sequence'],
+                    'user_id' => $pending->user_id,
+                    'kta_number' => $kta['kta'],
+                    'nip' => $validated['nip'],
+                    'union_position_id' => $validated['union_position_id'],
+                ]);
+                $existing->save();
+                return $existing;
+            }
+
+            return Member::create([
+                'full_name' => $validated['full_name'],
+                'email' => $validated['email'],
+                'employment_type' => 'organik',
+                'status' => 'aktif',
+                'join_date' => $validated['join_date'],
+                'organization_unit_id' => $unitId,
+                'nra' => $gen['nra'],
+                'join_year' => $joinYear,
+                'sequence_number' => $gen['sequence'],
+                'user_id' => $pending->user_id,
+                'kta_number' => $kta['kta'],
+                'nip' => $validated['nip'],
+                'union_position_id' => $validated['union_position_id'],
+            ]);
+        });
 
         if ($pending->user_id) {
-            $user = \App\Models\User::find($pending->user_id);
-            if ($user) {
-                $user->assignMember($member);
+            $targetUser = \App\Models\User::find($pending->user_id);
+            if ($targetUser) {
+                $targetUser->assignMember($member);
             }
         }
 
