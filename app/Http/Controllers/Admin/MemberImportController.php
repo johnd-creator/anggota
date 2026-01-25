@@ -151,6 +151,8 @@ class MemberImportController extends Controller
     {
         $user = $request->user();
 
+        set_time_limit(300);
+
         // Authorization: only actor or super_admin can commit
         if ($batch->actor_user_id !== $user->id && ! $user->hasRole('super_admin')) {
             abort(403, 'Anda tidak memiliki akses untuk commit batch ini.');

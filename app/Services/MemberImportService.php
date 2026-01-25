@@ -631,6 +631,8 @@ class MemberImportService
      */
     public function commit(ImportBatch $batch): array
     {
+        set_time_limit(300);
+
         $result = [
             'created_count' => 0,
             'updated_count' => 0,
@@ -1136,11 +1138,14 @@ class MemberImportService
 
         $user = User::where('email', $targetEmail)->first();
         if (! $user) {
+            $password = Str::random(16);
+            $hashedPassword = \Illuminate\Support\Facades\Hash::make($password);
+
             $user = User::create([
                 'name' => $member->full_name,
                 'email' => $targetEmail,
                 'company_email' => $companyEmail ?: null,
-                'password' => Str::random(32),
+                'password' => $hashedPassword,
                 'role_id' => $roleId,
                 'member_id' => $member->id,
                 'organization_unit_id' => $effectiveUnitId,
