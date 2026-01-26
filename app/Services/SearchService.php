@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Announcement;
 use App\Models\Aspiration;
-use App\Models\DuesPayment;
 use App\Models\FinanceLedger;
 use App\Models\Letter;
 use App\Models\Member;
@@ -72,12 +71,12 @@ class SearchService
     public function paginate(User $user, string $q, string $type, int $perPage = 15): \Illuminate\Pagination\LengthAwarePaginator
     {
         $q = trim($q);
-        if (!$q) {
+        if (! $q) {
             return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
         }
 
         $allowed = $this->getAllowedTypes($user);
-        if (!in_array($type, $allowed)) {
+        if (! in_array($type, $allowed)) {
             abort(403, 'Unauthorized search type');
         }
 
@@ -159,6 +158,7 @@ class SearchService
                 $query->where('organization_unit_id', $unitId);
             }
         }
+
         return $query;
     }
 
@@ -176,6 +176,7 @@ class SearchService
                 $query->whereRaw('0=1');
             }
         }
+
         // Admin Pusat / Super Admin see all
         return $query;
     }
@@ -187,12 +188,12 @@ class SearchService
 
         if ($roleName === 'admin_unit') {
             $unitId = $user->currentUnitId();
-            if (!$unitId) {
+            if (! $unitId) {
                 return $query->whereRaw('0=1');
             }
             $query->where(function ($q) use ($unitId) {
                 $q->where('organization_unit_id', $unitId)
-                    ->orWhereHas('linkedMember', fn($m) => $m->where('organization_unit_id', $unitId));
+                    ->orWhereHas('linkedMember', fn ($m) => $m->where('organization_unit_id', $unitId));
             });
         }
 
@@ -203,7 +204,7 @@ class SearchService
     {
         $query = FinanceLedger::query()->with(['category', 'organizationUnit']);
 
-        if (!$this->featureEnabled('finance')) {
+        if (! $this->featureEnabled('finance')) {
             return $query->whereRaw('0=1');
         }
 
@@ -212,7 +213,7 @@ class SearchService
         }
 
         $unitId = $user->currentUnitId();
-        if (!$unitId) {
+        if (! $unitId) {
             return $query->whereRaw('0=1');
         }
 
@@ -231,7 +232,7 @@ class SearchService
             ->latest()
             ->take($limit)
             ->get()
-            ->map(fn($item) => $this->mapAnnouncement($item, $user));
+            ->map(fn ($item) => $this->mapAnnouncement($item, $user));
     }
 
     protected function paginateAnnouncements(User $user, string $q, int $perPage)
@@ -244,7 +245,8 @@ class SearchService
             ->latest()
             ->paginate($perPage);
 
-        $paginator->getCollection()->transform(fn($item) => $this->mapAnnouncement($item, $user));
+        $paginator->getCollection()->transform(fn ($item) => $this->mapAnnouncement($item, $user));
+
         return $paginator;
     }
 
@@ -258,7 +260,7 @@ class SearchService
             ->latest()
             ->take($limit)
             ->get()
-            ->map(fn($item) => $this->mapLetter($item));
+            ->map(fn ($item) => $this->mapLetter($item));
     }
 
     protected function paginateLetters(User $user, string $q, int $perPage)
@@ -271,7 +273,8 @@ class SearchService
             ->latest()
             ->paginate($perPage);
 
-        $paginator->getCollection()->transform(fn($item) => $this->mapLetter($item));
+        $paginator->getCollection()->transform(fn ($item) => $this->mapLetter($item));
+
         return $paginator;
     }
 
@@ -282,7 +285,7 @@ class SearchService
             ->latest()
             ->take($limit)
             ->get()
-            ->map(fn($item) => $this->mapAspiration($item, $user));
+            ->map(fn ($item) => $this->mapAspiration($item, $user));
     }
 
     protected function paginateAspirations(User $user, string $q, int $perPage)
@@ -292,7 +295,8 @@ class SearchService
             ->latest()
             ->paginate($perPage);
 
-        $paginator->getCollection()->transform(fn($item) => $this->mapAspiration($item, $user));
+        $paginator->getCollection()->transform(fn ($item) => $this->mapAspiration($item, $user));
+
         return $paginator;
     }
 
@@ -300,26 +304,31 @@ class SearchService
     {
         return $this->baseMembersQuery($user)
             ->where(function ($qBuilder) use ($q) {
-                $qBuilder->where('full_name', 'like', "%{$q}%") // Corrected column
-                    ->orWhere('kta_number', 'like', "%{$q}%");
+                $qBuilder->where('full_name', 'like', "%{$q}%")
+                    ->orWhere('kta_number', 'like', "%{$q}%")
+                    ->orWhere('nip', 'like', "%{$q}%")
+                    ->orWhere('phone', 'like', "%{$q}%");
             })
             ->latest()
             ->take($limit)
             ->get()
-            ->map(fn($item) => $this->mapMember($item, $user));
+            ->map(fn ($item) => $this->mapMember($item, $user));
     }
 
     protected function paginateMembers(User $user, string $q, int $perPage)
     {
         $paginator = $this->baseMembersQuery($user)
             ->where(function ($qBuilder) use ($q) {
-                $qBuilder->where('full_name', 'like', "%{$q}%") // Corrected column
-                    ->orWhere('kta_number', 'like', "%{$q}%");
+                $qBuilder->where('full_name', 'like', "%{$q}%")
+                    ->orWhere('kta_number', 'like', "%{$q}%")
+                    ->orWhere('nip', 'like', "%{$q}%")
+                    ->orWhere('phone', 'like', "%{$q}%");
             })
             ->latest()
             ->paginate($perPage);
 
-        $paginator->getCollection()->transform(fn($item) => $this->mapMember($item, $user));
+        $paginator->getCollection()->transform(fn ($item) => $this->mapMember($item, $user));
+
         return $paginator;
     }
 
@@ -329,12 +338,12 @@ class SearchService
             ->where(function ($qb) use ($q) {
                 $qb->where('name', 'like', "%{$q}%")
                     ->orWhere('email', 'like', "%{$q}%")
-                    ->orWhereHas('linkedMember', fn($m) => $m->where('full_name', 'like', "%{$q}%"));
+                    ->orWhereHas('linkedMember', fn ($m) => $m->where('full_name', 'like', "%{$q}%"));
             })
             ->orderByDesc('id')
             ->take($limit)
             ->get()
-            ->map(fn($item) => $this->mapUser($item, $user));
+            ->map(fn ($item) => $this->mapUser($item, $user));
     }
 
     protected function paginateUsers(User $user, string $q, int $perPage)
@@ -343,18 +352,19 @@ class SearchService
             ->where(function ($qb) use ($q) {
                 $qb->where('name', 'like', "%{$q}%")
                     ->orWhere('email', 'like', "%{$q}%")
-                    ->orWhereHas('linkedMember', fn($m) => $m->where('full_name', 'like', "%{$q}%"));
+                    ->orWhereHas('linkedMember', fn ($m) => $m->where('full_name', 'like', "%{$q}%"));
             })
             ->orderByDesc('id')
             ->paginate($perPage);
 
-        $paginator->getCollection()->transform(fn($item) => $this->mapUser($item, $user));
+        $paginator->getCollection()->transform(fn ($item) => $this->mapUser($item, $user));
+
         return $paginator;
     }
 
     protected function searchDuesPayments(User $user, string $q, int $limit): Collection
     {
-        if (!$this->featureEnabled('finance')) {
+        if (! $this->featureEnabled('finance')) {
             return collect();
         }
 
@@ -381,7 +391,7 @@ class SearchService
             ->where('members.status', 'aktif');
 
         if (in_array($roleName, ['bendahara', 'admin_unit'])) {
-            if (!$unitId) {
+            if (! $unitId) {
                 return collect();
             }
             $query->where('members.organization_unit_id', $unitId);
@@ -396,12 +406,12 @@ class SearchService
             ->orderBy('members.full_name')
             ->take($limit)
             ->get()
-            ->map(fn($row) => $this->mapDuesPaymentRow($row, $period));
+            ->map(fn ($row) => $this->mapDuesPaymentRow($row, $period));
     }
 
     protected function paginateDuesPayments(User $user, string $q, int $perPage)
     {
-        if (!$this->featureEnabled('finance')) {
+        if (! $this->featureEnabled('finance')) {
             return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
         }
 
@@ -428,7 +438,7 @@ class SearchService
             ->where('members.status', 'aktif');
 
         if (in_array($roleName, ['bendahara', 'admin_unit'])) {
-            if (!$unitId) {
+            if (! $unitId) {
                 return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
             }
             $query->where('members.organization_unit_id', $unitId);
@@ -440,44 +450,46 @@ class SearchService
         });
 
         $paginator = $query->orderBy('members.full_name')->paginate($perPage);
-        $paginator->getCollection()->transform(fn($row) => $this->mapDuesPaymentRow($row, $period));
+        $paginator->getCollection()->transform(fn ($row) => $this->mapDuesPaymentRow($row, $period));
+
         return $paginator;
     }
 
     protected function searchFinanceLedgers(User $user, string $q, int $limit): Collection
     {
-        if (!$this->featureEnabled('finance')) {
+        if (! $this->featureEnabled('finance')) {
             return collect();
         }
 
         return $this->baseFinanceLedgersQuery($user)
             ->where(function ($qb) use ($q) {
                 $qb->where('description', 'like', "%{$q}%")
-                    ->orWhereHas('category', fn($c) => $c->where('name', 'like', "%{$q}%"));
+                    ->orWhereHas('category', fn ($c) => $c->where('name', 'like', "%{$q}%"));
             })
             ->orderByDesc('date')
             ->orderByDesc('id')
             ->take($limit)
             ->get()
-            ->map(fn($item) => $this->mapFinanceLedger($item, $user));
+            ->map(fn ($item) => $this->mapFinanceLedger($item, $user));
     }
 
     protected function paginateFinanceLedgers(User $user, string $q, int $perPage)
     {
-        if (!$this->featureEnabled('finance')) {
+        if (! $this->featureEnabled('finance')) {
             return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
         }
 
         $paginator = $this->baseFinanceLedgersQuery($user)
             ->where(function ($qb) use ($q) {
                 $qb->where('description', 'like', "%{$q}%")
-                    ->orWhereHas('category', fn($c) => $c->where('name', 'like', "%{$q}%"));
+                    ->orWhereHas('category', fn ($c) => $c->where('name', 'like', "%{$q}%"));
             })
             ->orderByDesc('date')
             ->orderByDesc('id')
             ->paginate($perPage);
 
-        $paginator->getCollection()->transform(fn($item) => $this->mapFinanceLedger($item, $user));
+        $paginator->getCollection()->transform(fn ($item) => $this->mapFinanceLedger($item, $user));
+
         return $paginator;
     }
 
@@ -522,6 +534,7 @@ class SearchService
     {
         $roleName = $this->roleName($user);
         $baseRoute = $roleName === 'anggota' ? 'member.aspirations.show' : 'admin.aspirations.show';
+
         return [
             'id' => $item->id,
             'type' => 'aspiration',
@@ -590,7 +603,7 @@ class SearchService
             'id' => $row->id,
             'type' => 'dues_payment',
             'title' => $row->full_name,
-            'snippet' => trim(($row->kta_number ? $row->kta_number . ' • ' : '') . strtoupper($status)),
+            'snippet' => trim(($row->kta_number ? $row->kta_number.' • ' : '').strtoupper($status)),
             'url' => route('finance.dues.index', ['period' => $period, 'search' => $row->kta_number ?: $row->full_name]),
             'meta' => [
                 'period' => $period,
@@ -602,7 +615,7 @@ class SearchService
     protected function mapFinanceLedger(FinanceLedger $item, User $actor): array
     {
         $amount = is_numeric($item->amount) ? (float) $item->amount : (float) str_replace(',', '.', (string) $item->amount);
-        $amountLabel = 'Rp ' . number_format($amount, 0, ',', '.');
+        $amountLabel = 'Rp '.number_format($amount, 0, ',', '.');
         $categoryLabel = $item->category?->name ?? '-';
         $typeLabel = $item->type === 'income' ? 'Pemasukan' : 'Pengeluaran';
 
@@ -614,7 +627,7 @@ class SearchService
             'id' => $item->id,
             'type' => 'finance_ledger',
             'title' => "{$typeLabel}: {$categoryLabel}",
-            'snippet' => trim($amountLabel . ($item->description ? ' • ' . Str::limit($item->description, 60) : '')),
+            'snippet' => trim($amountLabel.($item->description ? ' • '.Str::limit($item->description, 60) : '')),
             'url' => $url,
             'meta' => [
                 'status' => $item->status,
@@ -625,26 +638,32 @@ class SearchService
 
     protected function maskPii($value, $type)
     {
-        if (!$value)
+        if (! $value) {
             return $value;
+        }
         if ($type === 'email') {
             // Simple masking: f***@domain.com
             $parts = explode('@', $value);
-            if (count($parts) < 2)
+            if (count($parts) < 2) {
                 return $value;
+            }
             $name = $parts[0];
             $domain = $parts[1];
             $len = strlen($name);
             $visible = min(1, ceil($len / 4));
-            return substr($name, 0, $visible) . str_repeat('*', 3) . '@' . $domain;
+
+            return substr($name, 0, $visible).str_repeat('*', 3).'@'.$domain;
         }
         if ($type === 'phone' || $type === 'nip') {
             // Show last 3 only
             $len = strlen($value);
-            if ($len <= 4)
+            if ($len <= 4) {
                 return $value;
-            return str_repeat('*', $len - 3) . substr($value, -3);
+            }
+
+            return str_repeat('*', $len - 3).substr($value, -3);
         }
+
         return $value;
     }
 

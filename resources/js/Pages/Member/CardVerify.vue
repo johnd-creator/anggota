@@ -2,7 +2,7 @@
   <AppLayout page-title="Verifikasi Kartu">
     <CardContainer padding="lg" shadow="sm">
       <div class="flex items-center justify-between mb-3">
-        <div class="text-lg font-semibold text-neutral-900">{{ member.full_name }}</div>
+        <div class="text-lg font-semibold text-neutral-900">{{ $toTitleCase(member.full_name) }}</div>
         <Badge :variant="statusVariant(member.status)">{{ member.status }}</Badge>
       </div>
       <div class="text-sm text-neutral-700">Unit: {{ member.unit }}</div>

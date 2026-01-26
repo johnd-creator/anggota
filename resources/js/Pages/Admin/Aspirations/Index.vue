@@ -144,7 +144,7 @@
                     Digabungkan
                   </span>
                 </td>
-                <td class="px-6 py-4 text-sm text-neutral-600">{{ asp.member?.full_name || '-' }}</td>
+                <td class="px-6 py-4 text-sm text-neutral-600">{{ $toTitleCase(asp.member?.full_name) || '-' }}</td>
                 <td class="px-6 py-4 text-sm text-neutral-600">{{ asp.unit?.name || '-' }}</td>
                 <td class="px-6 py-4">
                   <span class="inline-flex items-center gap-1 px-2 py-1 bg-neutral-100 rounded-full text-sm font-medium text-neutral-700">

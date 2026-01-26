@@ -2,6 +2,7 @@ import { createApp, h } from 'vue'
 import { createInertiaApp, router, usePage } from '@inertiajs/vue3'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
 import '../css/app.css';
+import { useTextFormat } from '@/Composables/useTextFormat';
 
 createInertiaApp({
     resolve: name => {
@@ -11,6 +12,9 @@ createInertiaApp({
     setup({ el, App, props, plugin }) {
         const app = createApp({ render: () => h(App, props) })
             .use(plugin)
+        
+        app.config.globalProperties.$toTitleCase = useTextFormat().toTitleCase;
+        
         app.mount(el)
 
         const page = usePage();

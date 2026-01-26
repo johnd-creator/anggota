@@ -37,7 +37,7 @@
           </thead>
           <tbody class="divide-y divide-neutral-200 bg-white">
             <tr v-for="i in items.data" :key="i.id" class="hover:bg-neutral-50">
-              <td class="px-6 py-4 text-sm text-neutral-900 font-medium">{{ i.member.full_name }}</td>
+              <td class="px-6 py-4 text-sm text-neutral-900 font-medium">{{ $toTitleCase(i.member.full_name) }}</td>
               <td class="px-6 py-4 text-sm text-neutral-600">{{ i.from_unit.name }} → {{ i.to_unit.name }}</td>
               <td class="px-6 py-4 text-sm">
                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" 
@@ -100,7 +100,7 @@ const statusLabel = (status) => {
 };
 
 const confirmCancel = (mutation) => {
-  if (!confirm(`Batalkan pengajuan mutasi untuk ${mutation.member.full_name}?`)) {
+  if (!confirm(`Batalkan pengajuan mutasi untuk ${this.$toTitleCase(mutation.member.full_name)}?`)) {
     return;
   }
   

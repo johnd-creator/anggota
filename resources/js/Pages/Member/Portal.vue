@@ -62,7 +62,7 @@
 
             <!-- Member Details -->
             <div class="flex-1 flex flex-col items-center pt-4 px-6 text-center space-y-1">
-              <h2 class="text-xl font-bold text-neutral-800 leading-tight line-clamp-2">{{ member?.full_name }}</h2>
+              <h2 class="text-xl font-bold text-neutral-800 leading-tight line-clamp-2">{{ $toTitleCase(member?.full_name) }}</h2>
               <p class="text-sm font-medium text-red-600">{{ member?.unit?.name }}</p>
 
               <div class="w-full mt-6 space-y-3">

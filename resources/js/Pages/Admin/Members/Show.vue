@@ -1,10 +1,30 @@
 <template>
   <AppLayout page-title="Member Detail">
-    <div class="mb-4 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <a :href="`/admin/members/${member.id}/edit`" class="px-3 py-1.5 border rounded-lg text-sm">Edit</a>
-        <button class="px-3 py-1.5 border rounded-lg text-sm">Ubah Status</button>
-        <button class="px-3 py-1.5 border rounded-lg text-sm">Ajukan Mutasi</button>
+    <div class="mb-4 flex items-center justify-end">
+      <div class="flex items-center gap-3 flex-wrap">
+        <!-- Edit Button - Primary Action -->
+        <PrimaryButton v-if="$page.props.auth.user.role?.name!=='pengurus'" @click="router.get(`/admin/members/${member.id}/edit`)" size="sm">
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+          </svg>
+          Edit
+        </PrimaryButton>
+        
+        <!-- Ubah Status Button - Secondary Action -->
+        <button v-if="$page.props.auth.user.role?.name!=='pengurus'" class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium transition-all duration-200 hover:bg-amber-600 hover:scale-105 hover:shadow-md">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Ubah Status
+        </button>
+        
+        <!-- Ajukan Mutasi Button - Specialized Action -->
+        <button v-if="$page.props.auth.user.role?.name!=='pengurus'" class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium transition-all duration-200 hover:bg-teal-700 hover:scale-105 hover:shadow-md">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+          </svg>
+          Ajukan Mutasi
+        </button>
       </div>
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -12,7 +32,7 @@
         <div class="flex items-center gap-4">
           <img :src="member.photo_path ? '/storage/' + member.photo_path : avatarUrl(member.full_name)" class="h-16 w-16 rounded-full object-cover object-center" @error="onPhotoError" />
           <div>
-            <h2 class="text-xl font-semibold text-neutral-900">{{ member.full_name }}</h2>
+            <h2 class="text-xl font-semibold text-neutral-900">{{ $toTitleCase(member.full_name) }}</h2>
             <div class="flex items-center gap-2">
               <Badge variant="brand">{{ member.nra }}</Badge>
               <Badge :variant="statusVariant(member.status)">{{ member.status }}</Badge>
@@ -120,7 +140,8 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
 import Badge from '@/Components/UI/Badge.vue';
-import { usePage } from '@inertiajs/vue3';
+import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
+import { router, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 const page = usePage();

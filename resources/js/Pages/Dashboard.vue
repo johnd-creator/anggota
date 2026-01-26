@@ -1,5 +1,6 @@
 <template>
     <AppLayout page-title="Dashboard">
+
         <!-- Pinned Announcements -->
         <div v-if="$page.props.features?.announcements !== false && $page.props.announcements_pinned && $page.props.announcements_pinned.length > 0" class="mb-6">
             <div class="flex items-center justify-between mb-4">
@@ -513,7 +514,7 @@
                         </thead>
                         <tbody class="divide-y divide-neutral-200 bg-white">
                             <tr v-for="m in unpaidMembers" :key="m.id">
-                                <td class="px-4 py-2 text-sm">{{ m.full_name }}</td>
+                                <td class="px-4 py-2 text-sm">{{ $toTitleCase(m.full_name) }}</td>
                                 <td class="px-4 py-2 text-sm">{{ m.kta_number || '-' }}</td>
                             </tr>
                         </tbody>

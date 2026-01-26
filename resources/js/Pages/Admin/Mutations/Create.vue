@@ -105,7 +105,7 @@ const page = usePage();
 const units = page.props.units || [];
 const members = page.props.members || [];
 const unitOptions = units.map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
-const memberOptions = members.map(m => ({ label: `${m.nra || '-'} – ${m.full_name}`, value: m.id }));
+const memberOptions = members.map(m => ({ label: `${m.nra || '-'} – ${this.$toTitleCase(m.full_name)}`, value: m.id }));
 
 const memberQuery = ref('');
 const filteredMemberOptions = computed(() => {
@@ -119,7 +119,7 @@ const selectedMemberSummary = computed(() => {
   const m = members.find(x => x.id === form.member_id);
   if (!m) return '';
   const unit = units.find(u => u.id === m.organization_unit_id);
-  return `${m.full_name} • ${unit ? unit.code + ' - ' + unit.name : 'Unit -'}`;
+  return `${this.$toTitleCase(m.full_name)} • ${unit ? unit.code + ' - ' + unit.name : 'Unit -'}`;
 });
 
 const form = useForm({

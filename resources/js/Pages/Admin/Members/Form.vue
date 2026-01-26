@@ -1,10 +1,21 @@
 <template>
   <AppLayout :page-title="member ? 'Edit Member' : 'Create Member'">
     <CardContainer padding="lg" shadow="sm">
+      <!-- Back to List Button -->
+      <div class="mb-4">
+        <button type="button" @click="router.get('/admin/members')" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 hover:border-neutral-400 transition-all duration-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+          Back to List
+        </button>
+      </div>
+      
+      <!-- Tab Navigation -->
       <div class="flex items-center gap-2 mb-6">
-        <button type="button" class="inline-flex items-center px-3 py-1 rounded-full text-xs cursor-pointer" :class="step===1?'bg-brand-primary-50 text-brand-primary-800':'bg-neutral-100 text-neutral-700'" @click="setStep(1)">1. Data Personal</button>
-        <button type="button" class="inline-flex items-center px-3 py-1 rounded-full text-xs cursor-pointer" :class="step===2?'bg-brand-primary-50 text-brand-primary-800':'bg-neutral-100 text-neutral-700'" @click="setStep(2)">2. Data Organisasi</button>
-        <button type="button" class="inline-flex items-center px-3 py-1 rounded-full text-xs cursor-pointer" :class="step===3?'bg-brand-primary-50 text-brand-primary-800':'bg-neutral-100 text-neutral-700'" @click="setStep(3)">3. Dokumen</button>
+        <button type="button" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer border-2 transition-all duration-200 hover:scale-105" :class="step===1?'bg-brand-primary-50 text-brand-primary-800 border-brand-primary-300 shadow-sm':'bg-neutral-50 text-neutral-700 border-neutral-300 hover:bg-neutral-100 hover:border-neutral-400'" @click="setStep(1)">1. Data Personal</button>
+        <button type="button" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer border-2 transition-all duration-200 hover:scale-105" :class="step===2?'bg-brand-primary-50 text-brand-primary-800 border-brand-primary-300 shadow-sm':'bg-neutral-50 text-neutral-700 border-neutral-300 hover:bg-neutral-100 hover:border-neutral-400'" @click="setStep(2)">2. Data Organisasi</button>
+        <button type="button" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer border-2 transition-all duration-200 hover:scale-105" :class="step===3?'bg-brand-primary-50 text-brand-primary-800 border-brand-primary-300 shadow-sm':'bg-neutral-50 text-neutral-700 border-neutral-300 hover:bg-neutral-100 hover:border-neutral-400'" @click="setStep(3)">3. Dokumen</button>
       </div>
       <form @submit.prevent="submit" class="space-y-6">
         <div v-show="step===1" class="grid grid-cols-1 md:grid-cols-2 gap-6">

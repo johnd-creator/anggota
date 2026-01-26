@@ -33,9 +33,10 @@ class DuesPaymentPolicy
             return true;
         }
 
-        // Bendahara/admin_unit can view dues in their unit
-        if ($user->hasRole('bendahara')) {
+        // Bendahara/pengurus can view dues in their unit
+        if ($user->hasRole(['bendahara', 'pengurus'])) {
             $unitId = $user->currentUnitId();
+
             return $unitId !== null && $unitId === $duesPayment->organization_unit_id;
         }
 
@@ -61,6 +62,7 @@ class DuesPaymentPolicy
 
         if ($user->hasRole('bendahara')) {
             $unitId = $user->currentUnitId();
+
             return $unitId !== null && $unitId === $duesPayment->organization_unit_id;
         }
 
@@ -96,6 +98,7 @@ class DuesPaymentPolicy
 
         if ($user->hasRole('bendahara')) {
             $unitId = $user->currentUnitId();
+
             return $unitId !== null && $unitId === $member->organization_unit_id;
         }
 

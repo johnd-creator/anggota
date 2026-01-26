@@ -9,7 +9,7 @@ class MemberPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'bendahara']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'bendahara', 'pengurus']);
     }
 
     public function view(User $user, Member $member): bool
@@ -18,7 +18,7 @@ class MemberPolicy
             return true;
         }
 
-        if ($user->hasRole(['admin_unit', 'bendahara'])) {
+        if ($user->hasRole(['admin_unit', 'bendahara', 'pengurus'])) {
             return $user->currentUnitId() === $member->organization_unit_id;
         }
 

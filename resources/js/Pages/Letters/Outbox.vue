@@ -236,7 +236,7 @@ function formatDate(dateStr) {
 
 function getRecipient(letter) {
   if (letter.to_type === 'unit') return letter.to_unit?.name || 'Unit'
-  if (letter.to_type === 'member') return letter.to_member?.full_name || 'Anggota'
+  if (letter.to_type === 'member') return this.$toTitleCase(letter.to_member?.full_name) || 'Anggota'
   if (letter.to_type === 'admin_pusat') return 'Admin Pusat'
   return '-'
 }

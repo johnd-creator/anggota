@@ -130,7 +130,7 @@
                 <td class="px-4 py-4">
                   <input type="checkbox" :value="m.id" v-model="selectedMemberIds" :disabled="m.dues_status === 'paid'" class="rounded border-neutral-300 text-brand-primary-600 focus:ring-brand-primary-500 disabled:opacity-50" />
                 </td>
-                <td class="px-6 py-4 text-sm text-neutral-700">{{ m.full_name }}</td>
+                <td class="px-6 py-4 text-sm text-neutral-700">{{ $toTitleCase(m.full_name) }}</td>
                 <td class="px-6 py-4 text-sm text-neutral-700">{{ m.kta_number || '-' }}</td>
                 <td class="px-6 py-4">
                   <span :class="statusBadgeClass(m.dues_status)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
@@ -167,7 +167,7 @@
       <!-- Pay Modal -->
       <ModalBase v-model:show="showPayModal" title="Konfirmasi Pembayaran Iuran" size="md">
         <div class="space-y-4">
-          <p class="text-neutral-600">Tandai iuran bulan <strong>{{ period }}</strong> untuk <strong>{{ selectedMember?.full_name }}</strong> sebagai sudah bayar.</p>
+          <p class="text-neutral-600">Tandai iuran bulan <strong>{{ period }}</strong> untuk <strong>{{ $toTitleCase(selectedMember?.full_name) }}</strong> sebagai sudah bayar.</p>
           <div>
             <label class="block text-sm font-medium text-neutral-700 mb-1">Nominal (Rp) *</label>
             <input type="number" v-model.number="payForm.amount" min="1" step="1000" class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700" placeholder="Contoh: 50000" />
@@ -189,7 +189,7 @@
       <!-- Revert Confirmation Modal -->
       <ModalBase v-model:show="showRevertModal" title="Batalkan Pembayaran" size="md">
         <div class="space-y-4">
-          <p class="text-neutral-600">Anda yakin ingin menandai iuran bulan <strong>{{ period }}</strong> untuk <strong>{{ selectedMember?.full_name }}</strong> sebagai <strong>Belum Bayar</strong>?</p>
+          <p class="text-neutral-600">Anda yakin ingin menandai iuran bulan <strong>{{ period }}</strong> untuk <strong>{{ $toTitleCase(selectedMember?.full_name) }}</strong> sebagai <strong>Belum Bayar</strong>?</p>
           <p class="text-sm text-neutral-500">Nominal dan catatan pembayaran sebelumnya akan dihapus.</p>
         </div>
         <template #footer>

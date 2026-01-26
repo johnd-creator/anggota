@@ -7,7 +7,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center gap-4">
           <img :src="member?.photo_path ? '/storage/' + member.photo_path : `https://ui-avatars.com/api/?name=${member?.full_name || 'A'}&background=random`" class="h-16 w-16 rounded-full object-cover object-center" />
           <div class="flex-1">
-            <h2 class="text-xl font-semibold text-neutral-900">{{ member?.full_name }}</h2>
+            <h2 class="text-xl font-semibold text-neutral-900">{{ $toTitleCase(member?.full_name) }}</h2>
             <div class="flex items-center gap-2">
               <Badge variant="brand">{{ member?.nra }}</Badge>
               <Badge :variant="statusVariant(member?.status)">{{ member?.status }}</Badge>

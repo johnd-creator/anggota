@@ -29,7 +29,8 @@ class MemberController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('full_name', 'like', "%{$search}%")
                     ->orWhere('nip', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%");
             });
         }
 
@@ -323,5 +324,53 @@ class MemberController extends Controller
                 ->with('error', 'Terjadi kesalahan pada server')
                 ->withInput();
         }
+    }
+
+    public function searchByPhoneOrNip(Request $request)
+    {
+        $allowedRoles = ['admin_unit', 'super_admin', 'admin_pusat', 'bendahara', 'pengurus'];
+        if (! $request->user()?->hasAnyRole($allowedRoles)) {
+            abort(403, 'Unauthorized');
+        }
+
+        $request->validate([
+            'q' => 'required|string|min:3|max:50',
+            'limit' => 'integer|min:1|max:20',
+        ]);
+
+        $query = trim($request->input('q'));
+        $limit = $request->input('limit', 10);
+
+        $user = $request->user();
+        $unitId = $user?->currentUnitId();
+        $isGlobal = $user?->hasGlobalAccess() ?? false;
+
+        $queryBuilder = Member::query()
+            ->where(function ($q) use ($query) {
+                $q->where('phone', 'like', "%{$query}%")
+                    ->orWhere('nip', 'like', "%{$query}%");
+            })
+            ->select(['id', 'full_name', 'nra', 'kta_number', 'nip', 'phone', 'photo_path'])
+            ->with('unit:id,name,code');
+
+        if (! $isGlobal) {
+            if ($unitId) {
+                $queryBuilder->where('organization_unit_id', $unitId);
+            } else {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'count' => 0,
+                ]);
+            }
+        }
+
+        $members = $queryBuilder->limit($limit)->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $members,
+            'count' => $members->count(),
+        ]);
     }
 }

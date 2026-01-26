@@ -9,7 +9,7 @@ class FinanceCategoryPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'bendahara']);
+        return $user->hasRole(['super_admin', 'bendahara', 'pengurus']);
     }
 
     /**
@@ -23,12 +23,13 @@ class FinanceCategoryPolicy
             return true;
         }
 
-        if ($user->hasRole('bendahara')) {
+        if ($user->hasRole(['bendahara', 'pengurus'])) {
             // Allow viewing global categories
             if ($category->organization_unit_id === null) {
                 return true;
             }
             $unitId = $user->currentUnitId();
+
             return $unitId !== null && $unitId === $category->organization_unit_id;
         }
 
@@ -52,6 +53,7 @@ class FinanceCategoryPolicy
                 return false;
             }
             $unitId = $user->currentUnitId();
+
             return $unitId !== null && $unitId === $category->organization_unit_id;
         }
 

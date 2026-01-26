@@ -314,7 +314,7 @@ const submittingApproval = ref(false)
 const applyingTemplate = ref(false)
 const memberSearch = ref('')
 const memberResults = ref([])
-const selectedMember = ref(props.letter?.to_member ? { id: props.letter.to_member.id, label: props.letter.to_member.full_name } : null)
+const selectedMember = ref(props.letter?.to_member ? { id: props.letter.to_member.id, label: this.$toTitleCase(props.letter.to_member.full_name) } : null)
 let searchTimeout = null
 
 // Check if selected category has template

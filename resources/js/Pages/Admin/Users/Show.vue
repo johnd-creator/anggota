@@ -62,7 +62,7 @@ const props = defineProps({
         <div v-if="user.member" class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <p class="text-xs text-neutral-500">Nama Anggota</p>
-            <p class="text-base font-medium text-neutral-900">{{ user.member.full_name }}</p>
+            <p class="text-base font-medium text-neutral-900">{{ $toTitleCase(user.member.full_name) }}</p>
           </div>
           <div>
             <p class="text-xs text-neutral-500">KTA</p>

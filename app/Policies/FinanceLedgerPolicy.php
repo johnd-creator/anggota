@@ -9,7 +9,7 @@ class FinanceLedgerPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_unit', 'bendahara']);
+        return $user->hasRole(['super_admin', 'admin_unit', 'bendahara', 'pengurus']);
     }
 
     public function view(User $user, FinanceLedger $ledger): bool
@@ -18,8 +18,9 @@ class FinanceLedgerPolicy
             return true;
         }
 
-        if ($user->hasRole(['admin_unit', 'bendahara'])) {
+        if ($user->hasRole(['admin_unit', 'bendahara', 'pengurus'])) {
             $unitId = $user->currentUnitId();
+
             return $unitId !== null && $unitId === $ledger->organization_unit_id;
         }
 
@@ -43,6 +44,7 @@ class FinanceLedgerPolicy
                 return false;
             }
             $unitId = $user->currentUnitId();
+
             return $unitId !== null
                 && $unitId === $ledger->organization_unit_id
                 && (int) $ledger->created_by === (int) $user->id;
@@ -63,6 +65,7 @@ class FinanceLedgerPolicy
                 return false;
             }
             $unitId = $user->currentUnitId();
+
             return $unitId !== null
                 && $unitId === $ledger->organization_unit_id
                 && (int) $ledger->created_by === (int) $user->id;
@@ -77,7 +80,7 @@ class FinanceLedgerPolicy
      */
     public function approve(User $user, FinanceLedger $ledger): bool
     {
-        if (!FinanceLedger::workflowEnabled()) {
+        if (! FinanceLedger::workflowEnabled()) {
             return false;
         }
 
@@ -91,6 +94,7 @@ class FinanceLedgerPolicy
 
         if ($user->hasRole('admin_unit')) {
             $unitId = $user->currentUnitId();
+
             return $unitId !== null && $unitId === $ledger->organization_unit_id;
         }
 

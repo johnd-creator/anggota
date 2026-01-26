@@ -2,17 +2,16 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 
 Route::get('/', function () {
     if (Auth::check()) {
         return redirect()->route('dashboard');
     }
+
     return Inertia::render('Auth/Login');
 });
 
@@ -34,7 +33,6 @@ Route::get('letters/verify/{token}', [\App\Http\Controllers\LetterController::cl
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
-
 
     Route::get('/itworks', function () {
         return Inertia::render('ItWorks');
@@ -90,7 +88,7 @@ Route::middleware(['auth'])->group(function () {
 
     // root path handled above (guest: login page, auth: dashboard)
 
-    Route::prefix('reports')->middleware(['feature:reports', 'role:super_admin,admin_pusat,admin_unit,bendahara'])->group(function () {
+    Route::prefix('reports')->middleware(['feature:reports', 'role:super_admin,admin_pusat,admin_unit,bendahara,pengurus'])->group(function () {
         // UI pages (existing)
         Route::get('growth', [\App\Http\Controllers\ReportController::class, 'growth'])->name('reports.growth');
         Route::get('mutations', [\App\Http\Controllers\ReportController::class, 'mutations'])->name('reports.mutations');
@@ -120,7 +118,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/docs/reports/csv', function () {
         return redirect('/docs/help/reports-csv');
     })->middleware(['auth', 'role:super_admin,admin_pusat,admin_unit,bendahara'])->name('docs.reports.csv');
-
 
     Route::get('/ops', function () {
         $latest = null;
@@ -155,6 +152,7 @@ Route::middleware(['auth'])->group(function () {
         } catch (\Throwable $e) {
             $content = 'Dokumen tidak ditemukan.';
         }
+
         return Inertia::render('Docs/Viewer', ['title' => 'Backup & DR Runbook', 'content' => $content]);
     })->middleware('role:super_admin')->name('docs.ops.backup');
 
@@ -165,6 +163,7 @@ Route::middleware(['auth'])->group(function () {
         } catch (\Throwable $e) {
             $content = 'Dokumen tidak ditemukan.';
         }
+
         return Inertia::render('Docs/Viewer', ['title' => 'Launch Checklist', 'content' => $content]);
     })->middleware('role:super_admin')->name('docs.release.launch');
 
@@ -178,13 +177,15 @@ Route::middleware(['auth'])->group(function () {
         } catch (\Throwable $e) {
             $content = 'Dokumen tidak ditemukan.';
         }
+
         return Inertia::render('Docs/Viewer', ['title' => 'Security Review', 'content' => $content, 'updated_at' => $updatedAt]);
     })->middleware('role:super_admin')->name('docs.security.review');
 
     Route::get('/docs/help/{slug}', function ($slug) {
-        $path = base_path('docs/help/' . $slug . '.md');
+        $path = base_path('docs/help/'.$slug.'.md');
         $content = is_file($path) ? file_get_contents($path) : 'Artikel tidak ditemukan.';
-        return Inertia::render('Docs/Viewer', ['title' => 'Bantuan: ' . ucfirst($slug), 'content' => $content]);
+
+        return Inertia::render('Docs/Viewer', ['title' => 'Bantuan: '.ucfirst($slug), 'content' => $content]);
     })->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('docs.help.show');
 
     // Admin Routes
@@ -218,6 +219,7 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('activity-logs', function () {
             $logs = \App\Models\ActivityLog::latest()->paginate(20)->withQueryString();
+
             return Inertia::render('Admin/ActivityLogs', ['logs' => $logs]);
         })->middleware('role:super_admin')->name('activity-logs.index');
         Route::get('onboarding', [\App\Http\Controllers\Admin\OnboardingController::class, 'index'])->name('onboarding.index');
@@ -242,11 +244,12 @@ Route::middleware(['auth'])->group(function () {
         Route::post('members/import/{batch}/commit', [\App\Http\Controllers\Admin\MemberImportController::class, 'commit'])->middleware('role:super_admin,admin_unit,admin_pusat')->name('members.import.commit');
         Route::get('members/import/{batch}/errors', [\App\Http\Controllers\Admin\MemberImportController::class, 'downloadErrors'])->middleware('role:super_admin,admin_unit,admin_pusat')->name('members.import.errors');
         Route::post('members/import', [\App\Http\Controllers\Admin\MemberImportController::class, 'store'])->middleware('role:admin_unit')->name('members.import');
+        Route::get('members/search-by-phone-or-nip', [\App\Http\Controllers\Admin\MemberController::class, 'searchByPhoneOrNip'])->middleware('role:super_admin,admin_pusat,admin_unit,bendahara')->name('members.search.by_phone_or_nip');
 
         Route::get('mutations/export', [\App\Http\Controllers\ReportsExportController::class, 'adminMutationsExport'])->name('admin.mutations.export');
     });
 
-    Route::prefix('finance')->name('finance.')->middleware(['feature:finance', 'role:super_admin,admin_unit,bendahara'])->group(function () {
+    Route::prefix('finance')->name('finance.')->middleware(['feature:finance', 'role:super_admin,admin_pusat,admin_unit,bendahara,pengurus'])->group(function () {
         Route::get('categories', [\App\Http\Controllers\Finance\FinanceCategoryController::class, 'index'])->name('categories.index');
         Route::get('categories/create', [\App\Http\Controllers\Finance\FinanceCategoryController::class, 'create'])->name('categories.create');
         Route::post('categories', [\App\Http\Controllers\Finance\FinanceCategoryController::class, 'store'])->name('categories.store');
@@ -357,11 +360,13 @@ Route::middleware(['auth'])->group(function () {
             'payload' => ['channel' => 'portal'],
         ]);
         try {
-            $request->user()->notify(new class extends \Illuminate\Notifications\Notification {
+            $request->user()->notify(new class extends \Illuminate\Notifications\Notification
+            {
                 public function via($n)
                 {
                     return ['database'];
                 }
+
                 public function toDatabase($n)
                 {
                     return ['message' => 'Permintaan export data tercatat', 'category' => 'security', 'link' => '/member/portal'];
@@ -369,6 +374,7 @@ Route::middleware(['auth'])->group(function () {
             });
         } catch (\Throwable $e) {
         }
+
         return back()->with('success', 'Permintaan export data tercatat');
     })->middleware('role:anggota')->name('member.data.export_request');
     Route::post('/member/data/delete-request', function (\Illuminate\Http\Request $request) {
@@ -380,11 +386,13 @@ Route::middleware(['auth'])->group(function () {
             'payload' => ['channel' => 'portal'],
         ]);
         try {
-            $request->user()->notify(new class extends \Illuminate\Notifications\Notification {
+            $request->user()->notify(new class extends \Illuminate\Notifications\Notification
+            {
                 public function via($n)
                 {
                     return ['database'];
                 }
+
                 public function toDatabase($n)
                 {
                     return ['message' => 'Permintaan penghapusan data tercatat', 'category' => 'security', 'link' => '/member/portal'];
@@ -392,6 +400,7 @@ Route::middleware(['auth'])->group(function () {
             });
         } catch (\Throwable $e) {
         }
+
         return back()->with('success', 'Permintaan penghapusan data tercatat');
     })->middleware('role:anggota')->name('member.data.delete_request');
     Route::get('/verify-card/{token}', [\App\Http\Controllers\Member\CardController::class, 'verify'])->name('member.card.verify');
@@ -451,6 +460,7 @@ Route::post('/logout', function () {
     Auth::logout();
     request()->session()->invalidate();
     request()->session()->regenerateToken();
+
     return redirect()->route('login');
 })->middleware('auth')->name('logout');
 
@@ -470,6 +480,7 @@ Route::post('/feedback', function (\Illuminate\Http\Request $request) {
         'subject_id' => $request->user()->id,
         'payload' => ['rating' => (int) $request->input('rating'), 'message' => (string) $request->input('message')],
     ]);
+
     return back()->with('success', 'Terima kasih atas feedback Anda');
 })->middleware('auth')->name('feedback.submit');
 

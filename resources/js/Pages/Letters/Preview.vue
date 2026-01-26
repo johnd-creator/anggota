@@ -258,7 +258,7 @@ const cityDateLine = computed(() => {
 
 const recipientName = computed(() => {
   if (props.letter.to_type === 'unit') return props.letter.to_unit?.name || 'Unit'
-  if (props.letter.to_type === 'member') return props.letter.to_member?.full_name || 'Anggota'
+  if (props.letter.to_type === 'member') return this.$toTitleCase(props.letter.to_member?.full_name) || 'Anggota'
   if (props.letter.to_type === 'admin_pusat') return 'Admin Pusat'
   if (props.letter.to_type === 'eksternal') {
     const parts = []

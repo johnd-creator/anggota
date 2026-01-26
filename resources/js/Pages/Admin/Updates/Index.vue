@@ -36,7 +36,7 @@
           </thead>
           <tbody class="divide-y divide-neutral-200 bg-white">
             <tr v-for="i in items.data" :key="i.id">
-              <td class="px-4 py-2 text-sm">{{ i.member?.full_name || '-' }}</td>
+              <td class="px-4 py-2 text-sm">{{ $toTitleCase(i.member?.full_name) || '-' }}</td>
               <td class="px-4 py-2 text-sm">
                 <Badge :variant="statusVariant(i.status)">{{ i.status }}</Badge>
               </td>
@@ -71,7 +71,7 @@
   <ModalBase v-model:show="rejectModalOpen" title="Tolak Permintaan">
       <div class="space-y-4">
         <p class="text-sm text-neutral-600">
-          Berikan alasan penolakan untuk permintaan dari <strong>{{ selectedRequest?.member?.full_name }}</strong>
+          Berikan alasan penolakan untuk permintaan dari <strong>{{ $toTitleCase(selectedRequest?.member?.full_name) }}</strong>
         </p>
         <div>
           <label class="block text-xs text-neutral-600 mb-1">Alasan Penolakan <span class="text-red-500">*</span></label>

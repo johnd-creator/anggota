@@ -50,26 +50,26 @@
                 <Badge variant="brand">{{ m.kta_number || m.nra }}</Badge>
               </td>
               <td class="px-5 py-3">
-                <div class="font-medium text-neutral-900">{{ m.full_name }}</div>
+                <div class="font-medium text-neutral-900">{{ $toTitleCase(m.full_name) }}</div>
                 <div class="text-xs text-neutral-500">{{ m.email }}</div>
               </td>
               <td class="px-5 py-3">{{ m.nip || '-' }}</td>
               <td class="px-5 py-3 text-sm">{{ formatDate(m.birth_date) }}</td>
               <td class="px-5 py-3">{{ m.union_position?.name || '-' }}</td>
               <td class="px-5 py-3 text-right">
-                <div class="flex items-center justify-end gap-1.5">
-                  <IconButton :aria-label="`Detail ${m.full_name}`" size="sm" @click="router.get(`/admin/members/${m.id}`)">
+                <div class="flex items-center justify-end gap-2.5">
+                  <IconButton :aria-label="`Detail ${$toTitleCase(m.full_name)}`" size="sm" @click="router.get(`/admin/members/${m.id}`)">
                     <svg class="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
                   </IconButton>
-                  <IconButton :aria-label="`Edit ${m.full_name}`" size="sm" @click="router.get(`/admin/members/${m.id}/edit`)">
+                  <IconButton :aria-label="`Edit ${$toTitleCase(m.full_name)}`" size="sm" @click="router.get(`/admin/members/${m.id}/edit`)">
                     <svg class="w-5 h-5 text-brand-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   </IconButton>
-                  <IconButton :aria-label="`Mutasi ${m.full_name}`" size="sm" :disabled="redirectingId===m.id" @click="openMutasi(m)">
+                  <IconButton :aria-label="`Mutasi ${$toTitleCase(m.full_name)}`" size="sm" :disabled="redirectingId===m.id" @click="openMutasi(m)">
                     <span v-if="redirectingId===m.id" class="inline-block w-4 h-4 animate-spin">
                       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none"/></svg>
                     </span>
@@ -114,7 +114,6 @@ import { computed, reactive, ref, watch } from 'vue';
 const members = computed(() => page.props.members);
 const units = page.props.units || [];
 const unitOptions = units.map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
-// status filter not used
 
 const initialFilters = page.props.filters || {};
 const filters = reactive({ status: '', units: initialFilters.units || [] });
@@ -158,19 +157,6 @@ function resetFilters(){
   reload();
 }
 
-function toggleSort(key){ sort.dir = sort.key === key ? (sort.dir === 'asc' ? 'desc' : 'asc') : 'asc'; sort.key = key; }
-
-function statusVariant(s){
-  switch (s) {
-    case 'aktif': return 'success'
-    case 'cuti': return 'warning'
-    case 'suspended': return 'danger'
-    case 'resign': return 'neutral'
-    case 'pensiun': return 'neutral'
-    default: return 'neutral'
-  }
-}
-
 function openMutasi(m){
   if (redirectingId.value) return;
   redirectingId.value = m.id;
@@ -178,11 +164,6 @@ function openMutasi(m){
 }
 
 watch(selectedUnit, (v) => { if (v) { if (!filters.units.includes(v)) filters.units.push(v); selectedUnit.value=''; } });
-
-const SortIcon = {
-  props: ['dir','active'],
-  template: `<span class="inline-block w-3 h-3" :class="active ? 'text-neutral-700' : 'text-neutral-300'"><svg v-if="dir==='asc'" viewBox="0 0 20 20" fill="currentColor"><path d="M7 7l3-3 3 3M7 13l3 3 3-3"/></svg><svg v-else viewBox="0 0 20 20" fill="currentColor"><path d="M7 13l3 3 3-3M7 7l3-3 3 3"/></svg></span>`
-};
 
 function formatDate(d){
   if (!d) return '-';
@@ -192,4 +173,4 @@ function formatDate(d){
   } catch { return '-'; }
 }
 </script>
- 
+

@@ -1,101 +1,82 @@
 ## Goal
-Improve mobile UX for the notifications page (`/notifications`) by redesigning the filter and action buttons to be more mobile-friendly, visually appealing, and easier to interact with on small screens.
+Improve the UX of action buttons on the member detail page (`/admin/members/{id}`) to make them more visually appealing, interactive, and modern instead of plain and boring.
 
 ## Constraints
-- Must maintain all existing functionality (tab filtering, search, date range, mark all read, apply filters)
-- Should work within the existing Vue 3 + Inertia.js + Tailwind CSS stack
-- Must preserve desktop experience (no regressions)
-- Should follow existing design system patterns (CardContainer, SecondaryButton, DataCard components)
+- Must maintain existing functionality (Edit, Ubah Status, Ajukan Mutasi)
+- Should follow existing design system (brand colors, spacing)
+- Must work on mobile and desktop viewports
+- Cannot modify backend routes or permissions logic
+- Frontend-only changes (Vue component)
 
 ## Known context
-Looking at the uploaded image and code:
-- **Current issues on mobile:**
-  - "Tandai semua sudah dibaca" button is very wide and takes full width
-  - Search input + "Go" button layout feels cramped
-  - Date range inputs (mm/dd/yyyy s/d mm/dd/yyyy) are squeezed horizontally
-  - "Terapkan" button is hidden on mobile, "Go" button appears instead
-  - Overall layout feels cluttered with too many elements stacked vertically
-  
-- **Current implementation (lines 13-25):**
-  - Uses flex-col on mobile, flex-row on desktop
-  - "Tandai semua sudah dibaca" button uses `justify-center` class
-  - Search has a separate "Go" button for mobile (md:hidden)
-  - Date inputs are in a flex container with "s/d" separator
-  - "Terapkan" button is hidden on mobile (hidden md:inline-flex)
+- Current buttons (lines 5-7 in Show.vue) use minimal styling: `px-3 py-1.5 border rounded-lg text-sm`
+- Buttons are plain with no color, no icons, no hover effects
+- Three buttons: "Edit", "Ubah Status", "Ajukan Mutasi"
+- Buttons are only visible for non-pengurus roles
+- The page uses CardContainer, Badge, and other UI components from the design system
+- Tab navigation below uses better styling with active states
 
 ## Risks
-- **Over-simplification**: Removing too many controls could reduce functionality
-- **Inconsistency**: New mobile design might feel disconnected from desktop version
-- **Touch target size**: Buttons that are too small will be hard to tap (minimum 44x44px recommended)
-- **Visual clutter**: Adding icons or reorganizing without proper spacing could make it worse
-- **Testing gap**: Changes might look good in browser dev tools but feel different on actual devices
+1. **Low**: Button colors might clash with existing design - mitigation: use established brand colors
+2. **Low**: Icons might not be clear - mitigation: use standard, recognizable icons
+3. **Medium**: Too many visual changes might overwhelm users - mitigation: keep changes subtle but effective
+4. **Low**: Mobile layout might break - mitigation: ensure responsive design with proper wrapping
 
 ## Options
 
-### Option 1: Icon-based Compact Toolbar
-- Replace text buttons with icon buttons for common actions
-- Use a floating action button (FAB) for "Mark all read"
-- Collapse filters into an expandable drawer/accordion
-- **Pros**: Very clean, modern, saves vertical space
-- **Cons**: Icons may not be immediately clear, requires learning curve
+### Option 1: Minimal Enhancement
+- Add subtle background colors (neutral for secondary actions)
+- Add hover states (background darkening)
+- Keep existing layout and spacing
 
-### Option 2: Segmented Control + Bottom Sheet
-- Keep tab buttons as segmented control (more compact)
-- Move all filters (search, date range, mark all) into a bottom sheet/modal triggered by a filter icon
-- **Pros**: Cleanest main view, follows mobile app patterns
-- **Cons**: Extra tap to access filters, might hide important functionality
+**Pros**: Quick, low risk, maintains familiarity
+**Cons**: May not fully address "polos dan membosankan" concern
 
-### Option 3: Improved Stacked Layout with Better Spacing
-- Keep current stacked approach but improve visual hierarchy
-- Use pill-shaped buttons with better padding
-- Group related controls (search + dates) in a card/section
-- Make "Tandai semua sudah dibaca" button smaller with icon
-- Use a single "Apply" button for all filters
-- **Pros**: Minimal code changes, preserves discoverability, low risk
-- **Cons**: Still takes vertical space, less "wow" factor
+### Option 2: Icon + Color Enhancement
+- Add icons to each button (pencil for Edit, status icon for Ubah Status, arrows for Mutasi)
+- Use color-coded buttons:
+  - Edit: Primary brand color (blue)
+  - Ubah Status: Warning/info color (amber/yellow)
+  - Ajukan Mutasi: Secondary brand color
+- Add hover effects with scale and shadow
+- Improve spacing between buttons
 
-### Option 4: Horizontal Scrollable Filter Bar
-- Make filter controls horizontally scrollable on mobile
-- Use chips/pills for each filter type
-- Sticky filter bar that stays visible when scrolling
-- **Pros**: Saves vertical space, modern pattern (like mobile apps)
-- **Cons**: Horizontal scrolling can be missed by users, accessibility concerns
+**Pros**: Clear visual hierarchy, modern look, icons improve recognition
+**Cons**: More visual change, requires icon selection
+
+### Option 3: Comprehensive Redesign
+- Redesign as a button group with dropdown for secondary actions
+- Add icons, colors, and animations
+- Include tooltips for clarity
+- Add loading states
+- Implement split button design
+
+**Pros**: Most modern and polished
+**Cons**: Significant changes, may confuse existing users, more development time
 
 ## Recommendation
-**Option 3: Improved Stacked Layout with Better Spacing**
+**Option 2: Icon + Color Enhancement**
 
-**Rationale:**
-- **Lowest risk**: Preserves all functionality without hiding anything
-- **Quick wins**: Can be implemented with CSS/layout changes only
-- **Accessible**: All controls remain visible and tappable
-- **Maintainable**: Doesn't introduce complex state management (modals, drawers)
-- **Iterative**: Can be enhanced later with Option 2 if needed
+This approach directly addresses the "polos dan membosankan" complaint by:
+1. **Adding visual interest** with icons that clarify each action
+2. **Using color coding** to create hierarchy and improve recognition
+3. **Implementing hover effects** (scale, shadow, background transitions) for better interactivity
+4. **Maintaining familiarity** while significantly improving aesthetics
 
-**Specific improvements:**
-1. **"Tandai semua sudah dibaca" button**: 
-   - Add an icon (checkmark or eye icon)
-   - Reduce padding, make it inline-flex with max-width
-   - Position it differently (maybe top-right as a smaller button)
-
-2. **Search + Date filters**:
-   - Group in a subtle bordered container
-   - Stack search on one row, dates on another row
-   - Use a single "Terapkan" button below the filter group
-   - Remove the separate "Go" button
-
-3. **Visual polish**:
-   - Add subtle shadows/borders to create visual separation
-   - Use better spacing (gap-3 → gap-4)
-   - Consider using smaller font sizes for labels
-   - Add icons to buttons for visual clarity
+Implementation details:
+- **Edit button**: Primary blue with pencil icon (most common action)
+- **Ubah Status button**: Amber/yellow with status icon (important but less frequent)
+- **Ajukan Mutasi button**: Secondary color with transfer/arrows icon (specialized action)
+- Add `transition-all duration-200` for smooth animations
+- Add `hover:scale-105` and `hover:shadow-md` for interactive feedback
+- Increase gap from `gap-2` to `gap-3` for better separation
 
 ## Acceptance criteria
-- [ ] All filter buttons are easily tappable on mobile (minimum 44x44px touch targets)
-- [ ] "Tandai semua sudah dibaca" button is more compact and doesn't dominate the screen
-- [ ] Search and date range filters are logically grouped and easy to use
-- [ ] Single "Apply" or "Terapkan" button for all filters (no separate "Go" button)
-- [ ] Layout feels spacious with proper gaps between elements
-- [ ] Desktop view remains unchanged and functional
-- [ ] All existing functionality works (tab switching, search, date filtering, mark all read)
-- [ ] Visual design feels modern and polished (proper use of spacing, borders, shadows)
-- [ ] Tested on actual mobile device or browser dev tools at 375px width
+- [ ] Buttons have distinct colors matching their action type
+- [ ] Each button has an appropriate icon
+- [ ] Hover effects are smooth and noticeable (scale, shadow, background)
+- [ ] Buttons maintain proper spacing (gap-3 minimum)
+- [ ] Layout is responsive on mobile (buttons wrap gracefully)
+- [ ] All existing functionality works (navigation, permissions)
+- [ ] No console errors or warnings
+- [ ] Visual hierarchy is clear (Edit as primary, others as secondary)
