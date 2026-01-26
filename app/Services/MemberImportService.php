@@ -1155,10 +1155,11 @@ class MemberImportService
             if ($effectiveUnitId && $user->organization_unit_id && (int) $user->organization_unit_id !== (int) $effectiveUnitId) {
                 return;
             }
-
-            if (! $user->member_id) {
-                $user->member_id = $member->id;
-            }
+ 
+            // FIX: Selalu update member_id
+            // Mencegah user yang di-import tidak punya member_id
+            $user->member_id = $member->id;
+            
             if ($effectiveUnitId && ! $user->organization_unit_id) {
                 $user->organization_unit_id = $effectiveUnitId;
             }

@@ -94,10 +94,13 @@ class User extends Authenticatable
     public function assignMember(Member $member): void
     {
         $this->member_id = $member->id;
-        if (!$member->user_id) {
-            $member->user_id = $this->id;
-            $member->save();
-        }
+        
+        // FIX: SELALU update member.user_id ke user yang sedang login
+        // Ini memungkinkan user Gmail mengambil alih dari User PLN
+        // Mencegah bug yang menyebabkan user->member return NULL
+        $member->user_id = $this->id;
+        $member->save();
+        
         if (!$this->role || $this->role->name === 'reguler') {
             $role = \App\Models\Role::where('name', 'anggota')->first();
             if ($role)
