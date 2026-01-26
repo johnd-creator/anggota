@@ -31,13 +31,11 @@ class LoginController extends Controller
         ]);
 
         $remember = (bool) ($credentials['remember'] ?? false);
-
+        
         $field = filter_var($credentials['email'], FILTER_VALIDATE_EMAIL) ? 'email' : 'email';
-
-        // Custom attempt to support company_email
-        $user = User::where('email', $credentials['email'])
-            ->orWhere('company_email', $credentials['email'])
-            ->first();
+        
+        // Login hanya dengan email utama (Gmail), bukan dengan company_email (PLN)
+        $user = User::where('email', $credentials['email'])->first();
 
         if ($user && \Hash::check($credentials['password'], $user->password)) {
             Auth::login($user, $remember);
