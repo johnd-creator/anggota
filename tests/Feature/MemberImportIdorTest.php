@@ -43,8 +43,8 @@ class MemberImportIdorTest extends TestCase
 
         // Create a batch for Unit A with a row that has matching NRA
         $csvContent = "full_name,status,nra\nAttacker Name,aktif,NRA999";
-        $filename = 'test_' . uniqid() . '.csv';
-        $path = 'imports/' . $filename;
+        $filename = 'test_'.uniqid().'.csv';
+        $path = 'imports/'.$filename;
 
         Storage::disk('local')->put($path, $csvContent);
 
@@ -119,9 +119,9 @@ class MemberImportIdorTest extends TestCase
         ]);
 
         // Import a row that claims to be for Unit B
-        $csvContent = "full_name,status,organization_unit_id\nTest User,aktif,{$unitB->id}";
-        $filename = 'test_' . uniqid() . '.csv';
-        $path = 'imports/' . $filename;
+        $csvContent = "full_name,status,organization_unit_id,email\nTest User,aktif,{$unitB->id},test@gmail.com";
+        $filename = 'test_'.uniqid().'.csv';
+        $path = 'imports/'.$filename;
 
         Storage::disk('local')->put($path, $csvContent);
 
@@ -133,16 +133,15 @@ class MemberImportIdorTest extends TestCase
             'stored_path' => $path,
             'file_hash' => hash('sha256', $csvContent),
             'total_rows' => 1,
-            'valid_rows' => 1,
-            'invalid_rows' => 0,
+            'valid_rows' => 0, // Row will be rejected due to unit mismatch
+            'invalid_rows' => 1,
         ]);
 
         $this->actingAs($adminUnitA)->postJson("/admin/members/import/{$batch->id}/commit");
 
-        // Member should be created in Unit A (batch unit), NOT Unit B (row unit)
+        // Member should NOT be created because row unit (B) != batch unit (A) - security check
         $member = Member::where('full_name', 'Test User')->first();
-        $this->assertNotNull($member);
-        $this->assertEquals($unitA->id, $member->organization_unit_id);
+        $this->assertNull($member); // Security: row unit mismatch rejection
     }
 
     /**
@@ -156,7 +155,7 @@ class MemberImportIdorTest extends TestCase
         ]);
 
         // Preview a file with unit_id in each row
-        $csvContent = "full_name,status,organization_unit_id\nGlobal Import User,aktif,{$unit->id}";
+        $csvContent = "full_name,status,organization_unit_id,email\nGlobal Import User,aktif,{$unit->id},global@gmail.com";
         $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csvContent);
 
         // Global preview (no unit specified in request)

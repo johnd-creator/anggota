@@ -380,6 +380,68 @@ class MemberImportService
 
         // ========== OPTIONAL FIELDS (Warning Severity if format invalid) ==========
 
+        // personal_email: WAJIB diisi dan harus Gmail untuk SSO Google login
+        // Use normalized row after normalization for backward compatibility with existing templates
+        $personalEmailRaw = isset($row['personal_email']) ? trim($row['personal_email']) : '';
+        $emailRaw = isset($row['email']) ? trim($row['email']) : '';
+        $personalEmail = $personalEmailRaw ?: $emailRaw;
+
+        // Check if both personal_email and email fields are missing
+        if (empty($personalEmailRaw) && empty($emailRaw)) {
+            $errors[] = $this->createFieldError(
+                'email',
+                'critical',
+                null,
+                'Email pribadi (Gmail) wajib diisi untuk login dengan Google SSO',
+                'Gunakan email Gmail, contoh: nama@gmail.com (kolom personal_email atau email)'
+            );
+        } elseif (! str_ends_with($personalEmail, '@gmail.com')) {
+            $errors[] = $this->createFieldError(
+                'email',
+                'critical',
+                $personalEmail,
+                'Email pribadi harus berupa email Gmail',
+                'Gunakan domain @gmail.com, contoh: nama@gmail.com (kolom personal_email atau email)'
+            );
+        }
+
+        // company_email: Jika diisi, harus domain @plnipservices.co.id (opsional)
+        $companyEmail = isset($row['company_email']) ? strtolower(trim($row['company_email'])) : '';
+
+        if (! empty($companyEmail) && ! str_ends_with($companyEmail, '@plnipservices.co.id')) {
+            $errors[] = $this->createFieldError(
+                'company_email',
+                'warning',
+                $companyEmail,
+                'Email perusahaan harus menggunakan domain @plnipservices.co.id',
+                'Gunakan email @plnipservices.co.id atau kosongkan kolom ini'
+            );
+        }
+
+        // email: Format email valid (hanya validasi jika diisi)
+        if (! empty($email) && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errors[] = $this->createFieldError(
+                'email',
+                'warning',
+                $email,
+                'Format email tidak valid',
+                'Contoh: nama@domain.com'
+            );
+        }
+
+        // company_email: Jika diisi, harus domain @plnipservices.co.id (opsional)
+        $companyEmail = isset($row['company_email']) ? strtolower(trim($row['company_email'])) : '';
+
+        if (! empty($companyEmail) && ! str_ends_with($companyEmail, '@plnipservices.co.id')) {
+            $errors[] = $this->createFieldError(
+                'company_email',
+                'warning',
+                $companyEmail,
+                'Email perusahaan harus menggunakan domain @plnipservices.co.id',
+                'Gunakan email @plnipservices.co.id atau kosongkan kolom ini'
+            );
+        }
+
         // email: Format email valid (hanya validasi jika diisi)
         if (! empty($email) && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = $this->createFieldError(
@@ -1126,7 +1188,8 @@ class MemberImportService
         $personalEmail = isset($row['personal_email']) ? strtolower(trim((string) $row['personal_email'])) : '';
         $email = isset($row['email']) ? strtolower(trim((string) $row['email'])) : '';
 
-        $targetEmail = $companyEmail ?: ($personalEmail ?: $email);
+        // Priority: personal_email (Gmail untuk SSO) > email > company_email (info tambahan)
+        $targetEmail = $personalEmail ?: ($email ?: $companyEmail);
         if (! $targetEmail) {
             return;
         }
@@ -1155,11 +1218,11 @@ class MemberImportService
             if ($effectiveUnitId && $user->organization_unit_id && (int) $user->organization_unit_id !== (int) $effectiveUnitId) {
                 return;
             }
- 
+
             // FIX: Selalu update member_id
             // Mencegah user yang di-import tidak punya member_id
             $user->member_id = $member->id;
-            
+
             if ($effectiveUnitId && ! $user->organization_unit_id) {
                 $user->organization_unit_id = $effectiveUnitId;
             }

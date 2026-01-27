@@ -31,9 +31,9 @@ class LoginController extends Controller
         ]);
 
         $remember = (bool) ($credentials['remember'] ?? false);
-        
+
         $field = filter_var($credentials['email'], FILTER_VALIDATE_EMAIL) ? 'email' : 'email';
-        
+
         // Login hanya dengan email utama (Gmail), bukan dengan company_email (PLN)
         $user = User::where('email', $credentials['email'])->first();
 
@@ -196,6 +196,30 @@ class LoginController extends Controller
 
             // Check if member already exists with this email
             $existingMember = \App\Models\Member::where('email', $user->email)->first();
+
+            // If not found and user has company_email, try searching with company_email
+            if (! $existingMember && $user->company_email) {
+                $existingMember = \App\Models\Member::where('email', $user->company_email)->first();
+
+                if ($existingMember) {
+                    // Update member.email to user.email (personal_email)
+                    $oldEmail = $existingMember->email;
+                    $existingMember->email = $user->email;
+                    $existingMember->save();
+
+                    ActivityLog::create([
+                        'actor_id' => $user->id,
+                        'action' => 'member_email_updated_to_personal_email',
+                        'subject_type' => \App\Models\Member::class,
+                        'subject_id' => $existingMember->id,
+                        'payload' => [
+                            'old_email' => $oldEmail,
+                            'new_email' => $user->email,
+                            'provider' => 'google',
+                        ],
+                    ]);
+                }
+            }
 
             if ($existingMember) {
                 // Link user to existing member

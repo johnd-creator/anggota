@@ -3,17 +3,17 @@
 namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromArray;
-use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Events\AfterSheet;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class MembersTemplateExport implements FromArray, WithHeadings, WithStyles, ShouldAutoSize, WithColumnFormatting, WithEvents
+class MembersTemplateExport implements FromArray, ShouldAutoSize, WithColumnFormatting, WithEvents, WithHeadings, WithStyles
 {
     public function headings(): array
     {
@@ -47,8 +47,8 @@ class MembersTemplateExport implements FromArray, WithHeadings, WithStyles, Shou
                 '1990-05-15',
                 'L',
                 '+628123456789',
+                'agus@gmail.com',
                 '',
-                'agus@plnipservices.co.id',
                 'Jl. Merdeka No 1',
                 'ANGGOTA',
                 'organik',
@@ -78,7 +78,7 @@ class MembersTemplateExport implements FromArray, WithHeadings, WithStyles, Shou
     public function registerEvents(): array
     {
         return [
-            AfterSheet::class => function(AfterSheet $event) {
+            AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 $sheet->getStyle('F')->getNumberFormat()->setFormatCode('@');
                 $sheet->setCellValueExplicit('F2', '+628123456789', DataType::TYPE_STRING);

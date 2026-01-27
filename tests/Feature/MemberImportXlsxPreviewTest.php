@@ -95,7 +95,7 @@ class MemberImportXlsxPreviewTest extends TestCase
 
         $xlsxContent = $this->createSimpleXlsx([
             ['full_name', 'email', 'nip', 'join_date', 'status'],
-            ['Commit User', 'commit@example.com', '19901234567892', '2024-03-10', 'aktif'],
+            ['Commit User', 'commit@gmail.com', '19901234567892', '2024-03-10', 'aktif'],
         ]);
 
         $file = UploadedFile::fake()->createWithContent('import.xlsx', $xlsxContent);
@@ -113,7 +113,7 @@ class MemberImportXlsxPreviewTest extends TestCase
 
         $this->assertDatabaseHas('members', [
             'full_name' => 'Commit User',
-            'email' => 'commit@example.com',
+            'email' => 'commit@gmail.com',
             'organization_unit_id' => $unit->id,
         ]);
     }

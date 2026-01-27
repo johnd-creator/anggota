@@ -2,9 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\AuditLog;
 use App\Models\ImportBatch;
-use App\Models\Member;
 use App\Models\OrganizationUnit;
 use App\Models\Role;
 use App\Models\User;
@@ -27,10 +25,10 @@ class MemberImportCommitTest extends TestCase
      */
     private function createPreviewedBatch(User $user, ?int $unitId = null): ImportBatch
     {
-        // Create a test CSV file
-        $csvContent = "full_name,status,nra,email\nJohn Doe,aktif,NRA001,john@test.com\nJane Smith,aktif,NRA002,jane@test.com";
-        $filename = 'test_' . uniqid() . '.csv';
-        $path = 'imports/' . $filename;
+        // Create a test CSV file with Gmail emails (required for SSO login) and valid NRA format
+        $csvContent = "full_name,status,nra,email,organization_unit_id\nJohn Doe,aktif,A-2024-001,john@gmail.com,{$unitId}\nJane Smith,aktif,A-2024-002,jane@gmail.com,{$unitId}";
+        $filename = 'test_'.uniqid().'.csv';
+        $path = 'imports/'.$filename;
 
         Storage::disk('local')->put($path, $csvContent);
 
@@ -69,8 +67,8 @@ class MemberImportCommitTest extends TestCase
         ]);
 
         // Verify members created
-        $this->assertDatabaseHas('members', ['nra' => 'NRA001']);
-        $this->assertDatabaseHas('members', ['nra' => 'NRA002']);
+        $this->assertDatabaseHas('members', ['nra' => 'A-2024-001']);
+        $this->assertDatabaseHas('members', ['nra' => 'A-2024-002']);
 
         // Verify batch updated
         $batch->refresh();
@@ -147,16 +145,20 @@ class MemberImportCommitTest extends TestCase
             'invalid_rows' => 2,
         ]);
 
-        // Add some errors
+        // Add some errors (structured format)
         \App\Models\ImportBatchError::create([
             'import_batch_id' => $batch->id,
             'row_number' => 2,
-            'errors_json' => ['full_name wajib diisi'],
+            'errors_json' => [
+                ['field' => 'full_name', 'severity' => 'critical', 'current_value' => null, 'message' => 'full_name wajib diisi', 'expected_format' => 'Minimal 2 karakter, contoh: Budi Santoso'],
+            ],
         ]);
         \App\Models\ImportBatchError::create([
             'import_batch_id' => $batch->id,
             'row_number' => 3,
-            'errors_json' => ['status tidak valid'],
+            'errors_json' => [
+                ['field' => 'status', 'severity' => 'critical', 'current_value' => 'invalid', 'message' => 'status tidak valid', 'expected_format' => 'Gunakan salah satu: aktif, cuti, suspended, resign, pensiun'],
+            ],
         ]);
 
         $response = $this->actingAs($user)->get("/admin/members/import/{$batch->id}/errors");
@@ -165,7 +167,7 @@ class MemberImportCommitTest extends TestCase
         $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
 
         $content = $response->streamedContent();
-        $this->assertStringContainsString('row_number,errors', $content);
+        $this->assertStringContainsString('row_number,severity,field,current_value,message,expected_format', $content);
         $this->assertStringContainsString('full_name wajib diisi', $content);
     }
 
