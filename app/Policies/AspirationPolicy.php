@@ -12,7 +12,7 @@ class AspirationPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['anggota', 'bendahara', 'admin_unit', 'admin_pusat', 'super_admin']);
+        return $user->hasRole(['anggota', 'bendahara', 'admin_unit', 'admin_pusat', 'super_admin', 'pengurus']);
     }
 
     /**
@@ -26,6 +26,7 @@ class AspirationPolicy
 
         // Use currentUnitId() for consistent unit resolution
         $unitId = $user->currentUnitId();
+
         return $unitId && $unitId === $aspiration->organization_unit_id;
     }
 
@@ -50,7 +51,7 @@ class AspirationPolicy
         $unitId = $user->currentUnitId();
 
         // Must have a unit and it must match
-        if (!$unitId || $unitId !== $aspiration->organization_unit_id) {
+        if (! $unitId || $unitId !== $aspiration->organization_unit_id) {
             return false;
         }
 
@@ -79,6 +80,7 @@ class AspirationPolicy
 
         if ($user->hasRole('admin_unit')) {
             $unitId = $user->currentUnitId();
+
             return $unitId && $unitId === $aspiration->organization_unit_id;
         }
 

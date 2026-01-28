@@ -28,7 +28,7 @@
         </Link>
 
         <!-- Admin Only Announcements -->
-        <template v-if="isAdminOrUnit && $page.props.features?.announcements !== false">
+        <template v-if="isAdminOrUnit && !isPengurus && $page.props.features?.announcements !== false">
           <Link href="/admin/announcements" :class="menuItemClass('/admin/announcements')">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -47,8 +47,8 @@
           </Link>
         </template>
 
-        <!-- Admin Aspirations (Kelola Aspirasi for non-super_admin) -->
-        <template v-if="isAdminOrUnit">
+        <!-- Admin Aspirations (Kelola Aspirasi for non-super_admin, non-pengurus) -->
+        <template v-if="isAdminOrUnit && !isPengurus">
           <Link href="/admin/aspirations" :class="menuItemClass('/admin/aspirations')">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
@@ -73,7 +73,7 @@
           </button>
           <div v-show="expandedSections.letters" class="ml-6 space-y-1">
             <Link href="/letters/inbox" :class="subMenuItemClass('/letters/inbox')">Kotak Masuk</Link>
-            <Link v-if="isSuperAdmin || isAdminUnit || isAdminPusat" href="/letters/outbox" :class="subMenuItemClass('/letters/outbox')">Surat Keluar</Link>
+            <Link v-if="isSuperAdmin || isAdminUnit || isAdminPusat || isPengurus" href="/letters/outbox" :class="subMenuItemClass('/letters/outbox')">Surat Keluar</Link>
             <Link v-if="isSuperAdmin || canApproveLetters" href="/letters/approvals" :class="subMenuItemClass('/letters/approvals')">Perlu Persetujuan</Link>
           </div>
         </template>
@@ -109,7 +109,7 @@
         </template>
 
         <!-- Master Data + Admin Workflows -->
-        <template v-if="isAdminOrUnit">
+        <template v-if="canManageMembers">
           <button @click="toggleSection('members')" :class="sectionHeaderClass('members')">
             <div class="flex items-center gap-3">
               <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,7 +132,7 @@
             <Link v-if="isSuperAdmin || isAdminPusat" href="/admin/letter-approvers" :class="subMenuItemClass('/admin/letter-approvers')">Letter Approvers</Link>
           </div>
 
-          <Link href="/admin/mutations" :class="menuItemClass('/admin/mutations')">
+          <Link v-if="canManageMembers" href="/admin/mutations" :class="menuItemClass('/admin/mutations')">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
             </svg>
@@ -140,7 +140,7 @@
             <span v-if="$page.props.counters?.mutations_pending" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $page.props.counters.mutations_pending }}</span>
           </Link>
 
-          <Link href="/admin/onboarding" :class="menuItemClass('/admin/onboarding')">
+          <Link v-if="canManageMembers" href="/admin/onboarding" :class="menuItemClass('/admin/onboarding')">
             <div class="flex items-center gap-3 w-full">
               <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -150,7 +150,7 @@
             </div>
           </Link>
 
-          <Link href="/admin/updates" :class="menuItemClass('/admin/updates')">
+          <Link v-if="canManageMembers" href="/admin/updates" :class="menuItemClass('/admin/updates')">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
@@ -160,7 +160,7 @@
         </template>
 
         <!-- Reports Section -->
-        <template v-if="isAdminOrUnit || isTreasurer">
+        <template v-if="isAdminOrUnit || isTreasurer || isPengurus">
           <button @click="toggleSection('reports')" :class="sectionHeaderClass('reports')">
             <div class="flex items-center gap-3">
               <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -618,7 +618,8 @@ const isAdminUnit = computed(() => roleName.value === 'admin_unit');
 const isAdminPusat = computed(() => roleName.value === 'admin_pusat');
 const isTreasurer = computed(() => roleName.value === 'bendahara');
 const isPengurus = computed(() => roleName.value === 'pengurus');
-const isMember = computed(() => ['anggota', 'admin_unit', 'bendahara'].includes(roleName.value));
+const canManageMembers = computed(() => ['super_admin', 'admin_unit', 'admin_pusat'].includes(roleName.value));
+const isMember = computed(() => ['anggota', 'admin_unit', 'bendahara', 'pengurus'].includes(roleName.value));
 const unionPositionName = computed(() => (page.props?.auth?.user?.union_position?.name || '').toLowerCase());
 const canApproveLetters = computed(() => ['ketua', 'sekretaris'].includes(unionPositionName.value));
 // Member self-service availability (profile + KTA portal).

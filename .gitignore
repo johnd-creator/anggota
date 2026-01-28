@@ -25,5 +25,6 @@ Thumbs.db
 /development-notes
 /gemini-superpowers-antigravity-main
 /artifacts
+database.sqlite
 backup_before_fix_20260126_192607.sql
-backup_before_fix_manual_20260126_192939.sql
+backup_before_fix_manual_20260126_192939.sqldatabase

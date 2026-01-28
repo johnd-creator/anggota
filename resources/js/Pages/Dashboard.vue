@@ -108,16 +108,16 @@
                 badgeColor="red"
                 href="/letters/inbox"
             />
-            <StatCard v-if="showAdminQueues"
-                title="Mutasi Pending"
+            <StatCard v-if="showAdminCards"
+                title="Mutations Pending"
                 :value="$page.props.counters?.mutations_pending || 0"
-                icon="transfer"
+                icon="exchange-alt"
                 iconColor="red"
                 badgeText="Approve mutasi"
                 badgeColor="red"
                 href="/admin/mutations"
             />
-            <StatCard v-if="showAdminQueues"
+            <StatCard v-if="showAdminCards"
                 title="Onboarding Pending"
                 :value="$page.props.counters?.onboarding_pending || 0"
                 icon="user-plus"
@@ -126,7 +126,7 @@
                 badgeColor="amber"
                 href="/admin/onboarding"
             />
-            <StatCard v-if="showAdminQueues"
+            <StatCard v-if="showAdminCards"
                 title="Update Request"
                 :value="$page.props.counters?.updates_pending || 0"
                 icon="refresh"
@@ -135,7 +135,7 @@
                 badgeColor="blue"
                 href="/admin/updates"
             />
-            <StatCard v-if="showAdminQueues"
+            <StatCard v-if="showAdminCards"
                 title="Aspirasi Baru"
                 :value="$page.props.counters?.aspirations_pending || 0"
                 icon="chat-alt"
@@ -143,8 +143,8 @@
                 badgeText="Needs Attention"
                 badgeColor="purple"
                 href="/admin/aspirations"
-            />
-            <StatCard
+             />
+             <StatCard
                 v-if="employmentInfo && !isSuperAdmin"
                 title="Masa Kerja"
                 :value="employmentInfo.duration_string"
@@ -416,7 +416,7 @@
         </div>
 
         <!-- Bottom Grid: Mutasi Pending & Recent Activity -->
-        <div v-if="showAdminQueues" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div v-if="showAdminCards" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             <!-- Recent Mutasi Pending Table (Admin Only) -->
             <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-neutral-100 overflow-hidden">
                 <div class="px-6 py-4 border-b border-neutral-100">
@@ -549,9 +549,10 @@ const page = usePage();
 const pg = page.props || {};
 
 const roleName = computed(() => pg.auth?.user?.role?.name || '');
-const isMemberRole = computed(() => ['anggota', 'admin_unit', 'bendahara'].includes(roleName.value));
+const isMemberRole = computed(() => ['anggota', 'admin_unit', 'bendahara', 'pengurus'].includes(roleName.value));
 const isSuperAdmin = computed(() => roleName.value === 'super_admin');
-const showAdminQueues = computed(() => ['super_admin', 'admin_unit', 'admin_pusat'].includes(roleName.value));
+const showAdminQueues = computed(() => ['super_admin', 'admin_unit', 'admin_pusat', 'pengurus'].includes(roleName.value));
+const showAdminCards = computed(() => ['super_admin', 'admin_unit', 'admin_pusat'].includes(roleName.value));
 const canOpenTotalMembers = computed(() => !['anggota', 'bendahara'].includes(roleName.value));
 
 const showUnpaidModal = ref(false);
@@ -591,7 +592,7 @@ const formatShortCurrency = (value) => {
     return value;
 };
 
-		const showUnitMembersCard = computed(() => ['admin_unit', 'bendahara', 'anggota'].includes(roleName.value));
+		const showUnitMembersCard = computed(() => ['admin_unit', 'bendahara', 'anggota', 'pengurus'].includes(roleName.value));
 const showApprovalsCard = computed(() => {
     if (roleName.value === 'super_admin') return true;
     return pg.auth?.user?.union_position && ['ketua', 'sekretaris'].includes((pg.auth?.user?.union_position?.name || '').toLowerCase());

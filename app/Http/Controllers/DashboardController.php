@@ -6,7 +6,6 @@ use App\Models\Letter;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -44,7 +43,7 @@ class DashboardController extends Controller
         $query = \App\Models\MutationRequest::with(['member', 'fromUnit', 'toUnit'])
             ->where('status', 'pending');
 
-        if (!$isGlobal && $unitId) {
+        if (! $isGlobal && $unitId) {
             $query->where(function ($q) use ($unitId) {
                 $q->where('from_unit_id', $unitId)
                     ->orWhere('to_unit_id', $unitId);
@@ -68,15 +67,15 @@ class DashboardController extends Controller
 
     private function getRecentActivity($user, bool $isGlobal, ?int $unitId)
     {
-        // Don't show audit logs to regular members to avoid info leak confusion, 
-        // though UI hides the section anyway. 
+        // Don't show audit logs to regular members to avoid info leak confusion,
+        // though UI hides the section anyway.
         if ($user->hasRole('anggota') || $user->hasRole('reguler')) {
             return [];
         }
 
         $query = \App\Models\AuditLog::with('user');
 
-        if (!$isGlobal && $unitId) {
+        if (! $isGlobal && $unitId) {
             $query->where('organization_unit_id', $unitId);
         }
 
@@ -92,12 +91,15 @@ class DashboardController extends Controller
 
                 // Map event to type for icon color
                 $type = 'info';
-                if (in_array($log->event, ['login_failed', 'unauthorized', 'breach']))
+                if (in_array($log->event, ['login_failed', 'unauthorized', 'breach'])) {
                     $type = 'error';
-                if (in_array($log->event, ['login', 'create', 'update', 'approve']))
+                }
+                if (in_array($log->event, ['login', 'create', 'update', 'approve'])) {
                     $type = 'success';
-                if (in_array($log->event, ['delete', 'revoke']))
+                }
+                if (in_array($log->event, ['delete', 'revoke'])) {
                     $type = 'warning';
+                }
 
                 return [
                     'message' => $message,
@@ -110,7 +112,7 @@ class DashboardController extends Controller
     private function getPinnedAnnouncements($user)
     {
         // Skip query if announcements feature is disabled
-        if (!config('features.announcements', true)) {
+        if (! config('features.announcements', true)) {
             return collect([]);
         }
 
@@ -119,8 +121,7 @@ class DashboardController extends Controller
             ->where('pin_to_dashboard', true)
             ->with(['organizationUnit', 'attachments'])
             ->latest()
-            ->take(5)
-        ;
+            ->take(5);
 
         $query->whereDoesntHave('dismissals', function ($q) use ($user) {
             $q->where('user_id', $user->id);
@@ -135,7 +136,7 @@ class DashboardController extends Controller
                     'scope_type' => $announcement->scope_type,
                     'organization_unit_name' => $announcement->organizationUnit?->name,
                     'created_at' => $announcement->created_at,
-                    'attachments' => $announcement->attachments->map(fn($file) => [
+                    'attachments' => $announcement->attachments->map(fn ($file) => [
                         'id' => $file->id,
                         'original_name' => $file->original_name,
                         'download_url' => $file->download_url,
@@ -146,17 +147,17 @@ class DashboardController extends Controller
 
     private function getLettersSummary($user)
     {
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
         $roleName = $user->role?->name;
-        if (!in_array($roleName, ['super_admin', 'admin_pusat', 'admin_unit', 'anggota', 'bendahara'], true)) {
+        if (! in_array($roleName, ['super_admin', 'admin_pusat', 'admin_unit', 'anggota', 'bendahara', 'pengurus'], true)) {
             return null;
         }
 
         $inboxBase = $this->getInboxBaseQuery($user);
-        if (!$inboxBase) {
+        if (! $inboxBase) {
             return [
                 'unread' => 0,
                 'this_month' => 0,
@@ -185,7 +186,7 @@ class DashboardController extends Controller
             ->count();
 
         $drafts = 0;
-        if (in_array($roleName, ['super_admin', 'admin_unit', 'admin_pusat'], true)) {
+        if (in_array($roleName, ['super_admin', 'admin_unit', 'admin_pusat', 'pengurus'], true)) {
             $drafts = Letter::where('creator_user_id', $user->id)
                 ->whereIn('status', ['draft', 'revision'])
                 ->count();
@@ -217,7 +218,7 @@ class DashboardController extends Controller
 
     private function getInboxBaseQuery($user)
     {
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -229,7 +230,7 @@ class DashboardController extends Controller
 
         if (in_array($roleName, ['anggota', 'bendahara'], true)) {
             $hasAnyRecipient = (bool) ($user->member_id || $unitId);
-            if (!$hasAnyRecipient) {
+            if (! $hasAnyRecipient) {
                 return $query->whereRaw('1=0');
             }
 
@@ -249,7 +250,7 @@ class DashboardController extends Controller
         }
 
         if ($roleName === 'admin_unit') {
-            if (!$unitId) {
+            if (! $unitId) {
                 return $query->whereRaw('1=0');
             }
 
@@ -272,7 +273,7 @@ class DashboardController extends Controller
                     ->withCount([
                         'members as active_members_count' => function ($q) {
                             $q->where('status', 'aktif');
-                        }
+                        },
                     ])
                     ->orderByDesc('active_members_count')
                     ->limit(10)
@@ -281,7 +282,7 @@ class DashboardController extends Controller
         }
 
         // Non-global: only their own unit
-        if (!$unitId) {
+        if (! $unitId) {
             return collect([]);
         }
 
@@ -291,7 +292,7 @@ class DashboardController extends Controller
                 ->withCount([
                     'members as active_members_count' => function ($q) {
                         $q->where('status', 'aktif');
-                    }
+                    },
                 ])
                 ->get();
         });
@@ -314,7 +315,7 @@ class DashboardController extends Controller
                 $query = \App\Models\Member::whereDate('join_date', '>=', $start)
                     ->whereDate('join_date', '<=', $end);
 
-                if (!$isGlobal && $unitId) {
+                if (! $isGlobal && $unitId) {
                     $query->where('organization_unit_id', $unitId);
                 }
 
@@ -330,8 +331,8 @@ class DashboardController extends Controller
         return Cache::remember($cacheKey, 300, function () use ($isGlobal, $unitId) {
             $baseQuery = \App\Models\MutationRequest::query();
 
-            if (!$isGlobal && $unitId) {
-                $baseQuery->where(fn($q) => $q->where('from_unit_id', $unitId)->orWhere('to_unit_id', $unitId));
+            if (! $isGlobal && $unitId) {
+                $baseQuery->where(fn ($q) => $q->where('from_unit_id', $unitId)->orWhere('to_unit_id', $unitId));
             }
 
             return [
@@ -349,10 +350,10 @@ class DashboardController extends Controller
         return Cache::remember($cacheKey, 300, function () use ($isGlobal, $unitId) {
             // Documents missing - scoped
             $docQuery = \App\Models\Member::query();
-            if (!$isGlobal && $unitId) {
+            if (! $isGlobal && $unitId) {
                 $docQuery->where('organization_unit_id', $unitId);
             }
-            $docMissing = (clone $docQuery)->where(fn($q) => $q->whereNull('photo_path')->orWhereNull('documents'))->count();
+            $docMissing = (clone $docQuery)->where(fn ($q) => $q->whereNull('photo_path')->orWhereNull('documents'))->count();
 
             // Login fail alerts - only for global users (security-wide metric)
             $loginFailSameIp = 0;
@@ -364,8 +365,8 @@ class DashboardController extends Controller
 
             // Mutations SLA breach - scoped
             $slaQuery = \App\Models\MutationRequest::where('sla_status', 'breach');
-            if (!$isGlobal && $unitId) {
-                $slaQuery->where(fn($q) => $q->where('from_unit_id', $unitId)->orWhere('to_unit_id', $unitId));
+            if (! $isGlobal && $unitId) {
+                $slaQuery->where(fn ($q) => $q->where('from_unit_id', $unitId)->orWhere('to_unit_id', $unitId));
             }
             $slaBreached = $slaQuery->count();
 
@@ -380,31 +381,35 @@ class DashboardController extends Controller
     private function getDuesSummary($user)
     {
         $roleName = $user->role?->name;
-        if (in_array($roleName, ['admin_unit', 'bendahara'], true)) {
+        if (in_array($roleName, ['admin_unit', 'bendahara', 'pengurus'], true)) {
             $unitId = $user->currentUnitId();
+
             return \App\Http\Controllers\Finance\FinanceDuesController::getDashboardSummary($unitId);
         } elseif (in_array($roleName, ['super_admin', 'admin_pusat'], true)) {
             return \App\Http\Controllers\Finance\FinanceDuesController::getDashboardSummary();
         }
+
         return null;
     }
 
     private function getUnpaidMembers($user)
     {
         $roleName = $user->role?->name;
-        if (in_array($roleName, ['admin_unit', 'bendahara'], true)) {
+        if (in_array($roleName, ['admin_unit', 'bendahara', 'pengurus'], true)) {
             $unitId = $user->currentUnitId();
+
             return \App\Http\Controllers\Finance\FinanceDuesController::getUnpaidMembers($unitId, null, 20);
         } elseif (in_array($roleName, ['super_admin', 'admin_pusat'], true)) {
             return \App\Http\Controllers\Finance\FinanceDuesController::getUnpaidMembers(null, null, 20);
         }
+
         return [];
     }
 
     private function getFinanceData($user)
     {
         $roleName = $user->role?->name;
-        if (!in_array($roleName, ['admin_unit', 'bendahara', 'super_admin'], true)) {
+        if (! in_array($roleName, ['admin_unit', 'bendahara', 'super_admin', 'pengurus'], true)) {
             return null;
         }
 
@@ -412,7 +417,7 @@ class DashboardController extends Controller
 
         // 1. Current Balance
         $balance = \App\Models\FinanceLedger::query()
-            ->when($financeUnitId, fn($q) => $q->where('organization_unit_id', $financeUnitId))
+            ->when($financeUnitId, fn ($q) => $q->where('organization_unit_id', $financeUnitId))
             ->where('status', 'approved')
             ->selectRaw("SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as balance")
             ->value('balance') ?? 0;
@@ -424,7 +429,7 @@ class DashboardController extends Controller
             $start = $date->copy()->startOfMonth()->toDateString();
             $end = $date->copy()->endOfMonth()->toDateString();
             $stats = \App\Models\FinanceLedger::query()
-                ->when($financeUnitId, fn($q) => $q->where('organization_unit_id', $financeUnitId))
+                ->when($financeUnitId, fn ($q) => $q->where('organization_unit_id', $financeUnitId))
                 ->where('status', 'approved')
                 ->whereDate('date', '>=', $start)
                 ->whereDate('date', '<=', $end)
@@ -441,12 +446,12 @@ class DashboardController extends Controller
 
         // 3. Recent Transactions
         $recent = \App\Models\FinanceLedger::query()
-            ->when($financeUnitId, fn($q) => $q->where('organization_unit_id', $financeUnitId))
+            ->when($financeUnitId, fn ($q) => $q->where('organization_unit_id', $financeUnitId))
             ->with('category:id,name') // Optimize eager load
             ->latest('date')
             ->limit(10)
             ->get()
-            ->map(fn($l) => [
+            ->map(fn ($l) => [
                 'id' => $l->id,
                 'date' => $l->date->format('Y-m-d'),
                 'description' => $l->description ?: $l->category->name,
@@ -469,12 +474,12 @@ class DashboardController extends Controller
     private function getMyDuesSummary($user)
     {
         // Skip if finance feature is disabled
-        if (!config('features.finance', true)) {
+        if (! config('features.finance', true)) {
             return null;
         }
 
         $memberId = $user?->member_id;
-        if (!$memberId) {
+        if (! $memberId) {
             return null;
         }
 
@@ -482,10 +487,12 @@ class DashboardController extends Controller
         $joinDate = $member && $member->join_date ? \Carbon\Carbon::parse($member->join_date)->startOfMonth() : null;
 
         $currentPeriod = now()->format('Y-m');
-        $periods = collect(range(0, 5))->map(fn($i) => now()->subMonths($i)->format('Y-m'))
+        $periods = collect(range(0, 5))->map(fn ($i) => now()->subMonths($i)->format('Y-m'))
             ->filter(function ($period) use ($joinDate) {
-                if (!$joinDate)
+                if (! $joinDate) {
                     return true;
+                }
+
                 return \Carbon\Carbon::createFromFormat('Y-m', $period)->endOfMonth()->gte($joinDate);
             })
             ->values()
@@ -496,7 +503,7 @@ class DashboardController extends Controller
             ->get()
             ->keyBy('period');
 
-        $unpaidPeriods = collect($periods)->filter(fn($p) => !$payments->has($p) || $payments->get($p)->status !== 'paid')->values();
+        $unpaidPeriods = collect($periods)->filter(fn ($p) => ! $payments->has($p) || $payments->get($p)->status !== 'paid')->values();
 
         $currentStatus = 'unpaid';
         if ($payments->has($currentPeriod) && $payments->get($currentPeriod)->status === 'paid') {
@@ -510,5 +517,4 @@ class DashboardController extends Controller
             'unpaid_periods' => $unpaidPeriods->take(3)->values(),
         ];
     }
-
 }

@@ -189,7 +189,7 @@ Route::middleware(['auth'])->group(function () {
     })->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('docs.help.show');
 
     // Admin Routes
-    Route::prefix('admin')->name('admin.')->middleware('role:super_admin,admin_unit,admin_pusat')->group(function () {
+    Route::prefix('admin')->name('admin.')->middleware('role:super_admin,admin_unit,admin_pusat,pengurus')->group(function () {
         Route::resource('units', \App\Http\Controllers\Admin\OrganizationUnitController::class);
 
         Route::resource('members', \App\Http\Controllers\Admin\MemberController::class)
@@ -207,10 +207,10 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('letter-categories', \App\Http\Controllers\Admin\LetterCategoryController::class)->middleware('role:super_admin');
         Route::resource('letter-approvers', \App\Http\Controllers\Admin\LetterApproverController::class)->middleware('role:super_admin,admin_pusat');
         Route::post('letter-approvers/{letter_approver}/toggle-active', [\App\Http\Controllers\Admin\LetterApproverController::class, 'toggleActive'])->middleware('role:super_admin,admin_pusat')->name('letter-approvers.toggle-active');
-        Route::get('aspirations', [\App\Http\Controllers\Admin\AspirationController::class, 'index'])->name('aspirations.index');
-        Route::get('aspirations/{aspiration}', [\App\Http\Controllers\Admin\AspirationController::class, 'show'])->name('aspirations.show');
-        Route::patch('aspirations/{aspiration}/status', [\App\Http\Controllers\Admin\AspirationController::class, 'updateStatus'])->name('aspirations.update_status');
-        Route::post('aspirations/{aspiration}/merge', [\App\Http\Controllers\Admin\AspirationController::class, 'merge'])->name('aspirations.merge');
+        Route::get('aspirations', [\App\Http\Controllers\Admin\AspirationController::class, 'index'])->middleware('role:admin_unit,admin_pusat,super_admin')->name('aspirations.index');
+        Route::get('aspirations/{aspiration}', [\App\Http\Controllers\Admin\AspirationController::class, 'show'])->middleware('role:admin_unit,admin_pusat,super_admin')->name('aspirations.show');
+        Route::patch('aspirations/{aspiration}/status', [\App\Http\Controllers\Admin\AspirationController::class, 'updateStatus'])->middleware('role:admin_unit,admin_pusat,super_admin')->name('aspirations.update_status');
+        Route::post('aspirations/{aspiration}/merge', [\App\Http\Controllers\Admin\AspirationController::class, 'merge'])->middleware('role:admin_unit,admin_pusat,super_admin')->name('aspirations.merge');
 
         // Admin Sessions
         Route::get('sessions', [\App\Http\Controllers\Admin\UserSessionController::class, 'index'])->middleware('role:super_admin')->name('sessions.index');
@@ -244,7 +244,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('members/import/{batch}/commit', [\App\Http\Controllers\Admin\MemberImportController::class, 'commit'])->middleware('role:super_admin,admin_unit,admin_pusat')->name('members.import.commit');
         Route::get('members/import/{batch}/errors', [\App\Http\Controllers\Admin\MemberImportController::class, 'downloadErrors'])->middleware('role:super_admin,admin_unit,admin_pusat')->name('members.import.errors');
         Route::post('members/import', [\App\Http\Controllers\Admin\MemberImportController::class, 'store'])->middleware('role:admin_unit')->name('members.import');
-        Route::get('members/search-by-phone-or-nip', [\App\Http\Controllers\Admin\MemberController::class, 'searchByPhoneOrNip'])->middleware('role:super_admin,admin_pusat,admin_unit,bendahara')->name('members.search.by_phone_or_nip');
+        Route::get('members/search-by-phone-or-nip', [\App\Http\Controllers\Admin\MemberController::class, 'searchByPhoneOrNip'])->middleware('role:super_admin,admin_pusat,admin_unit,bendahara,pengurus')->name('members.search.by_phone_or_nip');
 
         Route::get('mutations/export', [\App\Http\Controllers\ReportsExportController::class, 'adminMutationsExport'])->name('admin.mutations.export');
     });
@@ -280,16 +280,16 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('letters')->name('letters.')->group(function () {
         // Inbox - all receiving roles
         Route::get('inbox', [\App\Http\Controllers\LetterController::class, 'inbox'])
-            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin,pengurus')
             ->name('inbox');
 
         // Approvals - for Ketua/Sekretaris
         Route::get('approvals', [\App\Http\Controllers\LetterController::class, 'approvals'])
-            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin,pengurus')
             ->name('approvals');
 
         // Outbox & Create/Edit - sender roles only
-        Route::middleware('role:admin_unit,admin_pusat,super_admin')->group(function () {
+        Route::middleware('role:admin_unit,admin_pusat,super_admin,pengurus')->group(function () {
             Route::get('outbox', [\App\Http\Controllers\LetterController::class, 'outbox'])->name('outbox');
             Route::get('create', [\App\Http\Controllers\LetterController::class, 'create'])->name('create');
             Route::get('template-render', [\App\Http\Controllers\LetterController::class, 'templateRender'])->name('template-render');
@@ -304,23 +304,23 @@ Route::middleware(['auth'])->group(function () {
 
         // Approval actions - for Ketua/Sekretaris (policy check inside)
         Route::post('{letter}/approve', [\App\Http\Controllers\Letter\ApprovalController::class, 'approve'])
-            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin,pengurus')
             ->name('approve');
         Route::post('{letter}/revise', [\App\Http\Controllers\Letter\ApprovalController::class, 'revise'])
-            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin,pengurus')
             ->name('revise');
         Route::post('{letter}/reject', [\App\Http\Controllers\Letter\ApprovalController::class, 'reject'])
-            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin,pengurus')
             ->name('reject');
 
         // Preview - accessible by viewer (policy check)
         Route::get('{letter}/preview', [\App\Http\Controllers\Letter\ViewController::class, 'preview'])
-            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin,pengurus')
             ->name('preview');
 
         // QR code image for preview
         Route::get('{letter}/qr.png', [\App\Http\Controllers\Letter\ViewController::class, 'qrCode'])
-            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
+            ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin,pengurus')
             ->name('qr');
 
         // Attachments
@@ -344,11 +344,11 @@ Route::middleware(['auth'])->group(function () {
 
     // Member search API for letter recipient autocomplete
     Route::get('api/members/search', [\App\Http\Controllers\LetterController::class, 'searchMembers'])
-        ->middleware('role:admin_unit,admin_pusat,super_admin')
+        ->middleware('role:admin_unit,admin_pusat,super_admin,pengurus')
         ->name('api.members.search');
 
-    Route::get('/member/profile', [\App\Http\Controllers\Member\SelfProfileController::class, 'show'])->middleware('role:anggota,super_admin,admin_unit,bendahara')->name('member.profile');
-    Route::get('/member/portal', [\App\Http\Controllers\Member\PortalController::class, 'show'])->middleware('role:anggota,super_admin,admin_unit,bendahara')->name('member.portal');
+    Route::get('/member/profile', [\App\Http\Controllers\Member\SelfProfileController::class, 'show'])->middleware('role:anggota,super_admin,admin_unit,bendahara,pengurus')->name('member.profile');
+    Route::get('/member/portal', [\App\Http\Controllers\Member\PortalController::class, 'show'])->middleware('role:anggota,super_admin,admin_unit,bendahara,pengurus')->name('member.portal');
     Route::post('/member/portal/request-update', [\App\Http\Controllers\Member\PortalController::class, 'requestUpdate'])->middleware(['role:anggota', 'throttle:3,1'])->name('member.request_update');
     Route::post('/member/document/upload', [\App\Http\Controllers\Member\PortalController::class, 'uploadDocument'])->middleware('role:anggota')->name('member.document.upload');
     Route::post('/member/data/export-request', function (\Illuminate\Http\Request $request) {
@@ -408,11 +408,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/member/card/qr.png', [\App\Http\Controllers\Member\CardController::class, 'qr'])->middleware('role:anggota,super_admin,admin_unit,bendahara')->name('member.card.qr');
 
     // Member Aspirations
-    Route::get('/member/aspirations', [\App\Http\Controllers\Member\AspirationController::class, 'index'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit')->name('member.aspirations.index');
-    Route::get('/member/aspirations/create', [\App\Http\Controllers\Member\AspirationController::class, 'create'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit')->name('member.aspirations.create');
-    Route::post('/member/aspirations', [\App\Http\Controllers\Member\AspirationController::class, 'store'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit')->name('member.aspirations.store');
-    Route::get('/member/aspirations/{aspiration}', [\App\Http\Controllers\Member\AspirationController::class, 'show'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit')->name('member.aspirations.show');
-    Route::post('/member/aspirations/{aspiration}/support', [\App\Http\Controllers\Member\AspirationController::class, 'support'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit')->name('member.aspirations.support');
+    Route::get('/member/aspirations', [\App\Http\Controllers\Member\AspirationController::class, 'index'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit,pengurus')->name('member.aspirations.index');
+    Route::get('/member/aspirations/create', [\App\Http\Controllers\Member\AspirationController::class, 'create'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit,pengurus')->name('member.aspirations.create');
+    Route::post('/member/aspirations', [\App\Http\Controllers\Member\AspirationController::class, 'store'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit,pengurus')->name('member.aspirations.store');
+    Route::get('/member/aspirations/{aspiration}', [\App\Http\Controllers\Member\AspirationController::class, 'show'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit,pengurus')->name('member.aspirations.show');
+    Route::post('/member/aspirations/{aspiration}/support', [\App\Http\Controllers\Member\AspirationController::class, 'support'])->middleware('role:anggota,bendahara,super_admin,admin_pusat,admin_unit,pengurus')->name('member.aspirations.support');
 
     // Member Dues (Iuran Saya)
     Route::get('/member/dues', [\App\Http\Controllers\Member\MemberDuesController::class, 'index'])

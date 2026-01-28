@@ -6,12 +6,12 @@
           <h2 class="text-lg font-semibold text-neutral-900">Anggota Serikat</h2>
           <p class="text-sm text-neutral-500">Kelola daftar anggota serikat.</p>
         </div>
-        <div class="flex flex-wrap gap-3">
-          <SecondaryButton v-if="$page.props.auth.user.role?.name==='admin_unit'" href="/admin/members/import">
+         <div class="flex flex-wrap gap-3">
+          <SecondaryButton v-if="!isPengurus && $page.props.auth.user.role?.name==='admin_unit'" href="/admin/members/import">
             <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 9l5-5 5 5M12 4v12"/></svg>
             Import Anggota
           </SecondaryButton>
-          <CtaButton href="/admin/members/create">
+          <CtaButton v-if="!isPengurus" href="/admin/members/create">
             <template #icon>
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             </template>
@@ -64,12 +64,12 @@
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
                   </IconButton>
-                  <IconButton :aria-label="`Edit ${$toTitleCase(m.full_name)}`" size="sm" @click="router.get(`/admin/members/${m.id}/edit`)">
+                  <IconButton v-if="!isPengurus" :aria-label="`Edit ${$toTitleCase(m.full_name)}`" size="sm" @click="router.get(`/admin/members/${m.id}/edit`)">
                     <svg class="w-5 h-5 text-brand-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   </IconButton>
-                  <IconButton :aria-label="`Mutasi ${$toTitleCase(m.full_name)}`" size="sm" :disabled="redirectingId===m.id" @click="openMutasi(m)">
+                  <IconButton v-if="!isPengurus" :aria-label="`Mutasi ${$toTitleCase(m.full_name)}`" size="sm" :disabled="redirectingId===m.id" @click="openMutasi(m)">
                     <span v-if="redirectingId===m.id" class="inline-block w-4 h-4 animate-spin">
                       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none"/></svg>
                     </span>
@@ -110,10 +110,11 @@ import Chip from '@/Components/UI/Chip.vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, reactive, ref, watch } from 'vue';
 
- const page = usePage();
-const members = computed(() => page.props.members);
-const units = page.props.units || [];
-const unitOptions = units.map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
+  const page = usePage();
+  const members = computed(() => page.props.members);
+  const units = page.props.units || [];
+  const unitOptions = units.map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
+  const isPengurus = computed(() => page.props.auth.user.role?.name === 'pengurus');
 
 const initialFilters = page.props.filters || {};
 const filters = reactive({ status: '', units: initialFilters.units || [] });

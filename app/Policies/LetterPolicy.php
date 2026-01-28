@@ -44,12 +44,12 @@ class LetterPolicy
     }
 
     /**
-     * Determine if the user can create letters.
-     * Only admin_unit, admin_pusat, super_admin
+     * Determine if user can create letters.
+     * Only admin_unit, admin_pusat, super_admin, pengurus
      */
     public function create(User $user): bool
     {
-        return $user->hasRole(['admin_unit', 'admin_pusat', 'super_admin']);
+        return $user->hasRole(['admin_unit', 'admin_pusat', 'super_admin', 'pengurus']);
     }
 
     /**
@@ -137,7 +137,7 @@ class LetterPolicy
     public function archive(User $user, Letter $letter): bool
     {
         // Status must be 'approved' or 'sent' for anyone to archive
-        if (!in_array($letter->status, ['approved', 'sent'])) {
+        if (! in_array($letter->status, ['approved', 'sent'])) {
             return false;
         }
 
@@ -175,18 +175,18 @@ class LetterPolicy
         }
 
         // Determine which approval slot is pending
-        if (!$letter->requiresSecondaryApproval()) {
+        if (! $letter->requiresSecondaryApproval()) {
             // Single approval flow - check primary signer_type
             return $this->userCanApproveSignerType($user, $letter->signer_type, $letterUnitId);
         }
 
         // Dual approval flow
-        if (!$letter->isPrimaryApproved()) {
+        if (! $letter->isPrimaryApproved()) {
             // Primary slot pending - check primary signer_type
             return $this->userCanApproveSignerType($user, $letter->signer_type, $letterUnitId);
         }
 
-        if (!$letter->isSecondaryApproved()) {
+        if (! $letter->isSecondaryApproved()) {
             // Secondary slot pending - check secondary signer_type
             return $this->userCanApproveSignerType($user, $letter->signer_type_secondary, $letterUnitId);
         }
@@ -200,7 +200,7 @@ class LetterPolicy
      */
     protected function userCanApproveSignerType(User $user, ?string $signerType, int $unitId): bool
     {
-        if (!$signerType) {
+        if (! $signerType) {
             return false;
         }
 
@@ -231,6 +231,7 @@ class LetterPolicy
             case 'unit':
                 // User belongs to the destination unit
                 $userUnitId = $user->currentUnitId();
+
                 return $userUnitId !== null && $letter->to_unit_id === $userUnitId;
 
             case 'admin_pusat':
@@ -256,10 +257,11 @@ class LetterPolicy
 
             case 'unit':
                 // Only admin roles of that unit can view
-                if (!$user->hasRole(['admin_unit', 'admin_pusat'])) {
+                if (! $user->hasRole(['admin_unit', 'admin_pusat'])) {
                     return false;
                 }
                 $userUnitId = $user->currentUnitId();
+
                 return $userUnitId !== null && $letter->to_unit_id === $userUnitId;
 
             case 'admin_pusat':

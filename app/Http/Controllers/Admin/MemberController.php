@@ -328,11 +328,6 @@ class MemberController extends Controller
 
     public function searchByPhoneOrNip(Request $request)
     {
-        $allowedRoles = ['admin_unit', 'super_admin', 'admin_pusat', 'bendahara', 'pengurus'];
-        if (! $request->user()?->hasAnyRole($allowedRoles)) {
-            abort(403, 'Unauthorized');
-        }
-
         $request->validate([
             'q' => 'required|string|min:3|max:50',
             'limit' => 'integer|min:1|max:20',
