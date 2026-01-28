@@ -217,4 +217,33 @@ class PengurusRoleAccessTest extends TestCase
         $this->assertCount(1, $data['results']['members']);
         $this->assertEquals('Unit Member', $data['results']['members'][0]['title']);
     }
+
+    public function test_pengurus_can_create_aspiration_via_member()
+    {
+        $aspirationCategory = \App\Models\AspirationCategory::factory()->create(['name' => 'Category Test']);
+
+        $aspirationData = [
+            'category_id' => $aspirationCategory->id,
+            'title' => 'Test Aspirasi Pengurus',
+            'body' => 'Isi aspirasi pengurus',
+        ];
+
+        $response = $this->post('/member/aspirations', $aspirationData);
+
+        $response->assertStatus(302);
+    }
+
+    public function test_pengurus_can_view_aspirations_via_member()
+    {
+        $aspirasi = \App\Models\Aspiration::factory()->create([
+            'member_id' => $this->member->id,
+            'title' => 'Test Aspirasi Member',
+            'status' => 'pending',
+        ]);
+
+        $response = $this->get('/member/aspirations');
+
+        $response->assertStatus(200);
+        $this->assertStringContainsString('Test Aspirasi Member', $response->inertia('page'));
+    }
 }

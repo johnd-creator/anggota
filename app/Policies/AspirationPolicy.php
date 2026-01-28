@@ -35,7 +35,7 @@ class AspirationPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole(['anggota', 'bendahara', 'super_admin', 'admin_pusat', 'admin_unit']);
+        return $user->hasRole(['anggota', 'bendahara', 'super_admin', 'admin_pusat', 'admin_unit', 'pengurus']);
     }
 
     /**

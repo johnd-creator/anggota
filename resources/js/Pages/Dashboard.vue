@@ -50,7 +50,7 @@
         </div>
 
         <!-- KPI Stat Cards Row -->
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
             <StatCard
                 title="Total Unit"
                 :value="$page.props.counters?.units_total || 0"
@@ -166,7 +166,7 @@
             />
         </div>
 
-	        <div v-if="isMemberRole" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+	        <div v-if="isMemberRole" class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
 	            <div class="bg-white rounded-xl shadow-sm border border-neutral-100 p-6 flex flex-col gap-2">
 	                <p class="text-sm text-neutral-500">Kartu Digital</p>
 	                <h3 class="text-lg font-semibold text-neutral-900">Akses KTA Digital</h3>
