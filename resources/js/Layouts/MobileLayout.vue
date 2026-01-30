@@ -1,10 +1,10 @@
 <template>
   <div class="min-h-screen bg-neutral-50 pb-20">
     <!-- Mobile Header -->
-    <header class="sticky top-0 z-30 bg-white border-b border-neutral-200 h-14 px-4 flex items-center justify-between">
+    <header class="sticky top-0 z-30 bg-white border-b border-neutral-200 h-16 px-4 flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <img src="/img/logo.png" alt="Logo" class="w-7 h-7 object-contain" />
-        <span class="text-lg font-bold text-brand-primary-900">SP-PIPS</span>
+        <img src="/img/logo.png" alt="Logo" class="w-8 h-8 object-contain" />
+        <span class="text-xl font-bold text-brand-primary-900">SP-PIPS</span>
       </div>
 
       <div class="flex items-center gap-3">
@@ -16,7 +16,7 @@
         </Link>
 
         <Link href="/member/profile">
-            <UserAvatar :src="$page.props.auth.user.avatar" :name="$page.props.auth.user.name" size="h-8 w-8" />
+            <UserAvatar :src="$page.props.auth.user.avatar" :name="$page.props.auth.user.name" size="h-9 w-9" />
         </Link>
       </div>
     </header>
