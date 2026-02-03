@@ -5,7 +5,13 @@
     <CardContainer padding="lg" shadow="sm">
       <div v-if="member" class="space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-          <img :src="member?.photo_path ? '/storage/' + member.photo_path : `https://ui-avatars.com/api/?name=${member?.full_name || 'A'}&background=random`" class="h-16 w-16 rounded-full object-cover object-center" />
+          <OptimizedImage
+            :src="member?.photo_path"
+            :alt="$toTitleCase(member?.full_name || 'Member photo')"
+            size="medium"
+            class="h-16 w-16 rounded-full"
+            loading="eager"
+          />
           <div class="flex-1">
             <h2 class="text-xl font-semibold text-neutral-900">{{ $toTitleCase(member?.full_name) }}</h2>
             <div class="flex items-center gap-2">
@@ -176,6 +182,7 @@ import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import AlertBanner from '@/Components/UI/AlertBanner.vue';
 import ModalBase from '@/Components/UI/ModalBase.vue';
+import OptimizedImage from '@/Components/OptimizedImage.vue';
 import { usePage, router } from '@inertiajs/vue3';
 import { reactive, ref, computed } from 'vue';
 

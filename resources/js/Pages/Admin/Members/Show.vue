@@ -30,7 +30,13 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <CardContainer padding="lg" shadow="sm" class="lg:col-span-2">
         <div class="flex items-center gap-4">
-          <img :src="member.photo_path ? '/storage/' + member.photo_path : avatarUrl(member.full_name)" class="h-16 w-16 rounded-full object-cover object-center" @error="onPhotoError" />
+          <OptimizedImage
+            :src="member.photo_path ? member.photo_path : null"
+            :alt="member.full_name || 'Member photo'"
+            size="medium"
+            class="h-16 w-16 rounded-full"
+            loading="eager"
+          />
           <div>
             <h2 class="text-xl font-semibold text-neutral-900">{{ $toTitleCase(member.full_name) }}</h2>
             <div class="flex items-center gap-2">
@@ -137,12 +143,13 @@
 </template>
 
 <script setup>
-import AppLayout from '@/Layouts/AppLayout.vue';
-import CardContainer from '@/Components/UI/CardContainer.vue';
-import Badge from '@/Components/UI/Badge.vue';
-import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
-import { router, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+ import AppLayout from '@/Layouts/AppLayout.vue';
+ import CardContainer from '@/Components/UI/CardContainer.vue';
+ import Badge from '@/Components/UI/Badge.vue';
+ import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
+ import OptimizedImage from '@/Components/OptimizedImage.vue';
+ import { router, usePage } from '@inertiajs/vue3';
+ import { ref } from 'vue';
 
 const page = usePage();
 const member = page.props.member;

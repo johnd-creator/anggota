@@ -11,10 +11,9 @@ use App\Models\Member;
 use App\Models\NotificationPreference;
 use App\Models\OrganizationUnit;
 use App\Models\User;
+use App\Services\HtmlSanitizerService;
 use App\Services\LetterNumberService;
 use App\Services\LetterTemplateRenderer;
-use App\Services\HtmlSanitizerService;
-use App\Services\QrCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\DB;
@@ -25,9 +24,13 @@ use Inertia\Inertia;
 class LetterController extends Controller
 {
     protected LetterNumberService $numberService;
+
     protected LetterTemplateRenderer $templateRenderer;
+
     protected HtmlSanitizerService $sanitizer;
+
     protected \App\Services\LetterQrService $qrService;
+
     protected \App\Services\LetterPdfService $pdfService;
 
     public function __construct(
@@ -51,8 +54,13 @@ class LetterController extends Controller
     {
         $user = $request->user();
 
-        $query = Letter::with(['category', 'creator', 'fromUnit', 'toUnit', 'toMember'])
-            ->whereIn('status', ['submitted', 'approved', 'sent', 'archived'])
+        $query = Letter::with([
+            'category:id,name,code',
+            'creator:id,name',
+            'fromUnit:id,name,code',
+            'toUnit:id,name,code',
+            'toMember:id,full_name',
+        ])->whereIn('status', ['submitted', 'approved', 'sent', 'archived'])
             ->visibleTo($user)
             ->filterByRequest($request);
 
@@ -65,7 +73,7 @@ class LetterController extends Controller
             'filters' => $request->only(['search', 'status', 'category_id']),
             'stats' => [
                 'total' => (clone $query)->count(),
-                'unread' => (clone $query)->whereDoesntHave('reads', fn($q) => $q->where('user_id', $user->id))->count(),
+                'unread' => (clone $query)->whereDoesntHave('reads', fn ($q) => $q->where('user_id', $user->id))->count(),
                 'this_week' => (clone $query)->where('created_at', '>=', now()->subDays(7))->count(),
             ],
         ]);
@@ -77,12 +85,15 @@ class LetterController extends Controller
     public function outbox(Request $request)
     {
         $user = $request->user();
-        $query = Letter::with(['category', 'toUnit', 'toMember'])
-            ->where('creator_user_id', $user->id);
+        $query = Letter::with([
+            'category:id,name,code',
+            'toUnit:id,name,code',
+            'toMember:id,full_name',
+        ])->where('creator_user_id', $user->id);
 
         // Apply filters
         if ($request->filled('search')) {
-            $query->where('subject', 'like', '%' . $request->search . '%');
+            $query->where('subject', 'like', '%'.$request->search.'%');
         }
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -109,10 +120,13 @@ class LetterController extends Controller
         $user = $request->user();
         $unitId = $user->currentUnitId();
 
-        $query = Letter::with(['category', 'creator', 'fromUnit'])
-            ->needsApproval();
+        $query = Letter::with([
+            'category:id,name,code',
+            'creator:id,name',
+            'fromUnit:id,name,code',
+        ])->needsApproval();
 
-        if (!$user->hasGlobalAccess()) {
+        if (! $user->hasGlobalAccess()) {
             // Get user's signer type capabilities
             $positionName = $user->getUnionPositionName();
             $signerType = $positionName ? strtolower($positionName) : null;
@@ -134,7 +148,7 @@ class LetterController extends Controller
             }
 
             // Approver scope is their own unit
-            if (!$unitId) {
+            if (! $unitId) {
                 abort(403);
             }
             $query->where('from_unit_id', $unitId);
@@ -172,7 +186,7 @@ class LetterController extends Controller
 
         // SLA stats
         $baseQuery = Letter::needsApproval();
-        if (!$user->hasGlobalAccess() && $unitId) {
+        if (! $user->hasGlobalAccess() && $unitId) {
             $baseQuery->where('from_unit_id', $unitId);
         }
         $overdueCount = (clone $baseQuery)->where('sla_due_at', '<', now())->count();
@@ -186,10 +200,10 @@ class LetterController extends Controller
                 'overdue' => $overdueCount,
                 'approved' => Letter::where('status', 'approved')
                     ->where('approved_at', '>=', now()->startOfMonth())
-                    ->when(!$user->hasGlobalAccess() && $unitId, fn($q) => $q->where('from_unit_id', $unitId))
+                    ->when(! $user->hasGlobalAccess() && $unitId, fn ($q) => $q->where('from_unit_id', $unitId))
                     ->count(),
                 'rejected' => Letter::whereIn('status', ['rejected', 'revision'])
-                    ->when(!$user->hasGlobalAccess() && $unitId, fn($q) => $q->where('from_unit_id', $unitId))
+                    ->when(! $user->hasGlobalAccess() && $unitId, fn ($q) => $q->where('from_unit_id', $unitId))
                     ->count(),
             ],
         ]);
@@ -210,7 +224,7 @@ class LetterController extends Controller
 
         $category = LetterCategory::find($request->category_id);
 
-        if (!$category) {
+        if (! $category) {
             return response()->json(['error' => 'Category not found'], 404);
         }
 
@@ -306,7 +320,7 @@ class LetterController extends Controller
         $fromUnitId = null;
         if ($user->hasRole('admin_unit')) {
             $fromUnitId = $user->currentUnitId();
-            if (!$fromUnitId) {
+            if (! $fromUnitId) {
                 return back()->withErrors(['from_unit_id' => 'Admin unit harus memiliki unit terkait.']);
             }
         } else {
@@ -367,7 +381,7 @@ class LetterController extends Controller
                 ->with('user:id,name')
                 ->orderByDesc('read_at')
                 ->get()
-                ->map(fn($r) => [
+                ->map(fn ($r) => [
                     'id' => $r->id,
                     'user_name' => $r->user?->name ?? 'Unknown',
                     'read_at' => $r->read_at?->format('d M Y H:i'),
@@ -400,7 +414,7 @@ class LetterController extends Controller
         $this->markAsReadIfRecipient($letter, $user);
 
         // Ensure verification token exists
-        if (!$letter->verification_token) {
+        if (! $letter->verification_token) {
             $letter->update(['verification_token' => (string) \Illuminate\Support\Str::uuid()]);
         }
 
@@ -440,7 +454,7 @@ class LetterController extends Controller
     {
         $letter = Letter::with(['category', 'fromUnit'])->where('verification_token', $token)->first();
 
-        if (!$letter) {
+        if (! $letter) {
             return Inertia::render('Letters/Verify', [
                 'valid' => false,
                 'notFinal' => false,
@@ -452,7 +466,7 @@ class LetterController extends Controller
         $finalStatuses = ['approved', 'sent', 'archived'];
         $isFinal = in_array($letter->status, $finalStatuses);
 
-        if (!$isFinal) {
+        if (! $isFinal) {
             return Inertia::render('Letters/Verify', [
                 'valid' => false,
                 'notFinal' => true,
@@ -493,12 +507,12 @@ class LetterController extends Controller
 
         // Only generate QR for final letters
         $finalStatuses = ['approved', 'sent', 'archived'];
-        if (!in_array($letter->status, $finalStatuses)) {
+        if (! in_array($letter->status, $finalStatuses)) {
             abort(403, 'QR hanya tersedia untuk surat yang sudah disetujui.');
         }
 
         // Ensure verification token exists
-        if (!$letter->verification_token) {
+        if (! $letter->verification_token) {
             $letter->update(['verification_token' => (string) \Illuminate\Support\Str::uuid()]);
         }
 
@@ -526,7 +540,7 @@ class LetterController extends Controller
             abort(403, 'Hanya pembuat surat yang dapat menambah lampiran.');
         }
 
-        if (!in_array($letter->status, ['draft', 'revision'])) {
+        if (! in_array($letter->status, ['draft', 'revision'])) {
             abort(403, 'Lampiran hanya dapat ditambahkan ke surat draft atau revisi.');
         }
 
@@ -548,7 +562,7 @@ class LetterController extends Controller
             ]);
         }
 
-        return back()->with('success', count($uploaded) . ' lampiran berhasil diunggah.');
+        return back()->with('success', count($uploaded).' lampiran berhasil diunggah.');
     }
 
     /**
@@ -568,7 +582,7 @@ class LetterController extends Controller
 
         abort_unless(\Illuminate\Support\Facades\Storage::disk('local')->exists($attachment->path), 404, 'File tidak ditemukan.');
 
-        return response()->download(storage_path('app/' . $attachment->path), $attachment->original_name);
+        return response()->download(storage_path('app/'.$attachment->path), $attachment->original_name);
     }
 
     /**
@@ -580,7 +594,7 @@ class LetterController extends Controller
 
         // Only allow PDF for final letters
         $finalStatuses = ['approved', 'sent', 'archived'];
-        if (!in_array($letter->status, $finalStatuses)) {
+        if (! in_array($letter->status, $finalStatuses)) {
             abort(403, 'PDF hanya tersedia untuk surat yang sudah disetujui/terkirim.');
         }
 
@@ -590,7 +604,7 @@ class LetterController extends Controller
         $letter->load(['category', 'creator', 'fromUnit', 'toUnit', 'toMember', 'approvedBy', 'approvedSecondaryBy']);
 
         // Ensure verification token exists
-        if (!$letter->verification_token) {
+        if (! $letter->verification_token) {
             $letter->update(['verification_token' => (string) \Illuminate\Support\Str::uuid()]);
         }
 
@@ -617,11 +631,11 @@ class LetterController extends Controller
         ])->render();
 
         $pdfOutput = $this->pdfService->generate($html);
-        $filename = 'Surat-' . ($letter->letter_number ?: $letter->id) . '.pdf';
+        $filename = 'Surat-'.($letter->letter_number ?: $letter->id).'.pdf';
 
         return response($pdfOutput)
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"');
     }
 
     protected function isRecipientUser(Letter $letter, User $user): bool
@@ -632,6 +646,7 @@ class LetterController extends Controller
 
         if ($letter->to_type === 'unit') {
             $unitId = $user->currentUnitId();
+
             return (bool) ($unitId && $letter->to_unit_id && $unitId === $letter->to_unit_id);
         }
 
@@ -648,12 +663,12 @@ class LetterController extends Controller
      */
     protected function markAsReadIfRecipient(Letter $letter, User $user): void
     {
-        if (!Schema::hasTable('letter_reads')) {
+        if (! Schema::hasTable('letter_reads')) {
             return;
         }
 
         // Only mark if user is a recipient (not just creator or approver viewing)
-        if (!$this->isRecipientUser($letter, $user)) {
+        if (! $this->isRecipientUser($letter, $user)) {
             return;
         }
 
@@ -788,7 +803,7 @@ class LetterController extends Controller
         $isFinalApproval = false;
 
         DB::transaction(function () use ($letter, &$message, &$isFinalApproval) {
-            if (!$letter->requiresSecondaryApproval()) {
+            if (! $letter->requiresSecondaryApproval()) {
                 // Single approval flow (existing behavior)
                 $this->numberService->assignNumber($letter);
 
@@ -798,11 +813,11 @@ class LetterController extends Controller
                     'approved_at' => now(),
                 ]);
 
-                $message = 'Surat disetujui dan nomor surat dibuat: ' . $letter->letter_number;
+                $message = 'Surat disetujui dan nomor surat dibuat: '.$letter->letter_number;
                 $isFinalApproval = true;
             } else {
                 // Dual approval flow
-                if (!$letter->isPrimaryApproved()) {
+                if (! $letter->isPrimaryApproved()) {
                     // Stage 1: Primary approval
                     $letter->update([
                         'approved_by_user_id' => auth()->id(),
@@ -826,7 +841,7 @@ class LetterController extends Controller
                         'approved_at' => now(),
                     ]);
 
-                    $message = 'Surat disetujui dan nomor surat dibuat: ' . $letter->letter_number;
+                    $message = 'Surat disetujui dan nomor surat dibuat: '.$letter->letter_number;
                     $isFinalApproval = true;
                 }
             }
@@ -906,6 +921,7 @@ class LetterController extends Controller
         $this->authorize('send', $letter);
         $letter->update(['status' => 'sent']);
         $this->notifyRecipients($letter, 'sent');
+
         return redirect()->route('letters.outbox')->with('success', 'Surat berhasil dikirim');
     }
 
@@ -914,6 +930,7 @@ class LetterController extends Controller
         $this->authorize('archive', $letter);
         $letter->update(['status' => 'archived']);
         $this->notifyRecipients($letter, 'archived');
+
         return redirect()->route('letters.outbox')->with('success', 'Surat diarsipkan');
     }
 
@@ -934,7 +951,7 @@ class LetterController extends Controller
         $unitId = $user?->currentUnitId();
 
         // Non-global users must have a unit
-        if (!$isGlobal && !$unitId) {
+        if (! $isGlobal && ! $unitId) {
             return response()->json([]);
         }
 
@@ -942,7 +959,7 @@ class LetterController extends Controller
             ->where('status', 'aktif');
 
         // Scope to user's unit if not global
-        if (!$isGlobal) {
+        if (! $isGlobal) {
             $membersQuery->where('organization_unit_id', $unitId);
         }
 
@@ -971,6 +988,7 @@ class LetterController extends Controller
             $label = $isGlobal
                 ? "{$m->full_name} ({$m->nra}) - {$m->email}"
                 : "{$m->full_name} ({$m->nra})";
+
             return [
                 'id' => $m->id,
                 'label' => $label,
@@ -996,7 +1014,7 @@ class LetterController extends Controller
 
             foreach ($approvers as $approver) {
                 // Check letter notification preference
-                if (!NotificationPreference::isChannelEnabled($approver->id, 'letters')) {
+                if (! NotificationPreference::isChannelEnabled($approver->id, 'letters')) {
                     continue;
                 }
 
@@ -1005,12 +1023,12 @@ class LetterController extends Controller
                     ->where('type', \App\Notifications\LetterSubmittedNotification::class)
                     ->where('data->letter_id', $letter->id)
                     ->exists();
-                if (!$exists) {
+                if (! $exists) {
                     $approver->notify(new \App\Notifications\LetterSubmittedNotification($letter));
                 }
             }
         } catch (\Throwable $e) {
-            \Log::warning('Failed to notify approver: ' . $e->getMessage());
+            \Log::warning('Failed to notify approver: '.$e->getMessage());
         }
     }
 
@@ -1023,7 +1041,7 @@ class LetterController extends Controller
             $letter->load('fromUnit');
 
             $secondaryType = $letter->signer_type_secondary;
-            if (!$secondaryType) {
+            if (! $secondaryType) {
                 return;
             }
 
@@ -1048,11 +1066,12 @@ class LetterController extends Controller
             $allApprovers = $approvers->merge($delegatedApprovers)->unique('id');
 
             foreach ($allApprovers as $approver) {
-                if (!$approver)
+                if (! $approver) {
                     continue;
+                }
 
                 // Check letter notification preference
-                if (!NotificationPreference::isChannelEnabled($approver->id, 'letters')) {
+                if (! NotificationPreference::isChannelEnabled($approver->id, 'letters')) {
                     continue;
                 }
 
@@ -1061,12 +1080,12 @@ class LetterController extends Controller
                     ->where('type', \App\Notifications\LetterSubmittedNotification::class)
                     ->where('data->letter_id', $letter->id)
                     ->exists();
-                if (!$exists) {
+                if (! $exists) {
                     $approver->notify(new \App\Notifications\LetterSubmittedNotification($letter));
                 }
             }
         } catch (\Throwable $e) {
-            \Log::warning('Failed to notify secondary approver: ' . $e->getMessage());
+            \Log::warning('Failed to notify secondary approver: '.$e->getMessage());
         }
     }
 
@@ -1079,7 +1098,7 @@ class LetterController extends Controller
             $creator = User::find($letter->creator_user_id);
             if ($creator) {
                 // Check letter notification preference
-                if (!NotificationPreference::isChannelEnabled($creator->id, 'letters')) {
+                if (! NotificationPreference::isChannelEnabled($creator->id, 'letters')) {
                     return;
                 }
 
@@ -1089,12 +1108,12 @@ class LetterController extends Controller
                     ->where('data->letter_id', $letter->id)
                     ->where('data->action', $action)
                     ->exists();
-                if (!$exists) {
+                if (! $exists) {
                     $creator->notify(new \App\Notifications\LetterStatusUpdatedNotification($letter, $action));
                 }
             }
         } catch (\Throwable $e) {
-            \Log::warning('Failed to notify creator: ' . $e->getMessage());
+            \Log::warning('Failed to notify creator: '.$e->getMessage());
         }
     }
 
@@ -1117,7 +1136,7 @@ class LetterController extends Controller
             }
             foreach ($users as $u) {
                 // Check letter notification preference
-                if (!NotificationPreference::isChannelEnabled($u->id, 'letters')) {
+                if (! NotificationPreference::isChannelEnabled($u->id, 'letters')) {
                     continue;
                 }
 
@@ -1127,12 +1146,12 @@ class LetterController extends Controller
                     ->where('data->letter_id', $letter->id)
                     ->where('data->action', $action)
                     ->exists();
-                if (!$exists) {
+                if (! $exists) {
                     $u->notify(new \App\Notifications\LetterStatusUpdatedNotification($letter, $action));
                 }
             }
         } catch (\Throwable $e) {
-            \Log::warning('Failed to notify recipients: ' . $e->getMessage());
+            \Log::warning('Failed to notify recipients: '.$e->getMessage());
         }
     }
 

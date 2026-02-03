@@ -1,10 +1,11 @@
 <template>
   <div :class="wrapperClasses">
-    <img
+    <OptimizedImage
       v-if="src && !errored"
       :src="src"
       :alt="name"
-      class="h-full w-full object-cover"
+      size="small"
+      class="h-full w-full"
       @error="errored = true"
     />
     <span v-else class="text-sm font-semibold">
@@ -15,6 +16,7 @@
 
 <script setup>
 import { computed, ref } from 'vue';
+import OptimizedImage from '@/Components/OptimizedImage.vue';
 
 const props = defineProps({
   src: {

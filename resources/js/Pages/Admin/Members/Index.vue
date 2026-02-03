@@ -36,6 +36,7 @@
         <table class="min-w-full divide-y divide-neutral-200">
           <thead class="bg-neutral-50 sticky top-0 z-10">
             <tr>
+              <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">Foto</th>
               <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">No KTA</th>
               <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">Nama</th>
               <th class="px-5 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">NIP</th>
@@ -46,6 +47,15 @@
           </thead>
           <tbody v-if="members.data.length" class="divide-y divide-neutral-200 bg-white">
             <tr v-for="m in members.data" :key="m.id">
+              <td class="px-5 py-3">
+                <OptimizedImage
+                  :src="m.photo_path"
+                  :alt="$toTitleCase(m.full_name)"
+                  size="thumb"
+                  class="h-10 w-10 rounded-full object-cover"
+                  loading="lazy"
+                />
+              </td>
               <td class="px-5 py-3">
                 <Badge variant="brand">{{ m.kta_number || m.nra }}</Badge>
               </td>
@@ -95,20 +105,21 @@
 </template>
 
  <script setup>
-import AppLayout from '@/Layouts/AppLayout.vue';
-import CardContainer from '@/Components/UI/CardContainer.vue';
-import Pagination from '@/Components/UI/Pagination.vue';
-import IconButton from '@/Components/UI/IconButton.vue';
-import CtaButton from '@/Components/UI/CtaButton.vue';
-import InputField from '@/Components/UI/InputField.vue';
-import SelectField from '@/Components/UI/SelectField.vue';
-import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
-import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
-import AlertBanner from '@/Components/UI/AlertBanner.vue';
-import Badge from '@/Components/UI/Badge.vue';
-import Chip from '@/Components/UI/Chip.vue';
-import { router, usePage } from '@inertiajs/vue3';
-import { computed, reactive, ref, watch } from 'vue';
+ import AppLayout from '@/Layouts/AppLayout.vue';
+ import CardContainer from '@/Components/UI/CardContainer.vue';
+ import Pagination from '@/Components/UI/Pagination.vue';
+ import IconButton from '@/Components/UI/IconButton.vue';
+ import CtaButton from '@/Components/UI/CtaButton.vue';
+ import InputField from '@/Components/UI/InputField.vue';
+ import SelectField from '@/Components/UI/SelectField.vue';
+ import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
+ import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
+ import AlertBanner from '@/Components/UI/AlertBanner.vue';
+ import Badge from '@/Components/UI/Badge.vue';
+ import Chip from '@/Components/UI/Chip.vue';
+ import OptimizedImage from '@/Components/OptimizedImage.vue';
+ import { router, usePage } from '@inertiajs/vue3';
+ import { computed, reactive, ref, watch } from 'vue';
 
   const page = usePage();
   const members = computed(() => page.props.members);

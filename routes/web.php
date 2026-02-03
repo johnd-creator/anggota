@@ -472,6 +472,12 @@ Route::middleware(['auth'])->group(function () {
         ->name('search.api');
 });
 
+// Image Optimization API
+Route::prefix('api/images')->middleware(['auth', 'throttle:60,1'])->group(function () {
+    Route::get('/optimized', [\App\Http\Controllers\ImageOptimizationController::class, 'getOptimizedImage']);
+    Route::get('/responsive', [\App\Http\Controllers\ImageOptimizationController::class, 'getResponsiveImages']);
+});
+
 Route::post('/feedback', function (\Illuminate\Http\Request $request) {
     \App\Models\ActivityLog::create([
         'actor_id' => $request->user()->id,

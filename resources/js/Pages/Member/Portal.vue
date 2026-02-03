@@ -32,16 +32,18 @@
               </div>
             </div>
 
-            <!-- Photo Section -->
-            <div class="relative -mt-12 flex justify-center z-20">
-              <div class="relative">
-                <div class="w-32 h-32 rounded-full p-1 bg-white shadow-lg">
-                  <img
-                    :src="member?.photo_path ? '/storage/' + member.photo_path : `https://ui-avatars.com/api/?name=${member?.full_name || 'A'}&background=random&size=256`"
-                    class="w-full h-full rounded-full object-cover border-4 border-red-50"
-                    alt="Member Photo"
-                  />
-                </div>
+             <!-- Photo Section -->
+             <div class="relative -mt-12 flex justify-center z-20">
+               <div class="relative">
+                 <div class="w-32 h-32 rounded-full p-1 bg-white shadow-lg">
+                   <OptimizedImage
+                     :src="member?.photo_path"
+                     :alt="$toTitleCase(member?.full_name || 'Member photo')"
+                     size="medium"
+                     class="w-full h-full rounded-full border-4 border-red-50"
+                     loading="eager"
+                   />
+                 </div>
                 <!-- Status Indicator -->
                 <div
                   class="absolute bottom-2 right-2 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center shadow-sm"
@@ -138,6 +140,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CardContainer from '@/Components/UI/CardContainer.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
+import OptimizedImage from '@/Components/OptimizedImage.vue';
 import { usePage } from '@inertiajs/vue3';
 import { useForm } from '@inertiajs/vue3'; // Added useForm import
 import InputField from '@/Components/UI/InputField.vue'; // Fixed InputField import
