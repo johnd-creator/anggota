@@ -13,6 +13,7 @@ class RoleController extends Controller
     public function index(Request $request)
     {
         $roles = Role::withCount('users')->orderBy('name')->paginate(10)->withQueryString();
+
         return Inertia::render('Admin/Roles/Index', ['roles' => $roles]);
     }
 
@@ -31,6 +32,7 @@ class RoleController extends Controller
             'default_permissions' => ['nullable', 'array'],
         ]);
         Role::create($data);
+
         return redirect()->route('admin.roles.index')->with('success', 'Role dibuat');
     }
 
@@ -39,6 +41,7 @@ class RoleController extends Controller
         $role->loadCount('users');
         $users = User::where('role_id', $role->id)->select('id', 'name', 'email')->paginate(10)->withQueryString();
         $units = \App\Models\OrganizationUnit::select('id', 'name', 'code')->orderBy('name')->get();
+
         return Inertia::render('Admin/Roles/Show', ['role' => $role, 'users' => $users, 'units' => $units]);
     }
 
@@ -56,6 +59,7 @@ class RoleController extends Controller
             'default_permissions' => ['nullable', 'array'],
         ]);
         $role->update($data);
+
         return redirect()->route('admin.roles.edit', $role)->with('success', 'Role diperbarui');
     }
 
@@ -65,24 +69,53 @@ class RoleController extends Controller
             return back()->with('error', 'Tidak dapat menghapus role yang masih dipakai');
         }
         $role->delete();
+
         return redirect()->route('admin.roles.index')->with('success', 'Role dihapus');
     }
 
     public function assign(Request $request, Role $role)
     {
         $rules = ['email' => ['required', 'email']];
+
+        // admin_unit: require organization_unit_id
         if ($role->name === 'admin_unit') {
             $rules['organization_unit_id'] = ['required', 'exists:organization_units,id'];
         }
+
+        // bendahara_pusat: auto-assign to DPP
+        if ($role->name === 'bendahara_pusat') {
+            $dppOrg = \App\Models\OrganizationUnit::where('is_pusat', true)->first();
+            if (! $dppOrg) {
+                return back()->with('error', 'Organisasi DPP belum disetup');
+            }
+            $request->merge(['organization_unit_id' => $dppOrg->id]);
+        }
+
+        // admin_pusat: auto-assign to DPP
+        if ($role->name === 'admin_pusat') {
+            $dppOrg = \App\Models\OrganizationUnit::where('is_pusat', true)->first();
+            if (! $dppOrg) {
+                return back()->with('error', 'Organisasi DPP belum disetup');
+            }
+            $request->merge(['organization_unit_id' => $dppOrg->id]);
+        }
+
         $data = $request->validate($rules);
         $user = User::where('email', $data['email'])->first();
-        if (!$user)
+
+        if (! $user) {
             return back()->with('error', 'User tidak ditemukan');
+        }
+
         $user->role_id = $role->id;
-        if ($role->name === 'admin_unit') {
+
+        // Set organization_unit_id if provided
+        if (isset($data['organization_unit_id'])) {
             $user->organization_unit_id = (int) $data['organization_unit_id'];
         }
+
         $user->save();
+
         return back()->with('success', 'Role ditetapkan ke user');
     }
 
@@ -102,4 +135,3 @@ class RoleController extends Controller
         return back()->with('success', 'User berhasil dihapus dari role');
     }
 }
-

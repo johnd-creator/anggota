@@ -17,6 +17,7 @@ class RoleSeeder extends Seeder
         \App\Models\Role::firstOrCreate(['name' => 'anggota'], ['label' => 'Anggota']);
         \App\Models\Role::firstOrCreate(['name' => 'reguler'], ['label' => 'Reguler']);
         \App\Models\Role::firstOrCreate(['name' => 'bendahara'], ['label' => 'Bendahara']);
+        \App\Models\Role::firstOrCreate(['name' => 'bendahara_pusat'], ['label' => 'Bendahara Pusat']);
         \App\Models\Role::firstOrCreate(['name' => 'pengurus'], ['label' => 'Pengurus']);
     }
 }

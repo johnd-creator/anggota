@@ -22,7 +22,7 @@ class MemberController extends Controller
 
         $query = Member::query()->with('unit');
         $user = $request->user();
-        $isGlobal = $user?->hasGlobalAccess() ?? false;
+        $isGlobal = $user?->canViewGlobalScope() ?? false;
         $unitId = $user?->currentUnitId();
 
         if ($search = $request->get('search')) {
@@ -102,11 +102,20 @@ class MemberController extends Controller
         $user = request()->user();
         $unitId = $user?->currentUnitId();
 
+        // Prevent DPP from accessing member registration form
+        if ($user->managedOrganization?->is_pusat) {
+            abort(403, 'Dewan Pengurus Pusat tidak dapat mendaftarkan anggota');
+        }
+
         // admin_unit can only see their own unit
         if ($user?->hasRole('admin_unit')) {
             $units = $unitId ? OrganizationUnit::where('id', $unitId)->select('id', 'name', 'code')->get() : collect([]);
         } else {
-            $units = OrganizationUnit::select('id', 'name', 'code')->orderBy('code')->get();
+            // Exclude DPP from unit list for member registration
+            $units = OrganizationUnit::where('can_register_members', true)
+                ->select('id', 'name', 'code')
+                ->orderBy('code')
+                ->get();
         }
 
         return Inertia::render('Admin/Members/Form', [
@@ -118,6 +127,11 @@ class MemberController extends Controller
     public function store(Request $request)
     {
         Gate::authorize('create', Member::class);
+
+        // Prevent DPP from registering members
+        if ($request->user()->managedOrganization?->is_pusat) {
+            abort(403, 'Dewan Pengurus Pusat tidak dapat mendaftarkan anggota');
+        }
 
         $validated = $request->validate([
             'full_name' => 'required|string|max:255',
@@ -135,7 +149,16 @@ class MemberController extends Controller
             'status' => 'required|in:aktif,cuti,suspended,resign,pensiun',
             'join_date' => 'required|date',
             'company_join_date' => 'nullable|date',
-            'organization_unit_id' => 'required|exists:organization_units,id',
+            'organization_unit_id' => [
+                'required',
+                'exists:organization_units,id',
+                function ($attribute, $value, $fail) {
+                    $org = \App\Models\OrganizationUnit::find($value);
+                    if ($org?->is_pusat) {
+                        $fail('Tidak dapat mendaftarkan anggota ke Dewan Pengurus Pusat');
+                    }
+                },
+            ],
             'notes' => 'nullable|string',
             'photo' => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
             'documents.*' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',

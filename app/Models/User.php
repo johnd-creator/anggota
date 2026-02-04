@@ -68,6 +68,7 @@ class User extends Authenticatable
         if (is_array($roles)) {
             return $this->role && in_array($this->role->name, $roles);
         }
+
         return $this->role && $this->role->name === $roles;
     }
 
@@ -94,17 +95,18 @@ class User extends Authenticatable
     public function assignMember(Member $member): void
     {
         $this->member_id = $member->id;
-        
+
         // FIX: SELALU update member.user_id ke user yang sedang login
         // Ini memungkinkan user Gmail mengambil alih dari User PLN
         // Mencegah bug yang menyebabkan user->member return NULL
         $member->user_id = $this->id;
         $member->save();
-        
-        if (!$this->role || $this->role->name === 'reguler') {
+
+        if (! $this->role || $this->role->name === 'reguler') {
             $role = \App\Models\Role::where('name', 'anggota')->first();
-            if ($role)
+            if ($role) {
                 $this->role_id = $role->id;
+            }
         }
         $this->save();
     }
@@ -131,6 +133,7 @@ class User extends Authenticatable
 
         // Fallback to member's unit
         $member = $this->member_id ? Member::find($this->member_id) : null;
+
         return $member?->organization_unit_id ? (int) $member->organization_unit_id : null;
     }
 
@@ -148,16 +151,17 @@ class User extends Authenticatable
      */
     public function canApproveSignerType(string $signerType): bool
     {
-        if (!$this->member_id) {
+        if (! $this->member_id) {
             return false;
         }
 
         $member = Member::with('unionPosition')->find($this->member_id);
-        if (!$member?->unionPosition) {
+        if (! $member?->unionPosition) {
             return false;
         }
 
         $positionName = strtolower($member->unionPosition->name);
+
         return $positionName === strtolower($signerType);
     }
 
@@ -166,17 +170,18 @@ class User extends Authenticatable
      */
     public function getUnionPositionName(): ?string
     {
-        if (!$this->member_id) {
+        if (! $this->member_id) {
             return null;
         }
 
         $member = Member::with('unionPosition')->find($this->member_id);
+
         return $member?->unionPosition?->name;
     }
 
     /**
      * Check if user is an "Officer/Pengurus" based on union_position.
-     * 
+     *
      * An officer is someone whose union_position.name is NOT "Anggota" (case-insensitive).
      * Super admin and admin_pusat always return true for operational/verification purposes.
      */
@@ -190,11 +195,55 @@ class User extends Authenticatable
         $positionName = $this->getUnionPositionName();
 
         // If no union position, not an officer
-        if (!$positionName) {
+        if (! $positionName) {
             return false;
         }
 
         // Officer = any position except "Anggota"
         return strtolower(trim($positionName)) !== 'anggota';
+    }
+
+    /**
+     * Get the organization this user manages (for admin_pusat & bendahara_pusat).
+     * Returns DPP organization for global admins, or user's own unit for others.
+     */
+    public function getManagedOrganizationAttribute()
+    {
+        if ($this->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+            return OrganizationUnit::where('is_pusat', true)->first();
+        }
+
+        return $this->organizationUnit;
+    }
+
+    /**
+     * Check if user can view global scope (all units).
+     */
+    public function canViewGlobalScope(): bool
+    {
+        return $this->hasRole(['super_admin', 'admin_pusat', 'bendahara_pusat']);
+    }
+
+    /**
+     * Check if user can manage/edit specific organization's data.
+     */
+    public function canManageOrganization(OrganizationUnit $org): bool
+    {
+        // Super admin can manage all
+        if ($this->hasRole('super_admin')) {
+            return true;
+        }
+
+        // admin_pusat & bendahara_pusat can only manage DPP
+        if ($this->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+            return $org->is_pusat;
+        }
+
+        // admin_unit can manage their own unit
+        if ($this->hasRole('admin_unit')) {
+            return $this->organization_unit_id === $org->id;
+        }
+
+        return false;
     }
 }

@@ -9,7 +9,12 @@ class MemberPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'bendahara', 'pengurus']);
+        // admin_pusat & bendahara_pusat can view all members
+        if ($user->canViewGlobalScope()) {
+            return true;
+        }
+
+        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'bendahara', 'bendahara_pusat', 'pengurus']);
     }
 
     public function view(User $user, Member $member): bool
@@ -31,6 +36,11 @@ class MemberPolicy
 
     public function create(User $user): bool
     {
+        // Prevent DPP from registering members
+        if ($user->managedOrganization?->is_pusat) {
+            return false;
+        }
+
         return $user->hasRole(['super_admin', 'admin_unit']);
     }
 
@@ -53,8 +63,14 @@ class MemberPolicy
 
     public function update(User $user, Member $member): bool
     {
-        if ($user->hasGlobalAccess()) {
+        // Super admin can manage all
+        if ($user->hasRole('super_admin')) {
             return true;
+        }
+
+        // admin_pusat & bendahara_pusat: can only edit if member belongs to DPP
+        if ($user->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+            return $member->organizationUnit?->is_pusat ?? false;
         }
 
         if ($user->hasRole(['admin_unit', 'bendahara'])) {
@@ -66,7 +82,17 @@ class MemberPolicy
 
     public function delete(User $user, Member $member): bool
     {
-        return $user->hasRole('super_admin');
+        // Super admin can delete all
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+
+        // admin_pusat & bendahara_pusat: can only delete DPP members (should not exist anyway)
+        if ($user->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+            return $member->organizationUnit?->is_pusat ?? false;
+        }
+
+        return false;
     }
 
     /**
@@ -84,6 +110,11 @@ class MemberPolicy
      */
     public function import(User $user): bool
     {
+        // Prevent DPP from importing members
+        if ($user->managedOrganization?->is_pusat) {
+            return false;
+        }
+
         return $user->hasRole(['super_admin', 'admin_unit']);
     }
 }

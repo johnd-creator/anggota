@@ -23,7 +23,7 @@ class FinanceLedgerController extends Controller
         Gate::authorize('viewAny', FinanceLedger::class);
         $user = Auth::user();
         $unitId = $user->currentUnitId();
-        $isGlobal = $user->hasGlobalAccess();
+        $isGlobal = $user->canViewGlobalScope();
         $isAdminUnit = $user->hasRole('admin_unit');
         $workflowEnabled = FinanceLedger::workflowEnabled();
 
@@ -133,7 +133,7 @@ class FinanceLedgerController extends Controller
         Gate::authorize('create', FinanceLedger::class);
         $user = Auth::user();
         $unitId = $user->currentUnitId();
-        $isGlobal = $user->hasGlobalAccess();
+        $isGlobal = $user->canViewGlobalScope();
 
         $units = $isGlobal ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
         $categories = FinanceCategory::select('id', 'name', 'type', 'organization_unit_id')
@@ -156,7 +156,7 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('create', FinanceLedger::class);
         $user = Auth::user();
-        $isGlobal = $user->hasGlobalAccess();
+        $isGlobal = $user->canViewGlobalScope();
         $unitId = $isGlobal ? (int) $request->input('organization_unit_id') : $user->currentUnitId();
         $workflowEnabled = FinanceLedger::workflowEnabled();
 
@@ -218,7 +218,7 @@ class FinanceLedgerController extends Controller
         Gate::authorize('update', $ledger);
         $user = Auth::user();
         $unitId = $user->currentUnitId();
-        $isGlobal = $user->hasGlobalAccess();
+        $isGlobal = $user->canViewGlobalScope();
 
         $units = $isGlobal ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
         $categories = FinanceCategory::select('id', 'name', 'type', 'organization_unit_id')
@@ -241,7 +241,7 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('update', $ledger);
         $user = Auth::user();
-        $isGlobal = $user->hasGlobalAccess();
+        $isGlobal = $user->canViewGlobalScope();
         $unitId = $isGlobal ? (int) $request->input('organization_unit_id') : $user->currentUnitId();
 
         $validated = $request->validate([
@@ -402,7 +402,7 @@ class FinanceLedgerController extends Controller
         Gate::authorize('viewAny', FinanceLedger::class);
         $user = Auth::user();
         $unitId = $user->currentUnitId();
-        $isGlobal = $user->hasGlobalAccess();
+        $isGlobal = $user->canViewGlobalScope();
 
         $query = FinanceLedger::query()->with(['category', 'organizationUnit', 'creator']);
 

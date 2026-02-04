@@ -88,7 +88,7 @@ Route::middleware(['auth'])->group(function () {
 
     // root path handled above (guest: login page, auth: dashboard)
 
-    Route::prefix('reports')->middleware(['feature:reports', 'role:super_admin,admin_pusat,admin_unit,bendahara,pengurus'])->group(function () {
+    Route::prefix('reports')->middleware(['feature:reports', 'role:super_admin,admin_pusat,admin_unit,bendahara,bendahara_pusat,pengurus'])->group(function () {
         // UI pages (existing)
         Route::get('growth', [\App\Http\Controllers\ReportController::class, 'growth'])->name('reports.growth');
         Route::get('mutations', [\App\Http\Controllers\ReportController::class, 'mutations'])->name('reports.mutations');
@@ -117,7 +117,7 @@ Route::middleware(['auth'])->group(function () {
     // Backward-compatible redirect: Reports CSV docs moved to Help Center.
     Route::get('/docs/reports/csv', function () {
         return redirect('/docs/help/reports-csv');
-    })->middleware(['auth', 'role:super_admin,admin_pusat,admin_unit,bendahara'])->name('docs.reports.csv');
+    })->middleware(['auth', 'role:super_admin,admin_pusat,admin_unit,bendahara,bendahara_pusat'])->name('docs.reports.csv');
 
     Route::get('/ops', function () {
         $latest = null;
@@ -244,12 +244,12 @@ Route::middleware(['auth'])->group(function () {
         Route::post('members/import/{batch}/commit', [\App\Http\Controllers\Admin\MemberImportController::class, 'commit'])->middleware('role:super_admin,admin_unit,admin_pusat')->name('members.import.commit');
         Route::get('members/import/{batch}/errors', [\App\Http\Controllers\Admin\MemberImportController::class, 'downloadErrors'])->middleware('role:super_admin,admin_unit,admin_pusat')->name('members.import.errors');
         Route::post('members/import', [\App\Http\Controllers\Admin\MemberImportController::class, 'store'])->middleware('role:admin_unit')->name('members.import');
-        Route::get('members/search-by-phone-or-nip', [\App\Http\Controllers\Admin\MemberController::class, 'searchByPhoneOrNip'])->middleware('role:super_admin,admin_pusat,admin_unit,bendahara,pengurus')->name('members.search.by_phone_or_nip');
+        Route::get('members/search-by-phone-or-nip', [\App\Http\Controllers\Admin\MemberController::class, 'searchByPhoneOrNip'])->middleware('role:super_admin,admin_pusat,admin_unit,bendahara,bendahara_pusat,pengurus')->name('members.search.by_phone_or_nip');
 
         Route::get('mutations/export', [\App\Http\Controllers\ReportsExportController::class, 'adminMutationsExport'])->name('admin.mutations.export');
     });
 
-    Route::prefix('finance')->name('finance.')->middleware(['feature:finance', 'role:super_admin,admin_pusat,admin_unit,bendahara,pengurus'])->group(function () {
+    Route::prefix('finance')->name('finance.')->middleware(['feature:finance', 'role:super_admin,admin_pusat,admin_unit,bendahara,bendahara_pusat,pengurus'])->group(function () {
         Route::get('categories', [\App\Http\Controllers\Finance\FinanceCategoryController::class, 'index'])->name('categories.index');
         Route::get('categories/create', [\App\Http\Controllers\Finance\FinanceCategoryController::class, 'create'])->name('categories.create');
         Route::post('categories', [\App\Http\Controllers\Finance\FinanceCategoryController::class, 'store'])->name('categories.store');

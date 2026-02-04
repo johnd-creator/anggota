@@ -33,7 +33,7 @@ class FinanceDuesController extends Controller
         $unitId = $request->input('unit_id');
 
         // Determine unit scope
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             // Super admin and admin_pusat can view all or filter by unit
             $unitScope = $unitId ? [(int) $unitId] : null;
         } else {
@@ -129,7 +129,7 @@ class FinanceDuesController extends Controller
         }
 
         // Get recurring categories for quick action
-        $userUnitId = $user->hasGlobalAccess() ? null : $user->currentUnitId();
+        $userUnitId = $user->canViewGlobalScope() ? null : $user->currentUnitId();
         $recurringCategories = FinanceCategory::query()
             ->recurring()
             ->where('type', 'income')
@@ -152,7 +152,7 @@ class FinanceDuesController extends Controller
                 'unpaid' => $totalMembers - $paidCount,
             ],
             'units' => $units,
-            'canSelectUnit' => $user->hasGlobalAccess(),
+            'canSelectUnit' => $user->canViewGlobalScope(),
             'recurringCategories' => $recurringCategories,
         ]);
     }
@@ -238,7 +238,7 @@ class FinanceDuesController extends Controller
         // Authorization: validate all members belong to user's unit (for non-global)
         $members = Member::whereIn('id', $validated['member_ids'])->get();
 
-        if (!$user->hasGlobalAccess()) {
+        if (!$user->canViewGlobalScope()) {
             $userUnitId = $user->currentUnitId();
             foreach ($members as $member) {
                 if ($member->organization_unit_id !== $userUnitId) {
@@ -262,7 +262,7 @@ class FinanceDuesController extends Controller
         );
 
         // Audit log
-        $unitId = $user->hasGlobalAccess() ? null : $user->currentUnitId();
+        $unitId = $user->canViewGlobalScope() ? null : $user->currentUnitId();
         app(\App\Services\AuditService::class)->log(
             'dues.batch_mark_paid',
             [

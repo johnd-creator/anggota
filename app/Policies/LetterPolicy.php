@@ -14,8 +14,8 @@ class LetterPolicy
      */
     public function view(User $user, Letter $letter): bool
     {
-        // Super admin can view all
-        if ($user->hasGlobalAccess()) {
+        // Super admin & global viewers can view all
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
@@ -45,11 +45,11 @@ class LetterPolicy
 
     /**
      * Determine if user can create letters.
-     * Only admin_unit, admin_pusat, super_admin, pengurus
+     * Only admin_unit, admin_pusat, bendahara_pusat, super_admin, pengurus
      */
     public function create(User $user): bool
     {
-        return $user->hasRole(['admin_unit', 'admin_pusat', 'super_admin', 'pengurus']);
+        return $user->hasRole(['admin_unit', 'admin_pusat', 'bendahara_pusat', 'super_admin', 'pengurus']);
     }
 
     /**
@@ -123,7 +123,7 @@ class LetterPolicy
             return false;
         }
 
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
@@ -141,7 +141,7 @@ class LetterPolicy
             return false;
         }
 
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
@@ -157,7 +157,7 @@ class LetterPolicy
     protected function canApprove(User $user, Letter $letter): bool
     {
         // Global access can approve all
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
@@ -165,7 +165,7 @@ class LetterPolicy
 
         // For Pusat letters (from_unit_id = null), only admin_pusat/super_admin
         if ($letterUnitId === null) {
-            return $user->hasRole(['admin_pusat', 'super_admin']);
+            return $user->hasRole(['admin_pusat', 'bendahara_pusat', 'super_admin']);
         }
 
         // User must be in the same unit as the letter's from_unit

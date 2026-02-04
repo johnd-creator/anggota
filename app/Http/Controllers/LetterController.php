@@ -323,8 +323,14 @@ class LetterController extends Controller
             if (! $fromUnitId) {
                 return back()->withErrors(['from_unit_id' => 'Admin unit harus memiliki unit terkait.']);
             }
+        } elseif ($user->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+            // admin_pusat & bendahara_pusat: auto-set to DPP
+            $fromUnitId = $user->managedOrganization?->id;
+            if (! $fromUnitId) {
+                return back()->withErrors(['from_unit_id' => 'Organisasi DPP belum disetup.']);
+            }
         } else {
-            // admin_pusat/super_admin - use their unit if available, otherwise null (Pusat)
+            // super_admin - use their unit if available, otherwise null (Pusat)
             $fromUnitId = $user->currentUnitId();
         }
 

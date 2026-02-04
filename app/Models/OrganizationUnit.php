@@ -17,6 +17,9 @@ class OrganizationUnit extends Model
         'address',
         'phone',
         'email',
+        'is_pusat',
+        'can_register_members',
+        'can_issue_kta',
         // Letterhead fields
         'letterhead_name',
         'letterhead_address',
@@ -34,5 +37,29 @@ class OrganizationUnit extends Model
     public function members()
     {
         return $this->hasMany(Member::class, 'organization_unit_id');
+    }
+
+    /**
+     * Scope: Get DPP organization
+     */
+    public function scopePusat($query)
+    {
+        return $query->where('is_pusat', true);
+    }
+
+    /**
+     * Check if this unit can register members
+     */
+    public function canRegisterMembers(): bool
+    {
+        return $this->can_register_members ?? true;
+    }
+
+    /**
+     * Check if this unit can issue KTA
+     */
+    public function canIssueKta(): bool
+    {
+        return $this->can_issue_kta ?? true;
     }
 }
