@@ -30,3 +30,11 @@ backup_before_fix_20260126_192607.sql
 backup_before_fix_manual_20260126_192939.sqldatabase
 backup_before_fix_manual_20260126_192939.sql
 database.database.sqlite
+dump.rdb
+
+# Test output files
+*.txt
+!README.md
+!AGENTS.md
+!package.json
+!.env.example

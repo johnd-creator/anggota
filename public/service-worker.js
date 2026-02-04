@@ -1,4 +1,4 @@
-const CACHE_NAME = 'simsp-cache-v4';
+const CACHE_NAME = 'simsp-cache-v5';
 const OFFLINE_CACHE_NAME = 'simsp-offline-v1';
 
 // Precache critical URLs
@@ -60,6 +60,10 @@ function isApiRequest(url) {
 
 function isImageRequest(url) {
   return /\.(jpg|jpeg|png|gif|webp|svg|ico)$/i.test(url.pathname);
+}
+
+function isAuthRoute(url) {
+  return url.pathname.startsWith('/auth/');
 }
 
 function shouldBypassCache(request, url) {
@@ -153,6 +157,9 @@ self.addEventListener('fetch', (event) => {
 
   // Bypass cache for Inertia/JSON requests
   if (shouldBypassCache(request, url)) return;
+
+  // Bypass service worker for OAuth/auth routes to allow proper redirects
+  if (isAuthRoute(url)) return;
 
   // HTML navigation requests - Network First
   if (isHtmlRequest(request)) {
