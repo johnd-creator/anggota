@@ -32,9 +32,15 @@ backup_before_fix_manual_20260126_192939.sql
 database.database.sqlite
 dump.rdb
 
+# Supervisor config (local production)
+laravel-worker.conf
+
 # Test output files
 *.txt
 !README.md
 !AGENTS.md
 !package.json
 !.env.example
+backup_before_deploy_20260204_201657.sql
+.gitignore
+backup_before_deploy_20260204_201652.sql
