@@ -100,12 +100,14 @@ import SelectField from '@/Components/UI/SelectField.vue';
 import AlertBanner from '@/Components/UI/AlertBanner.vue';
 import { usePage, router, useForm } from '@inertiajs/vue3';
 import { reactive, ref, onMounted, computed } from 'vue';
+import { useTextFormat } from '@/Composables/useTextFormat.js';
 
 const page = usePage();
+const { toTitleCase } = useTextFormat();
 const units = page.props.units || [];
 const members = page.props.members || [];
 const unitOptions = units.map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
-const memberOptions = members.map(m => ({ label: `${m.nra || '-'} – ${this.$toTitleCase(m.full_name)}`, value: m.id }));
+const memberOptions = members.map(m => ({ label: `${m.nra || '-'} – ${toTitleCase(m.full_name)}`, value: m.id }));
 
 const memberQuery = ref('');
 const filteredMemberOptions = computed(() => {
@@ -119,7 +121,7 @@ const selectedMemberSummary = computed(() => {
   const m = members.find(x => x.id === form.member_id);
   if (!m) return '';
   const unit = units.find(u => u.id === m.organization_unit_id);
-  return `${this.$toTitleCase(m.full_name)} • ${unit ? unit.code + ' - ' + unit.name : 'Unit -'}`;
+  return `${toTitleCase(m.full_name)} • ${unit ? unit.code + ' - ' + unit.name : 'Unit -'}`;
 });
 
 const form = useForm({
