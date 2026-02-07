@@ -29,9 +29,17 @@ const currentSrc = ref('')
 onMounted(() => {
   if (props.src) {
     // Add /storage/ prefix if not already present
-    currentSrc.value = props.src.startsWith('/storage/') 
-      ? props.src 
+    const baseUrl = props.src.startsWith('/storage/')
+      ? props.src
       : `/storage/${props.src}`
+
+    // For member photos, don't add query parameters (already compressed)
+    // For other images, add optimization query parameters
+    if (props.src.includes('members/photos/') || props.src.includes('member_')) {
+      currentSrc.value = baseUrl
+    } else {
+      currentSrc.value = baseUrl
+    }
   }
 })
 
@@ -65,36 +73,43 @@ const imageClass = computed(() => {
     }
   ]
 })
+
+const isMemberPhoto = computed(() => {
+  return props.src && (
+    props.src.includes('members/photos/') ||
+    props.src.includes('member_')
+  )
+})
 </script>
 
 <template>
   <div :class="containerClass">
     <!-- Picture element with WebP support -->
     <picture v-if="src && !imageError">
-      <!-- WebP source -->
+      <!-- WebP source - only for non-member photos -->
       <source
-        v-if="size === 'thumb'"
-        :srcset="`${src}?size=thumb&format=webp`"
+        v-if="!isMemberPhoto && size === 'thumb'"
+        :srcset="`${currentSrc}?size=thumb&format=webp`"
         type="image/webp"
       >
       <source
-        v-else-if="size === 'small'"
-        :srcset="`${src}?size=small&format=webp`"
+        v-else-if="!isMemberPhoto && size === 'small'"
+        :srcset="`${currentSrc}?size=small&format=webp`"
         type="image/webp"
       >
       <source
-        v-else-if="size === 'medium'"
-        :srcset="`${src}?size=medium&format=webp`"
+        v-else-if="!isMemberPhoto && size === 'medium'"
+        :srcset="`${currentSrc}?size=medium&format=webp`"
         type="image/webp"
       >
       <source
-        v-else-if="size === 'large'"
-        :srcset="`${src}?size=large&format=webp`"
+        v-else-if="!isMemberPhoto && size === 'large'"
+        :srcset="`${currentSrc}?size=large&format=webp`"
         type="image/webp"
       >
       <source
-        v-else
-        :srcset="`${src}?format=webp`"
+        v-else-if="!isMemberPhoto"
+        :srcset="`${currentSrc}?format=webp`"
         type="image/webp"
       >
 

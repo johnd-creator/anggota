@@ -127,7 +127,7 @@ class DashboardController extends Controller
             ->where('pin_to_dashboard', true)
             ->with([
                 'organizationUnit:id,name',
-                'attachments:id,announcement_id,original_name,download_url',
+                'attachments:id,announcement_id,original_name',
             ])
             ->latest()
             ->take(5);

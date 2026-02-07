@@ -109,7 +109,7 @@
         </template>
 
         <!-- Master Data + Admin Workflows -->
-        <template v-if="canManageMembers">
+        <template v-if="canViewMembers">
           <button @click="toggleSection('members')" :class="sectionHeaderClass('members')">
             <div class="flex items-center gap-3">
               <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -123,8 +123,8 @@
           </button>
           <div v-show="expandedSections.members" class="ml-6 space-y-1">
             <Link href="/admin/members" :class="subMenuItemClass('/admin/members')">Daftar Anggota</Link>
-            <Link href="/admin/members/import" :class="subMenuItemClass('/admin/members/import')">Import Anggota</Link>
-            <Link href="/admin/units" :class="subMenuItemClass('/admin/units')">Unit Pembangkit</Link>
+            <Link v-if="canManageMembers" href="/admin/members/import" :class="subMenuItemClass('/admin/members/import')">Import Anggota</Link>
+            <Link v-if="canManageMembers" href="/admin/units" :class="subMenuItemClass('/admin/units')">Unit Pembangkit</Link>
             <Link v-if="isSuperAdmin" href="/admin/union-positions" :class="subMenuItemClass('/admin/union-positions')">Jabatan Serikat</Link>
             <Link v-if="isSuperAdmin" href="/admin/roles" :class="subMenuItemClass('/admin/roles')">Role & Access</Link>
             <Link v-if="isSuperAdmin" href="/admin/aspiration-categories" :class="subMenuItemClass('/admin/aspiration-categories')">Kategori Aspirasi</Link>
@@ -435,7 +435,11 @@
             <!-- User Dropdown -->
             <div class="relative">
               <button class="flex items-center gap-2 p-1 rounded-lg hover:bg-neutral-100 transition-colors" @click="userMenuOpen = !userMenuOpen">
-                <UserAvatar :src="$page.props.auth.user.avatar" :name="$page.props.auth.user.name" size="h-9 w-9" />
+                <UserAvatar 
+                  :src="($page.props.auth.user.member_photo_path || $page.props.auth.user.avatar)" 
+                  :name="$page.props.auth.user.name" 
+                  size="h-9 w-9" 
+                />
                 <div class="hidden md:block text-left">
                   <p class="text-sm font-medium text-neutral-800 leading-tight">{{ $page.props.auth.user.name }}</p>
                   <p class="text-xs text-neutral-500 leading-tight">{{ $page.props.auth.user.role?.label || 'User' }}</p>
@@ -618,6 +622,7 @@ const isAdminUnit = computed(() => roleName.value === 'admin_unit');
 const isAdminPusat = computed(() => roleName.value === 'admin_pusat');
 const isTreasurer = computed(() => roleName.value === 'bendahara');
 const isPengurus = computed(() => roleName.value === 'pengurus');
+const canViewMembers = computed(() => ['super_admin', 'admin_unit', 'admin_pusat', 'pengurus'].includes(roleName.value));
 const canManageMembers = computed(() => ['super_admin', 'admin_unit', 'admin_pusat'].includes(roleName.value));
 const isMember = computed(() => ['anggota', 'admin_unit', 'bendahara', 'pengurus'].includes(roleName.value));
 const unionPositionName = computed(() => (page.props?.auth?.user?.union_position?.name || '').toLowerCase());

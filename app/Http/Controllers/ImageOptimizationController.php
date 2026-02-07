@@ -90,4 +90,79 @@ class ImageOptimizationController extends Controller
     {
         return Storage::disk('public')->url('images/placeholder-avatar.png');
     }
+
+    /**
+     * Serve optimized image from storage with query parameters
+     * This handles requests like /storage/members/photos/file.jpg?size=medium&format=webp
+     *
+     * @param  string  $path
+     * @return \Illuminate\Http\Response
+     */
+    public function serveOptimizedImage($path, Request $request)
+    {
+        // Remove /storage/ prefix if present
+        $path = str_replace('storage/', '', $path);
+
+        // Check if file exists in storage
+        if (! Storage::disk('public')->exists($path)) {
+            abort(404, 'Image not found');
+        }
+
+        // Get query parameters
+        $size = $request->input('size', 'medium');
+        $format = $request->input('format', 'webp');
+
+        // For member photos, just serve the original file (already compressed)
+        // Only optimize if specifically requested and not already optimized
+        if (str_starts_with($path, 'members/photos/')) {
+            $file = Storage::disk('public')->get($path);
+            $mimeType = Storage::disk('public')->mimeType($path);
+
+            return response($file, 200, [
+                'Content-Type' => $mimeType,
+                'Cache-Control' => 'public, max-age=31536000', // 1 year
+            ]);
+        }
+
+        // For other images, use optimization service if available
+        try {
+            $fullPath = Storage::disk('public')->path($path);
+            $imageInfo = pathinfo($path);
+            $outputPath = 'optimized/'.str_replace('/', '_', $imageInfo['filename']);
+
+            $optimized = $this->imageService->optimizeImage(
+                $fullPath,
+                $outputPath,
+                $size
+            );
+
+            // Serve WebP if requested and available
+            if ($format === 'webp' && isset($optimized['webp'])) {
+                return redirect($optimized['webp']);
+            }
+
+            // Serve fallback
+            if (isset($optimized['fallback'])) {
+                return redirect($optimized['fallback']);
+            }
+
+            // If optimization failed, serve original
+            $file = Storage::disk('public')->get($path);
+            $mimeType = Storage::disk('public')->mimeType($path);
+
+            return response($file, 200, [
+                'Content-Type' => $mimeType,
+                'Cache-Control' => 'public, max-age=31536000',
+            ]);
+        } catch (\Exception $e) {
+            // Serve original file if optimization fails
+            $file = Storage::disk('public')->get($path);
+            $mimeType = Storage::disk('public')->mimeType($path);
+
+            return response($file, 200, [
+                'Content-Type' => $mimeType,
+                'Cache-Control' => 'public, max-age=31536000',
+            ]);
+        }
+    }
 }

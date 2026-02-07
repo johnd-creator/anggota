@@ -51,8 +51,8 @@
                 <OptimizedImage
                   :src="m.photo_path"
                   :alt="$toTitleCase(m.full_name)"
-                  size="thumb"
-                  class="h-10 w-10 rounded-full object-cover"
+                  size="small"
+                  class="h-12 w-12 rounded-full object-cover border-2 border-neutral-100"
                   loading="lazy"
                 />
               </td>

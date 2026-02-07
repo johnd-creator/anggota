@@ -113,13 +113,28 @@
       </CardContainer>
 
       <CardContainer padding="lg" shadow="sm">
-        <h3 class="text-sm font-semibold text-neutral-700 mb-2">Documents</h3>
-        <ul class="space-y-2">
-          <li v-for="d in member.documents" :key="d.id" class="flex justify-between items-center">
-            <span class="text-sm text-neutral-700">{{ d.original_name || d.type }}</span>
-            <a :href="'/storage/' + d.path" target="_blank" class="text-brand-primary-600 text-sm">View</a>
-          </li>
-        </ul>
+        <h3 class="text-sm font-semibold text-neutral-700 mb-2">Foto Profile</h3>
+        <div class="flex flex-col items-center space-y-4">
+          <OptimizedImage
+            :src="member.photo_path"
+            :alt="$toTitleCase(member.full_name)"
+            size="large"
+            class="w-64 h-64 rounded-lg object-cover border-4 border-neutral-100 shadow-sm"
+            loading="eager"
+          />
+          <div v-if="!member.photo_path" class="text-center text-neutral-500 text-sm">
+            Belum ada foto
+          </div>
+          <div v-if="member.documents && member.documents.length" class="w-full">
+            <h4 class="text-xs font-medium text-neutral-600 mb-2">Dokumen</h4>
+            <ul class="space-y-1">
+              <li v-for="d in member.documents" :key="d.id" class="flex justify-between items-center text-sm py-1 border-b border-neutral-100 last:border-0">
+                <span class="text-neutral-700">{{ d.original_name || d.type }}</span>
+                <a :href="'/storage/' + d.path" target="_blank" class="text-brand-primary-600 hover:underline">Unduh</a>
+              </li>
+            </ul>
+          </div>
+        </div>
       </CardContainer>
 
       <CardContainer padding="lg" shadow="sm" class="lg:col-span-3">

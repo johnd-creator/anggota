@@ -351,6 +351,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/member/portal', [\App\Http\Controllers\Member\PortalController::class, 'show'])->middleware('role:anggota,super_admin,admin_unit,bendahara,pengurus')->name('member.portal');
     Route::post('/member/portal/request-update', [\App\Http\Controllers\Member\PortalController::class, 'requestUpdate'])->middleware(['role:anggota', 'throttle:3,1'])->name('member.request_update');
     Route::post('/member/document/upload', [\App\Http\Controllers\Member\PortalController::class, 'uploadDocument'])->middleware('role:anggota')->name('member.document.upload');
+    Route::post('/member/profile/photo', [\App\Http\Controllers\Member\PortalController::class, 'uploadPhoto'])->middleware('role:anggota,pengurus,admin_unit,bendahara,super_admin,admin_pusat')->name('member.photo.upload');
+    Route::delete('/member/profile/photo', [\App\Http\Controllers\Member\PortalController::class, 'deletePhoto'])->middleware('role:anggota,pengurus,admin_unit,bendahara,super_admin,admin_pusat')->name('member.photo.delete');
     Route::post('/member/data/export-request', function (\Illuminate\Http\Request $request) {
         \App\Models\ActivityLog::create([
             'actor_id' => $request->user()->id,
@@ -477,6 +479,11 @@ Route::prefix('api/images')->middleware(['auth', 'throttle:60,1'])->group(functi
     Route::get('/optimized', [\App\Http\Controllers\ImageOptimizationController::class, 'getOptimizedImage']);
     Route::get('/responsive', [\App\Http\Controllers\ImageOptimizationController::class, 'getResponsiveImages']);
 });
+
+// Dynamic image optimization - must be defined BEFORE static storage handling
+Route::get('/storage/{path}', [\App\Http\Controllers\ImageOptimizationController::class, 'serveOptimizedImage'])
+    ->where('path', '.*')
+    ->name('images.serve');
 
 Route::post('/feedback', function (\Illuminate\Http\Request $request) {
     \App\Models\ActivityLog::create([

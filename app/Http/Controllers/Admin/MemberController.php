@@ -73,7 +73,7 @@ class MemberController extends Controller
             $query->orderByRaw('kta_number IS NULL, kta_number ASC');
         }
 
-        $members = $query->select(['id', 'full_name', 'email', 'phone', 'status', 'organization_unit_id', 'nra', 'kta_number', 'nip', 'union_position_id', 'birth_date', 'join_date'])
+        $members = $query->select(['id', 'full_name', 'email', 'phone', 'status', 'organization_unit_id', 'nra', 'kta_number', 'nip', 'union_position_id', 'birth_date', 'join_date', 'photo_path'])
             ->with('unionPosition')
             ->paginate(10)
             ->withQueryString();

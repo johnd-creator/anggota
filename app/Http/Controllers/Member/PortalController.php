@@ -8,7 +8,10 @@ use App\Models\MemberDocument;
 use App\Models\MemberUpdateRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 
 class PortalController extends Controller
 {
@@ -118,5 +121,50 @@ class PortalController extends Controller
         );
 
         return redirect()->back()->with('success', 'Dokumen berhasil diupload');
+    }
+
+    public function uploadPhoto(Request $request)
+    {
+        $request->validate([
+            'photo' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+        ]);
+
+        $user = Auth::user();
+        $member = Member::where('user_id', $user->id)->firstOrFail();
+
+        $manager = new ImageManager(new Driver);
+        $image = $manager->read($request->file('photo'));
+
+        if ($image->width() > 1200 || $image->height() > 1200) {
+            $image->scale(1200, 1200);
+        }
+
+        $filename = 'member_'.$member->id.'_'.time().'.jpg';
+
+        if ($member->photo_path) {
+            Storage::disk('public')->delete($member->photo_path);
+        }
+
+        $path = 'members/photos/'.$filename;
+        Storage::disk('public')->put($path, $image->toJpeg(75));
+
+        $member->photo_path = $path;
+        $member->save();
+
+        return redirect()->back()->with('success', 'Foto berhasil disimpan');
+    }
+
+    public function deletePhoto(Request $request)
+    {
+        $user = Auth::user();
+        $member = Member::where('user_id', $user->id)->firstOrFail();
+
+        if ($member->photo_path) {
+            Storage::disk('public')->delete($member->photo_path);
+            $member->photo_path = null;
+            $member->save();
+        }
+
+        return redirect()->back()->with('success', 'Foto berhasil dihapus');
     }
 }
