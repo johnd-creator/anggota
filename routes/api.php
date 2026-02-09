@@ -2,12 +2,21 @@
 
 use Illuminate\Support\Facades\Route;
 
+// Health check endpoint untuk service worker offline detection
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toIso8601String(),
+        'app_env' => app()->environment(),
+    ]);
+})->name('api.health');
+
 Route::middleware(['api_token', 'throttle:60,1'])->group(function () {
     Route::get('/members', function (\Illuminate\Http\Request $request) {
         $unitId = $request->query('unit_id');
 
         // Require unit_id parameter
-        if (!$unitId) {
+        if (! $unitId) {
             return response()->json(['error' => 'unit_id parameter is required'], 400);
         }
 
@@ -23,7 +32,7 @@ Route::middleware(['api_token', 'throttle:60,1'])->group(function () {
         $unitId = $request->query('unit_id');
 
         // Require unit_id parameter
-        if (!$unitId) {
+        if (! $unitId) {
             return response()->json(['error' => 'unit_id parameter is required'], 400);
         }
 
@@ -44,7 +53,7 @@ Route::middleware(['api_token', 'throttle:60,1'])->group(function () {
         $memberId = (int) $request->query('member_id');
 
         // Require unit_id parameter
-        if (!$unitId) {
+        if (! $unitId) {
             return response()->json(['error' => 'unit_id parameter is required'], 400);
         }
 
@@ -60,7 +69,7 @@ Route::middleware(['api_token', 'throttle:60,1'])->group(function () {
 
         if ($memberId) {
             // Verify member is in the requested unit
-            if (!$memberIds->contains($memberId)) {
+            if (! $memberIds->contains($memberId)) {
                 return response()->json(['error' => 'Member not in specified unit'], 403);
             }
             $q->where('member_id', $memberId);

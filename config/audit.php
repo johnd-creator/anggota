@@ -201,7 +201,7 @@ return [
     | Roles allowed to view audit logs.
     |
     */
-    'view_roles' => ['super_admin'],
+    'view_roles' => ['super_admin', 'pengurus'],
     'export_roles' => ['super_admin'],
 
     /*

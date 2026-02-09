@@ -1,5 +1,5 @@
-const CACHE_NAME = 'simsp-cache-v5';
-const OFFLINE_CACHE_NAME = 'simsp-offline-v1';
+const CACHE_NAME = 'simsp-cache-v6';
+const OFFLINE_CACHE_NAME = 'simsp-offline-v2';
 
 // Precache critical URLs
 const PRECACHE_URLS = [

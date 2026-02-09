@@ -246,4 +246,80 @@ class PengurusRoleAccessTest extends TestCase
         $response->assertStatus(200);
         $this->assertStringContainsString('Test Aspirasi Member', $response->inertia('page'));
     }
+
+    public function test_pengurus_can_access_settings()
+    {
+        $response = $this->get('/settings');
+
+        $response->assertStatus(200);
+    }
+
+    public function test_pengurus_can_update_notification_preferences()
+    {
+        $response = $this->patch('/settings/notifications', [
+            'email_aspirations' => true,
+            'email_announcements' => false,
+            'email_dues_reminder' => true,
+        ]);
+
+        $response->assertStatus(302);
+    }
+
+    public function test_pengurus_can_access_help_center()
+    {
+        $response = $this->get('/help');
+
+        $response->assertStatus(200);
+    }
+
+    public function test_pengurus_can_access_audit_logs()
+    {
+        \App\Models\AuditLog::create([
+            'user_id' => $this->pengurus->id,
+            'organization_unit_id' => $this->unit->id,
+            'event' => 'test_action',
+            'event_category' => 'system',
+        ]);
+
+        $response = $this->get('/audit-logs');
+
+        $response->assertStatus(200);
+    }
+
+    public function test_pengurus_can_access_activity_logs()
+    {
+        $response = $this->get('/admin/activity-logs');
+
+        $response->assertStatus(200);
+    }
+
+    public function test_pengurus_audit_logs_scoped_to_unit()
+    {
+        $otherUnit = \App\Models\OrganizationUnit::factory()->create(['code' => 'UNIT-03', 'name' => 'Unit Test 03']);
+
+        \App\Models\AuditLog::create([
+            'user_id' => $this->pengurus->id,
+            'organization_unit_id' => $this->unit->id,
+            'event' => 'test_action_same_unit',
+            'event_category' => 'system',
+        ]);
+
+        \App\Models\AuditLog::create([
+            'user_id' => $this->pengurus->id,
+            'organization_unit_id' => $otherUnit->id,
+            'event' => 'test_action_other_unit',
+            'event_category' => 'system',
+        ]);
+
+        $response = $this->get('/audit-logs');
+
+        $response->assertStatus(200);
+        $page = $response->viewData('page');
+        $logs = $page['props']['logs'];
+
+        $events = collect($logs['data'])->pluck('event')->toArray();
+
+        $this->assertContains('test_action_same_unit', $events);
+        $this->assertNotContains('test_action_other_unit', $events);
+    }
 }

@@ -52,8 +52,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/notifications/recent', [\App\Http\Controllers\NotificationController::class, 'recent'])->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('notifications.recent');
 
     Route::controller(\App\Http\Controllers\SettingsController::class)->group(function () {
-        Route::get('/settings', 'index')->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('settings.index');
-        Route::patch('/settings/notifications', 'updateNotifications')->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('settings.notification_prefs');
+        Route::get('/settings', 'index')->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara,pengurus')->name('settings.index');
+        Route::patch('/settings/notifications', 'updateNotifications')->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara,pengurus')->name('settings.notification_prefs');
         Route::patch('/settings/profile', 'updateProfile')->middleware('auth')->name('settings.profile.update');
         Route::patch('/settings/password', 'updatePassword')->middleware('auth')->name('settings.password.update');
         Route::get('/settings/sessions', 'getSessions')->middleware('auth')->name('settings.sessions');
@@ -84,7 +84,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/help', function () {
         return Inertia::render('Help/Index');
-    })->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('help.index');
+    })->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara,pengurus')->name('help.index');
 
     // root path handled above (guest: login page, auth: dashboard)
 
@@ -186,7 +186,7 @@ Route::middleware(['auth'])->group(function () {
         $content = is_file($path) ? file_get_contents($path) : 'Artikel tidak ditemukan.';
 
         return Inertia::render('Docs/Viewer', ['title' => 'Bantuan: '.ucfirst($slug), 'content' => $content]);
-    })->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara')->name('docs.help.show');
+    })->middleware('role:super_admin,admin_unit,anggota,reguler,bendahara,pengurus')->name('docs.help.show');
 
     // Admin Routes
     Route::prefix('admin')->name('admin.')->middleware('role:super_admin,admin_unit,admin_pusat,pengurus')->group(function () {
@@ -221,7 +221,7 @@ Route::middleware(['auth'])->group(function () {
             $logs = \App\Models\ActivityLog::latest()->paginate(20)->withQueryString();
 
             return Inertia::render('Admin/ActivityLogs', ['logs' => $logs]);
-        })->middleware('role:super_admin')->name('activity-logs.index');
+        })->middleware('role:super_admin,pengurus')->name('activity-logs.index');
         Route::get('onboarding', [\App\Http\Controllers\Admin\OnboardingController::class, 'index'])->name('onboarding.index');
         Route::post('onboarding/{pending}/approve', [\App\Http\Controllers\Admin\OnboardingController::class, 'approve'])->name('onboarding.approve');
         Route::post('onboarding/{pending}/reject', [\App\Http\Controllers\Admin\OnboardingController::class, 'reject'])->name('onboarding.reject');

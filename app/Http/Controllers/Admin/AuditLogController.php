@@ -4,8 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
 
 class AuditLogController extends Controller
 {
@@ -19,9 +20,17 @@ class AuditLogController extends Controller
 
         $filters = $request->only(['role', 'date_start', 'date_end', 'category', 'event', 'unit_id', 'request_id']);
 
-        $logs = \App\Models\AuditLog::with(['user.role', 'organizationUnit'])
-            ->filter($filters)
-            ->latest()
+        $query = \App\Models\AuditLog::with(['user.role', 'organizationUnit'])->filter($filters);
+
+        // Pengurus can only see logs from their own unit
+        if (Auth::user()->hasRole('pengurus')) {
+            $unitId = Auth::user()->currentUnitId();
+            if ($unitId) {
+                $query->where('organization_unit_id', $unitId);
+            }
+        }
+
+        $logs = $query->latest()
             ->paginate(20)
             ->withQueryString();
 

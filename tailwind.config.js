@@ -121,12 +121,26 @@ export default {
       },
       borderRadius: {
         '4xl': '2rem',
+        'xl': '0.75rem',
+        '2xl': '1rem',
       },
       transitionDuration: {
         '400': '400ms',
       },
+      animation: {
+        'blob': 'blob 7s infinite',
+      },
       boxShadow: {
         'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
+        'glow': '0 0 15px rgba(30, 58, 138, 0.15)',
+      },
+      keyframes: {
+        blob: {
+          '0%': { transform: 'translate(0px, 0px) scale(1)' },
+          '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+          '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+          '100%': { transform: 'translate(0px, 0px) scale(1)' },
+        },
       },
     },
   },
