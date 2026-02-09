@@ -406,7 +406,8 @@ Route::middleware(['auth'])->group(function () {
         return back()->with('success', 'Permintaan penghapusan data tercatat');
     })->middleware('role:anggota')->name('member.data.delete_request');
     Route::get('/verify-card/{token}', [\App\Http\Controllers\Member\CardController::class, 'verify'])->name('member.card.verify');
-    Route::get('/member/card/pdf', [\App\Http\Controllers\Member\CardPdfController::class, 'download'])->middleware('role:anggota,super_admin,admin_unit,bendahara')->name('member.card.pdf');
+    // PDF download disabled - design mismatch between web view and PDF
+    // Route::get('/member/card/pdf', [\App\Http\Controllers\Member\CardPdfController::class, 'download'])->middleware('role:anggota,super_admin,admin_unit,bendahara')->name('member.card.pdf');
     Route::get('/member/card/qr.png', [\App\Http\Controllers\Member\CardController::class, 'qr'])->middleware('role:anggota,super_admin,admin_unit,bendahara')->name('member.card.qr');
 
     // Member Aspirations

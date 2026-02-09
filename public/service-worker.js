@@ -46,6 +46,12 @@ function isHtmlRequest(request) {
   return request.mode === 'navigate' || (request.headers.get('accept') || '').includes('text/html');
 }
 
+function isPdfDownload(url) {
+  return url.pathname.includes('/member/card/pdf') || 
+         url.pathname.includes('/pdf') || 
+         url.searchParams.has('download');
+}
+
 function isBuildAsset(url) {
   return url.pathname.startsWith('/build/');
 }
@@ -56,6 +62,10 @@ function isBuildManifest(url) {
 
 function isApiRequest(url) {
   return url.pathname.startsWith('/api/');
+}
+
+function isPdfRequest(url) {
+  return url.pathname.endsWith('.pdf') || url.pathname.includes('/pdf');
 }
 
 function isImageRequest(url) {
@@ -158,8 +168,14 @@ self.addEventListener('fetch', (event) => {
   // Bypass cache for Inertia/JSON requests
   if (shouldBypassCache(request, url)) return;
 
+  // Bypass service worker for PDF downloads
+  if (isPdfRequest(url)) return;
+
   // Bypass service worker for OAuth/auth routes to allow proper redirects
   if (isAuthRoute(url)) return;
+
+  // Bypass service worker for PDF downloads
+  if (isPdfDownload(url)) return;
 
   // HTML navigation requests - Network First
   if (isHtmlRequest(request)) {

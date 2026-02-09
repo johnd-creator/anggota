@@ -107,18 +107,11 @@
 
         <!-- Actions -->
         <div class="flex flex-col sm:flex-row gap-4 w-full max-w-xs justify-center">
-          <SecondaryButton @click="downloadPdf" class="w-full justify-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Unduh PDF
-          </SecondaryButton>
-
           <a v-if="member?.qr_token" :href="`/verify-card/${member?.qr_token}`" class="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-neutral-300 rounded-md font-semibold text-xs text-neutral-700 uppercase tracking-widest shadow-sm hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150 w-full text-center">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-5.367 3 3 0 00-5.367 5.367h-.001zn" />
             </svg>
-            Verifikasi
+            Verifikasi Kartu
           </a>
         </div>
       </div>
@@ -155,8 +148,6 @@ const form = useForm({
     address: member.address || '',
     company_join_date: member.company_join_date ? member.company_join_date.substring(0, 10) : '',
 });
-
-function downloadPdf(){ window.location.href = '/member/card/pdf'; }
 
 function formatDate(dateString) {
   if (!dateString) return '-';
