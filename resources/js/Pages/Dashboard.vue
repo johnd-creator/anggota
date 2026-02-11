@@ -7,46 +7,54 @@
                 <h3 class="text-lg font-medium text-gray-900">Pengumuman Penting</h3>
                 <Link href="/announcements" class="text-sm text-indigo-600 hover:text-indigo-900">Lihat Semua</Link>
             </div>
-            <div class="space-y-4">
-                <div v-for="item in $page.props.announcements_pinned" :key="item.id" class="bg-white overflow-hidden shadow-sm sm:rounded-lg border-l-4 border-indigo-500 p-6">
-                    <div class="flex justify-between items-start">
-                        <div class="w-full">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span v-if="item.scope_type === 'global_all'" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 uppercase">Global</span>
-                                <span v-else-if="item.scope_type === 'global_officers'" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">Pengurus</span>
-                                <span v-else-if="item.scope_type === 'unit'" class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800 uppercase">
-                                    {{ item.organization_unit_name || 'Unit' }}
-                                </span>
-                                <span class="text-xs text-gray-500">{{ new Date(item.created_at).toLocaleDateString('id-ID') }}</span>
+            
+            <!-- Carousel Component -->
+            <AnnouncementCarousel 
+                :items="$page.props.announcements_pinned"
+                :auto-play="true"
+                :interval="5000"
+            >
+                <template #default="{ item }">
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border-l-4 border-indigo-500 p-6 min-h-[180px]">
+                        <div class="flex justify-between items-start">
+                            <div class="w-full">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span v-if="item.scope_type === 'global_all'" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 uppercase">Global</span>
+                                    <span v-else-if="item.scope_type === 'global_officers'" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">Pengurus</span>
+                                    <span v-else-if="item.scope_type === 'unit'" class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800 uppercase">
+                                        {{ item.organization_unit_name || 'Unit' }}
+                                    </span>
+                                    <span class="text-xs text-gray-500">{{ new Date(item.created_at).toLocaleDateString('id-ID') }}</span>
+                                </div>
+                                <h4 class="font-bold text-gray-800 text-lg">{{ item.title }}</h4>
+                                <p class="text-sm text-gray-600 mt-2">{{ item.body_snippet }}</p>
+                                
+                                <div v-if="item.attachments && item.attachments.length > 0" class="mt-4 flex flex-wrap gap-2">
+                                    <a 
+                                        v-for="file in item.attachments" 
+                                        :key="file.id" 
+                                        :href="file.download_url" 
+                                        class="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-gray-50 border border-gray-200 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                                    >
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                        {{ file.original_name }}
+                                    </a>
+                                </div>
                             </div>
-                            <h4 class="font-bold text-gray-800 text-lg">{{ item.title }}</h4>
-                            <p class="text-sm text-gray-600 mt-2">{{ item.body_snippet }}</p>
-                            
-                            <div v-if="item.attachments && item.attachments.length > 0" class="mt-4 flex flex-wrap gap-2">
-                                <a 
-                                    v-for="file in item.attachments" 
-                                    :key="file.id" 
-                                    :href="file.download_url" 
-                                    class="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-gray-50 border border-gray-200 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
-                                >
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                                    {{ file.original_name }}
-                                </a>
-                            </div>
+                            <button
+                                type="button"
+                                class="ml-4 text-gray-400 hover:text-gray-600 rounded p-1 hover:bg-gray-50 flex-shrink-0 z-10"
+                                aria-label="Tutup pengumuman"
+                                @click="dismissPinnedAnnouncement(item.id)"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
                         </div>
-                        <button
-                            type="button"
-                            class="ml-4 text-gray-400 hover:text-gray-600 rounded p-1 hover:bg-gray-50"
-                            aria-label="Tutup pengumuman"
-                            @click="dismissPinnedAnnouncement(item.id)"
-                        >
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
                     </div>
-                </div>
-            </div>
+                </template>
+            </AnnouncementCarousel>
         </div>
 
         <!-- KPI Stat Cards Row -->
@@ -542,6 +550,7 @@ import StatusBadge from '@/Components/UI/StatusBadge.vue';
 import ModalBase from '@/Components/UI/ModalBase.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import DataCard from '@/Components/Mobile/DataCard.vue';
+import AnnouncementCarousel from '@/Components/UI/AnnouncementCarousel.vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
