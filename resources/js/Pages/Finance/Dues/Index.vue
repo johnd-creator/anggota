@@ -36,7 +36,7 @@
             <label class="block text-xs text-neutral-600">Unit</label>
             <select v-model="unitId" class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700">
               <option value="">Semua Unit</option>
-              <option v-for="u in units" :key="u.id" :value="u.id">{{ u.code }} - {{ u.name }}</option>
+              <option v-for="u in units" :key="u.id" :value="u.id">{{ u.name }}</option>
             </select>
           </div>
           <div>

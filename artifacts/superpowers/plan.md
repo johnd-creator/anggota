@@ -1,99 +1,195 @@
-# Implementation Plan: Member Detail Page Button UX Enhancement
+# Implementation Plan: Unit Dropdown Display Modification
 
 ## Goal
-Transform plain, boring action buttons on the member detail page (`/admin/members/{id}`) into visually appealing, interactive buttons with icons and color coding.
+Modify all Unit dropdown filters to display only the unit name (`[Nama Unit]`) in the UI, while keeping the unit code as the underlying value for backend operations. This implements **Option 2** from the brainstorm: Transform data in the Inertia component.
 
 ## Assumptions
 - Vue 3 + Inertia.js stack is working correctly
-- Existing design system colors (brand-primary, amber, teal) are available
+- Backend already provides units with `id`, `name`, and `code` fields
+- Unit `id` (not `code`) is used as the value for backend queries
 - No backend changes required (frontend-only)
 - Browser testing can be done at `http://localhost:8000`
-- User has approved the Icon + Color Enhancement approach
+
+## Files to Modify
+
+Based on codebase research, the following 8 files currently display `[Kode] - [Nama Unit]` format:
+
+1. `/var/www/html/anggota/resources/js/Pages/Letters/Form.vue` (line 69)
+2. `/var/www/html/anggota/resources/js/Pages/Finance/Dues/Index.vue` (line 39)
+3. `/var/www/html/anggota/resources/js/Pages/Admin/Roles/Show.vue` (line 87)
+4. `/var/www/html/anggota/resources/js/Pages/Admin/Members/Index.vue` (lines 133, 167)
+5. `/var/www/html/anggota/resources/js/Pages/Admin/Members/Form.vue` (line 307)
+6. `/var/www/html/anggota/resources/js/Pages/Admin/Onboarding/Index.vue` (line 137)
+7. `/var/www/html/anggota/resources/js/Pages/Admin/Mutations/Create.vue` (line 109)
 
 ## Plan
 
-### Step 1: Enhance Edit Button
-**Files:** `resources/js/Pages/Admin/Members/Show.vue` (line 5)
+### Step 1: Modify Letters/Form.vue
+**File:** `resources/js/Pages/Letters/Form.vue` (line 69)
 
-**Changes:**
-- Transform Edit link from plain border to primary blue button
-- Add pencil/edit icon (SVG)
-- Add hover effects: scale-105, shadow-md, darker blue background
-- Change from `<a>` to styled button with proper padding and colors
-- Add `transition-all duration-200` for smooth animations
+**Current:**
+```vue
+<option v-for="u in units" :key="u.id" :value="u.id">{{ u.code }} - {{ u.name }}</option>
+```
+
+**Change to:**
+```vue
+<option v-for="u in units" :key="u.id" :value="u.id">{{ u.name }}</option>
+```
 
 **Verify:**
 ```bash
 # Visual inspection in browser
-# Navigate to: http://localhost:8000/admin/members/2
+# Navigate to: http://localhost:8000/letters/create (or /letters/{id}/edit)
 # Check:
-# - Edit button has blue background (brand-primary-600)
-# - Pencil icon is visible on the left
-# - Hover effect shows scale and shadow
-# - Button is white text on blue background
+# - Unit dropdown displays only unit names (no codes)
+# - Selecting a unit still works correctly
+# - Form submission sends correct unit ID
 ```
 
-### Step 2: Enhance Ubah Status Button
-**Files:** `resources/js/Pages/Admin/Members/Show.vue` (line 6)
+### Step 2: Modify Finance/Dues/Index.vue
+**File:** `resources/js/Pages/Finance/Dues/Index.vue` (line 39)
 
-**Changes:**
-- Transform from plain border to amber/yellow button
-- Add status/toggle icon (SVG)
-- Add hover effects: scale-105, shadow-md, darker amber
-- Use `bg-amber-500` with white text
-- Add `transition-all duration-200` for smooth animations
+**Current:**
+```vue
+<option v-for="u in units" :key="u.id" :value="u.id">{{ u.code }} - {{ u.name }}</option>
+```
+
+**Change to:**
+```vue
+<option v-for="u in units" :key="u.id" :value="u.id">{{ u.name }}</option>
+```
 
 **Verify:**
 ```bash
 # Visual inspection in browser
-# Navigate to: http://localhost:8000/admin/members/2
+# Navigate to: http://localhost:8000/finance/dues
 # Check:
-# - Ubah Status button has amber background
-# - Status icon is visible
-# - Hover effect shows scale and shadow
-# - Button stands out from Edit button
+# - Unit dropdown displays only unit names
+# - Filtering by unit works correctly
 ```
 
-### Step 3: Enhance Ajukan Mutasi Button
-**Files:** `resources/js/Pages/Admin/Members/Show.vue` (line 7)
+### Step 3: Modify Admin/Roles/Show.vue
+**File:** `resources/js/Pages/Admin/Roles/Show.vue` (line 87)
 
-**Changes:**
-- Transform from plain border to teal/secondary color button
-- Add transfer/arrows icon (SVG)
-- Add hover effects: scale-105, shadow-md, darker teal
-- Use `bg-teal-600` with white text
-- Add `transition-all duration-200` for smooth animations
+**Current:**
+```javascript
+const unitOptions = (page.props.units||[]).map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
+```
+
+**Change to:**
+```javascript
+const unitOptions = (page.props.units||[]).map(u => ({ label: u.name, value: u.id }));
+```
 
 **Verify:**
 ```bash
 # Visual inspection in browser
-# Navigate to: http://localhost:8000/admin/members/2
+# Navigate to: http://localhost:8000/admin/roles/{id}
 # Check:
-# - Ajukan Mutasi button has teal background
-# - Transfer/arrows icon is visible
-# - Hover effect shows scale and shadow
-# - All three buttons have distinct colors
+# - Unit dropdown in role access section displays only unit names
+# - Assigning unit access still works correctly
 ```
 
-### Step 4: Improve Button Container Spacing
-**Files:** `resources/js/Pages/Admin/Members/Show.vue` (line 4)
+### Step 4: Modify Admin/Members/Index.vue
+**File:** `resources/js/Pages/Admin/Members/Index.vue` (lines 133, 167)
 
-**Changes:**
-- Increase gap from `gap-2` to `gap-3` for better button separation
-- Ensure buttons wrap gracefully on mobile with `flex-wrap`
-- Verify responsive behavior
+**Current (line 133):**
+```javascript
+const unitOptions = units.map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
+```
+
+**Current (line 167):**
+```javascript
+function unitLabel(id){ const u = units.find(x => x.id === id); return u ? `${u.code} - ${u.name}` : `Unit ${id}`; }
+```
+
+**Change to:**
+```javascript
+// Line 133
+const unitOptions = units.map(u => ({ label: u.name, value: u.id }));
+
+// Line 167
+function unitLabel(id){ const u = units.find(x => x.id === id); return u ? u.name : `Unit ${id}`; }
+```
 
 **Verify:**
 ```bash
-# Visual test in browser
-# Navigate to: http://localhost:8000/admin/members/2
+# Visual inspection in browser
+# Navigate to: http://localhost:8000/admin/members
 # Check:
-# - Buttons have clear spacing (~12px gap)
-# - Layout is clean and organized
-# - Buttons wrap on mobile viewport (375px)
+# - Unit filter dropdown displays only unit names
+# - Unit column in table displays only unit names
+# - Filtering by unit works correctly
 ```
 
-### Step 5: Build and Test Compilation
+### Step 5: Modify Admin/Members/Form.vue
+**File:** `resources/js/Pages/Admin/Members/Form.vue` (line 307)
+
+**Current:**
+```javascript
+const unitsOptions = units.map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
+```
+
+**Change to:**
+```javascript
+const unitsOptions = units.map(u => ({ label: u.name, value: u.id }));
+```
+
+**Verify:**
+```bash
+# Visual inspection in browser
+# Navigate to: http://localhost:8000/admin/members/create (or /admin/members/{id}/edit)
+# Check:
+# - Unit dropdown displays only unit names
+# - Selecting a unit and saving works correctly
+```
+
+### Step 6: Modify Admin/Onboarding/Index.vue
+**File:** `resources/js/Pages/Admin/Onboarding/Index.vue` (line 137)
+
+**Current:**
+```javascript
+const unitOptions = units.map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
+```
+
+**Change to:**
+```javascript
+const unitOptions = units.map(u => ({ label: u.name, value: u.id }));
+```
+
+**Verify:**
+```bash
+# Visual inspection in browser
+# Navigate to: http://localhost:8000/admin/onboarding
+# Check:
+# - Unit dropdown displays only unit names
+# - Filtering by unit works correctly
+```
+
+### Step 7: Modify Admin/Mutations/Create.vue
+**File:** `resources/js/Pages/Admin/Mutations/Create.vue` (line 109)
+
+**Current:**
+```javascript
+const unitOptions = units.map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
+```
+
+**Change to:**
+```javascript
+const unitOptions = units.map(u => ({ label: u.name, value: u.id }));
+```
+
+**Verify:**
+```bash
+# Visual inspection in browser
+# Navigate to: http://localhost:8000/admin/mutations/create
+# Check:
+# - Destination unit dropdown displays only unit names
+# - Creating a mutation with selected unit works correctly
+```
+
+### Step 8: Build and Test Compilation
 **Files:** All modified Vue files
 
 **Changes:**
@@ -107,53 +203,58 @@ npm run build
 # Check terminal output for "build complete" message
 ```
 
-### Step 6: Browser Testing and Verification
+### Step 9: Comprehensive Browser Testing
 **Files:** All modified pages
 
 **Changes:**
-- Test all button interactions
-- Verify color contrast and accessibility
+- Test all dropdown interactions across all modified pages
+- Verify backend filtering still works correctly
 - Test on different viewport sizes
 
 **Verify:**
 ```bash
-# Manual browser testing:
-# 1. Navigate to http://localhost:8000/admin/members/2
-# 2. Hover over each button to verify hover effects
-# 3. Click Edit button to verify navigation works
-# 4. Test on mobile (375px), tablet (768px), desktop (1024px+)
-# 5. Verify all three buttons are visually distinct
-# 6. Check that existing functionality is intact
+# Manual browser testing checklist:
+# 1. Test each modified page listed in steps 1-7
+# 2. Verify dropdowns show only unit names (no codes)
+# 3. Select different units and verify filtering/submission works
+# 4. Check browser console for any JavaScript errors
+# 5. Verify backend receives correct unit IDs in network tab
+# 6. Test on mobile (375px), tablet (768px), desktop (1024px+)
 ```
 
 ## Risks & Mitigations
 
 | Risk | Severity | Mitigation |
 |------|----------|------------|
-| Colors too bright/overwhelming | Low | Use established brand colors, test contrast |
-| Icons not clear | Low | Use standard, recognizable icons (pencil, toggle, arrows) |
-| Hover effects too aggressive | Low | Use subtle scale (105%) and moderate shadow |
-| Mobile layout breaks | Medium | Test thoroughly, ensure flex-wrap is enabled |
-| Build errors from syntax | Low | Incremental changes, test build after modifications |
+| Missing some dropdown instances | Medium | Comprehensive grep search performed, all instances identified |
+| Backend expects code instead of ID | Low | Backend already uses unit ID (verified in controllers) |
+| User confusion without codes | Low | Unit names should be descriptive enough; codes were visual clutter |
+| Build errors from syntax | Low | Simple string template changes, low risk |
+| Inconsistent display across pages | Low | All instances updated in single task |
 
 ## Rollback Plan
 
 If issues arise:
-1. **Git revert**: Changes are isolated to 1 Vue file
-2. **File-level rollback**: Keep backup of original Show.vue
-3. **Quick fix**: All changes are CSS/styling, no logic changes
+1. **Git revert**: All changes are isolated to 7 Vue files
+2. **File-level rollback**: Keep backups of original files
+3. **Quick fix**: All changes are display-only, no logic changes
 
 Files to backup before changes:
-- `resources/js/Pages/Admin/Members/Show.vue`
+- `resources/js/Pages/Letters/Form.vue`
+- `resources/js/Pages/Finance/Dues/Index.vue`
+- `resources/js/Pages/Admin/Roles/Show.vue`
+- `resources/js/Pages/Admin/Members/Index.vue`
+- `resources/js/Pages/Admin/Members/Form.vue`
+- `resources/js/Pages/Admin/Onboarding/Index.vue`
+- `resources/js/Pages/Admin/Mutations/Create.vue`
 
 ## Success Criteria
 
-- ✅ Edit button has blue background with pencil icon
-- ✅ Ubah Status button has amber background with status icon
-- ✅ Ajukan Mutasi button has teal background with transfer icon
-- ✅ All buttons have smooth hover effects (scale, shadow)
-- ✅ Buttons have proper spacing (gap-3)
-- ✅ Layout is responsive on mobile/tablet/desktop
+- ✅ All unit dropdowns display only unit names (no codes visible)
+- ✅ Unit codes remain as values in backend requests (unit IDs actually)
+- ✅ All filtering functionality works correctly
+- ✅ All form submissions work correctly
 - ✅ No console errors or build failures
-- ✅ Existing functionality intact (navigation, permissions)
-- ✅ Visual hierarchy is clear (Edit as primary action)
+- ✅ Consistent display across all pages
+- ✅ Responsive design maintained on all viewport sizes
+- ✅ Backend receives correct unit IDs in all requests

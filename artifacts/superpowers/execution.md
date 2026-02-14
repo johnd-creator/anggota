@@ -1,148 +1,78 @@
-# Execution Log: Member Detail Page Button UX Enhancement
+# Execution Log: Unit Dropdown Display Modification
 
-## Step 1-3: Enhanced All Three Action Buttons ✅
-**Files Changed:**
-- `resources/js/Pages/Admin/Members/Show.vue` (lines 4-30)
+## Step 1: Modified Letters/Form.vue ✅
+**File:** `resources/js/Pages/Letters/Form.vue` (line 69)
+**Changes:**
+- Removed `{{ u.code }} -` from dropdown option display
+- Now displays only `{{ u.name }}`
+- Unit ID remains as value (unchanged)
 
-**Changes Made:**
-
-### Edit Button (Primary Action)
-- Changed from plain border to blue background (`bg-brand-primary-600`)
-- Added pencil/edit icon (SVG)
-- Added hover effects: `hover:bg-brand-primary-700 hover:scale-105 hover:shadow-md`
-- Changed to `inline-flex items-center gap-2` layout
-- Increased padding from `px-3 py-1.5` to `px-4 py-2`
-- Added `font-medium` for better typography
-- Added `transition-all duration-200` for smooth animations
-
-### Ubah Status Button (Secondary Action)
-- Changed from plain border to amber background (`bg-amber-500`)
-- Added checkmark/status icon (SVG)
-- Added hover effects: `hover:bg-amber-600 hover:scale-105 hover:shadow-md`
-- Same layout and padding improvements as Edit button
-- White text on amber background for high contrast
-
-### Ajukan Mutasi Button (Specialized Action)
-- Changed from plain border to teal background (`bg-teal-600`)
-- Added transfer/arrows icon (SVG)
-- Added hover effects: `hover:bg-teal-700 hover:scale-105 hover:shadow-md`
-- Same layout and padding improvements as other buttons
-- White text on teal background for distinction
-
-**Verification:**
-- Code changes successfully applied to Show.vue
-- All three buttons now have:
-  - Distinct colors (blue, amber, teal)
-  - Appropriate icons (pencil, checkmark, arrows)
-  - Smooth hover effects (scale, shadow, background darkening)
-  - Better spacing and typography
-
-**Result:** ✅ CODE CHANGES COMPLETE
+**Verification:** Visual inspection needed at `/letters/create` or `/letters/{id}/edit`
 
 ---
 
-## Step 4: Improved Button Container Spacing ✅
-**Files Changed:**
-- `resources/js/Pages/Admin/Members/Show.vue` (line 4)
+## Step 2: Modified Finance/Dues/Index.vue ✅
+**File:** `resources/js/Pages/Finance/Dues/Index.vue` (line 39)
+**Changes:**
+- Removed `{{ u.code }} -` from dropdown option display
+- Now displays only `{{ u.name }}`
+- Unit ID remains as value (unchanged)
 
-**Changes Made:**
-- Increased gap from `gap-2` to `gap-3` for better button separation
-- Added `flex-wrap` to ensure responsive wrapping on mobile
-- Container now uses: `flex items-center gap-3 flex-wrap`
-
-**Result:** ✅ COMPLETE
+**Verification:** Visual inspection needed at `/finance/dues`
 
 ---
 
-## Step 5: Build Process ⏳
-**Verification Command:**
-```bash
-npm run dev
-```
+## Step 3: Modified Admin/Roles/Show.vue ✅
+**File:** `resources/js/Pages/Admin/Roles/Show.vue` (line 87)
+**Changes:**
+- Changed unitOptions mapping from `` `${u.code} - ${u.name}` `` to `u.name`
+- Unit ID remains as value (unchanged)
 
-**Status:** 
-- Dev server started (command ID: 651f9462-7a8c-4fc7-8074-8e9606ed3d19)
-- Compilation in progress
-- Browser testing shows changes not yet visible (still showing old plain buttons)
-- Waiting for dev server to complete compilation
-
-**Result:** ⏳ IN PROGRESS
+**Verification:** Visual inspection needed at `/admin/roles/{id}`
 
 ---
 
-## Step 6: Browser Testing ⏳
-**Testing Performed:**
-- Navigated to `/admin/members/2` twice
-- Hard refresh performed to bypass cache
-- Checked DOM for new classes - not found yet
-- Verified Vite client status - compilation pending
+## Step 4: Modified Admin/Members/Index.vue ✅
+**File:** `resources/js/Pages/Admin/Members/Index.vue` (lines 133, 167)
+**Changes:**
+- Changed unitOptions mapping from `` `${u.code} - ${u.name}` `` to `u.name`
+- Changed unitLabel function from `` `${u.code} - ${u.name}` `` to `u.name`
+- Unit ID remains as value (unchanged)
 
-**Screenshots:**
-- `member_detail_buttons_plain_1769403571572.png` - Shows current plain state
-- Buttons still showing old styling (white background, no icons)
-
-**Result:** ⏳ WAITING FOR BUILD COMPLETION
+**Verification:** Visual inspection needed at `/admin/members`
 
 ---
 
-## Summary
-✅ All code changes successfully implemented in Show.vue
-✅ Buttons enhanced with icons, colors, and hover effects
-✅ Spacing and layout improved
-⏳ Dev server compilation in progress
-⏳ Browser verification pending build completion
+## Step 5: Modified Admin/Members/Form.vue ✅
+**File:** `resources/js/Pages/Admin/Members/Form.vue` (line 307)
+**Changes:**
+- Changed unitsOptions mapping from `` `${u.code} - ${u.name}` `` to `u.name`
+- Unit ID remains as value (unchanged)
 
-**Next Steps:**
-1. Wait for dev server compilation to complete
-2. Refresh browser to see enhanced buttons
-3. Verify all hover effects and interactions
-4. Test on mobile/tablet/desktop viewports
+**Verification:** Visual inspection needed at `/admin/members/create` or `/admin/members/{id}/edit`
 
 ---
 
-## Additional Fix: Button Position and Color ✅
+## Step 6: Modified Admin/Onboarding/Index.vue ✅
+**File:** `resources/js/Pages/Admin/Onboarding/Index.vue` (line 137)
+**Changes:**
+- Changed unitOptions mapping from `` `${u.code} - ${u.name}` `` to `u.name`
+- Unit ID remains as value (unchanged)
 
-### Issue Reported by User
-- Edit button not visible
-- Buttons need to be positioned on the right side
-
-### Step 1: Move Buttons to Right Side ✅
-**Files Changed:**
-- `resources/js/Pages/Admin/Members/Show.vue` (line 3)
-
-**Changes Made:**
-- Changed header container from `justify-between` to `justify-end`
-- This moves all buttons to the right side of the page
-
-**Result:** ✅ COMPLETE
+**Verification:** Visual inspection needed at `/admin/onboarding`
 
 ---
 
-### Step 2: Fix Edit Button Color ✅
-**Files Changed:**
-- `resources/js/Pages/Admin/Members/Show.vue` (line 6)
+## Step 7: Modified Admin/Mutations/Create.vue ✅
+**File:** `resources/js/Pages/Admin/Mutations/Create.vue` (line 109)
+**Changes:**
+- Changed unitOptions mapping from `` `${u.code} - ${u.name}` `` to `u.name`
+- Unit ID remains as value (unchanged)
 
-**Changes Made:**
-- Changed Edit button from `bg-brand-primary-600` to `bg-blue-600`
-- Changed hover from `hover:bg-brand-primary-700` to `hover:bg-blue-700`
-- Reason: brand-primary-600 variable was not defined in Tailwind config
-
-**Verification:**
-- Browser testing confirmed Edit button now has blue background
-- All three buttons visible on right side:
-  - Edit: Blue (`bg-blue-600`) with pencil icon
-  - Ubah Status: Amber (`bg-amber-500`) with checkmark icon
-  - Ajukan Mutasi: Teal (`bg-teal-600`) with arrows icon
-- Hover effects working correctly (scale, shadow, background darkening)
-- Edit button navigation tested and working
-
-**Result:** ✅ COMPLETE
+**Verification:** Visual inspection needed at `/admin/mutations/create`
 
 ---
 
-## Final Status
-✅ All buttons enhanced with icons, colors, and hover effects
-✅ All buttons positioned on the right side
-✅ Edit button color fixed and visible
-✅ Browser verification passed
-✅ All functionality working correctly
+## Step 8: Build Verification
+**Command:** `npm run build`
+**Status:** Running...

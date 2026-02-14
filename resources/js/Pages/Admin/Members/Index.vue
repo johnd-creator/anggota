@@ -20,6 +20,12 @@
         </div>
       </div>
     <AlertBanner v-if="$page.props.admin_unit_missing" type="warning" message="Akun admin belum dikaitkan dengan unit" />
+    <div class="mb-3">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-sm font-medium text-neutral-700">Filter berdasarkan Unit:</span>
+        <span v-if="selectedUnit" class="text-sm text-neutral-600">Unit Terpilih: {{ unitLabel(selectedUnit) }}</span>
+      </div>
+    </div>
     <CardContainer padding="sm">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
         <InputField v-model="search" placeholder="Cari nama/nip/email" />
@@ -124,7 +130,7 @@
   const page = usePage();
   const members = computed(() => page.props.members);
   const units = page.props.units || [];
-  const unitOptions = units.map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
+  const unitOptions = units.map(u => ({ label: u.name, value: u.id }));
   const isPengurus = computed(() => page.props.auth.user.role?.name === 'pengurus');
 
 const initialFilters = page.props.filters || {};
@@ -158,7 +164,9 @@ function reload(){
 
 function applyFilters(){ reload(); }
 
-function unitLabel(id){ const u = units.find(x => x.id === id); return u ? `${u.code} - ${u.name}` : `Unit ${id}`; }
+function unitLabel(id){ const u = units.find(x => x.id === id); return u ? u.name : `Unit ${id}`; }
+
+function getUnitNameOnly(id){ const u = units.find(x => x.id === id); return u ? u.name : `Unit ${id}`; }
 function removeUnit(id){ filters.units = filters.units.filter(x => x !== id); }
 
 function resetFilters(){

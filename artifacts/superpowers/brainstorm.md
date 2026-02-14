@@ -1,82 +1,72 @@
-## Goal
-Improve the UX of action buttons on the member detail page (`/admin/members/{id}`) to make them more visually appealing, interactive, and modern instead of plain and boring.
+# Goal
+Modify the 'Unit' dropdown filter to display only the unit name (`[Nama Unit]`) in the UI, while keeping the unit code as the underlying value for backend operations.
 
-## Constraints
-- Must maintain existing functionality (Edit, Ubah Status, Ajukan Mutasi)
-- Should follow existing design system (brand colors, spacing)
-- Must work on mobile and desktop viewports
-- Cannot modify backend routes or permissions logic
-- Frontend-only changes (Vue component)
+# Constraints
+- The unit code must remain as the value used in the backend/database queries
+- Only the visual label in the dropdown should change
+- Existing functionality and data flow must not be disrupted
+- Changes should be localized to the dropdown display logic
 
-## Known context
-- Current buttons (lines 5-7 in Show.vue) use minimal styling: `px-3 py-1.5 border rounded-lg text-sm`
-- Buttons are plain with no color, no icons, no hover effects
-- Three buttons: "Edit", "Ubah Status", "Ajukan Mutasi"
-- Buttons are only visible for non-pengurus roles
-- The page uses CardContainer, Badge, and other UI components from the design system
-- Tab navigation below uses better styling with active states
+# Known context
+- The application is a Laravel + Inertia.js application (based on open files showing Inertia middleware)
+- Current dropdown format: `[Kode] - [Nama Unit]`
+- The dropdown is used for filtering purposes
+- Unit data likely comes from a database model with both `kode` and `nama` fields
 
-## Risks
-1. **Low**: Button colors might clash with existing design - mitigation: use established brand colors
-2. **Low**: Icons might not be clear - mitigation: use standard, recognizable icons
-3. **Medium**: Too many visual changes might overwhelm users - mitigation: keep changes subtle but effective
-4. **Low**: Mobile layout might break - mitigation: ensure responsive design with proper wrapping
+# Risks
+1. **Data inconsistency**: If the dropdown value binding is not properly configured, the wrong data might be sent to the backend
+2. **Multiple dropdown instances**: There may be multiple places where unit dropdowns are used, requiring changes in several files
+3. **Backend expectations**: Backend code might expect a specific format and could break if the value structure changes unexpectedly
+4. **User confusion**: Users accustomed to seeing the code might initially be confused by its absence
 
-## Options
+# Options
 
-### Option 1: Minimal Enhancement
-- Add subtle background colors (neutral for secondary actions)
-- Add hover states (background darkening)
-- Keep existing layout and spacing
+## Option 1: Modify the data transformation in the controller
+- Transform the unit data in the backend controller before sending to the frontend
+- Use Laravel's `map()` or `transform()` to create a `label` field with only the name
+- Keep the `value` field as the code
+- **Pros**: Centralized change, easy to maintain
+- **Cons**: Requires identifying all controllers that provide unit data
 
-**Pros**: Quick, low risk, maintains familiarity
-**Cons**: May not fully address "polos dan membosankan" concern
+## Option 2: Transform data in the Inertia component
+- Keep backend data unchanged
+- Transform the display in the Vue/React component using computed properties
+- Use `:label` and `:value` props separately in the dropdown component
+- **Pros**: No backend changes needed, flexible frontend control
+- **Cons**: May need to update multiple components if unit dropdowns are reused
 
-### Option 2: Icon + Color Enhancement
-- Add icons to each button (pencil for Edit, status icon for Ubah Status, arrows for Mutasi)
-- Use color-coded buttons:
-  - Edit: Primary brand color (blue)
-  - Ubah Status: Warning/info color (amber/yellow)
-  - Ajukan Mutasi: Secondary brand color
-- Add hover effects with scale and shadow
-- Improve spacing between buttons
+## Option 3: Create a custom accessor in the Unit model
+- Add a `display_name` accessor to the Unit model that returns only the name
+- Use this accessor wherever unit dropdowns are rendered
+- **Pros**: Reusable across the application, follows Laravel conventions
+- **Cons**: Requires updating all dropdown implementations to use the new accessor
 
-**Pros**: Clear visual hierarchy, modern look, icons improve recognition
-**Cons**: More visual change, requires icon selection
+## Option 4: Modify the dropdown component itself
+- If there's a shared dropdown component, modify it to accept separate label and value formatters
+- Configure unit dropdowns to display name only while using code as value
+- **Pros**: DRY principle, single point of change if component is shared
+- **Cons**: Requires a shared component to exist
 
-### Option 3: Comprehensive Redesign
-- Redesign as a button group with dropdown for secondary actions
-- Add icons, colors, and animations
-- Include tooltips for clarity
-- Add loading states
-- Implement split button design
+# Recommendation
+**Option 2** (Transform data in the Inertia component) combined with **Option 4** (if a shared component exists).
 
-**Pros**: Most modern and polished
-**Cons**: Significant changes, may confuse existing users, more development time
+**Rationale**:
+- Keeps backend logic clean and unchanged
+- Provides maximum flexibility for frontend display
+- If a shared dropdown component exists, modifying it once will fix all instances
+- Easy to test and verify visually
+- Minimal risk to existing backend functionality
 
-## Recommendation
-**Option 2: Icon + Color Enhancement**
+**Implementation approach**:
+1. Locate the unit dropdown component(s) in `resources/js`
+2. Identify if a shared dropdown component is used (e.g., Select, Dropdown, etc.)
+3. Modify the component to use `:options` with `label` (nama only) and `value` (kode)
+4. Test to ensure the correct value is still sent to the backend
 
-This approach directly addresses the "polos dan membosankan" complaint by:
-1. **Adding visual interest** with icons that clarify each action
-2. **Using color coding** to create hierarchy and improve recognition
-3. **Implementing hover effects** (scale, shadow, background transitions) for better interactivity
-4. **Maintaining familiarity** while significantly improving aesthetics
-
-Implementation details:
-- **Edit button**: Primary blue with pencil icon (most common action)
-- **Ubah Status button**: Amber/yellow with status icon (important but less frequent)
-- **Ajukan Mutasi button**: Secondary color with transfer/arrows icon (specialized action)
-- Add `transition-all duration-200` for smooth animations
-- Add `hover:scale-105` and `hover:shadow-md` for interactive feedback
-- Increase gap from `gap-2` to `gap-3` for better separation
-
-## Acceptance criteria
-- [ ] Buttons have distinct colors matching their action type
-- [ ] Each button has an appropriate icon
-- [ ] Hover effects are smooth and noticeable (scale, shadow, background)
-- [ ] Buttons maintain proper spacing (gap-3 minimum)
-- [ ] Layout is responsive on mobile (buttons wrap gracefully)
-- [ ] All existing functionality works (navigation, permissions)
-- [ ] No console errors or warnings
-- [ ] Visual hierarchy is clear (Edit as primary, others as secondary)
+# Acceptance criteria
+- [ ] Unit dropdown displays only `[Nama Unit]` in the UI (no code visible)
+- [ ] Unit code is still used as the value in form submissions and API requests
+- [ ] Backend filtering logic continues to work correctly with unit codes
+- [ ] All instances of unit dropdowns across the application are updated
+- [ ] No console errors or warnings in the browser
+- [ ] Manual testing confirms filtering works as expected

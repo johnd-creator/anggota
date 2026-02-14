@@ -304,7 +304,7 @@ import { reactive, ref, computed } from 'vue';
 const page = usePage();
 const member = page.props.member || null;
 const units = page.props.units || [];
-const unitsOptions = units.map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
+const unitsOptions = units.map(u => ({ label: u.name, value: u.id }));
 const positions = page.props.positions || [];
 const positionOptions = positions.map(p => ({ label: p.name, value: p.id }));
 const statusOptions = [

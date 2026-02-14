@@ -66,7 +66,7 @@
             <label class="block text-sm font-medium text-neutral-700">Pilih Unit <span class="text-red-500">*</span></label>
             <select v-model="form.to_unit_id" class="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-primary-500">
               <option value="">Pilih Unit</option>
-              <option v-for="u in units" :key="u.id" :value="u.id">{{ u.code }} - {{ u.name }}</option>
+              <option v-for="u in units" :key="u.id" :value="u.id">{{ u.name }}</option>
             </select>
             <p v-if="form.errors.to_unit_id" class="text-xs text-status-error mt-1">{{ form.errors.to_unit_id }}</p>
           </div>

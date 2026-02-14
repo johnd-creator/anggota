@@ -84,7 +84,7 @@ const page = usePage();
 const role = page.props.role;
 const users = page.props.users;
 const assignEmail = ref('');
-const unitOptions = (page.props.units||[]).map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
+const unitOptions = (page.props.units||[]).map(u => ({ label: u.name, value: u.id }));
 const assignUnit = ref('');
 
 // Remove user state

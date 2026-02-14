@@ -134,7 +134,7 @@ import SummaryCard from '@/Components/UI/SummaryCard.vue';
  const positions = page.props.positions || [];
  const stats = page.props.stats || [];
  const user = page.props.auth?.user || null;
- const unitOptions = units.map(u => ({ label: `${u.code} - ${u.name}`, value: u.id }));
+ const unitOptions = units.map(u => ({ label: u.name, value: u.id }));
  const positionOptions = positions.map(p => ({ label: p.name, value: p.id }));
 
  const isGlobalUser = computed(() => {

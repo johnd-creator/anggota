@@ -44,3 +44,6 @@ laravel-worker.conf
 backup_before_deploy_20260204_201657.sql
 .gitignore
 backup_before_deploy_20260204_201652.sql
+artifacts/superpowers/brainstorm.md
+artifacts/superpowers/execution.md
+artifacts/superpowers/plan.md
