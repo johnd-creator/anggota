@@ -194,7 +194,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { router, Link, useForm } from '@inertiajs/vue3'
+import { router, Link, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
 import InputField from '@/Components/UI/InputField.vue'
@@ -217,6 +217,8 @@ const props = defineProps({
   canApprove: { type: Boolean, default: false },
   focusLedgerId: { type: Number, default: null },
 })
+
+const page = usePage()
 
 const search = ref(props.filters.search || '')
 const type = ref(props.filters.type || '')
@@ -294,7 +296,7 @@ function canEdit(ledger) {
   // For simplicity, show edit/delete if status is draft or submitted
   // Backend policy will enforce the actual permission
   // pengurus role cannot edit/delete (read-only)
-  if ($page.props.auth.user.role?.name === 'pengurus') return false
+  if (page.props.auth.user.role?.name === 'pengurus') return false
   if (!props.workflowEnabled) return true
   return ['draft', 'submitted'].includes(ledger.status)
 }
