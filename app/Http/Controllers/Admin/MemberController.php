@@ -142,6 +142,7 @@ class MemberController extends Controller
             'phone' => ['nullable', 'regex:/^(\+62|62)8\d{7,11}$|^0[8-9]\d{7,11}$/'],
             'birth_place' => 'nullable|string|max:100',
             'birth_date' => 'nullable|date',
+            'gender' => 'nullable|in:L,P',
             'address' => 'nullable|string',
             'emergency_contact' => 'nullable|string|max:100',
             'job_title' => 'nullable|string|max:100',
@@ -281,6 +282,7 @@ class MemberController extends Controller
             'phone' => ['nullable', 'regex:/^(\+62|62)8\d{7,11}$|^0[8-9]\d{7,11}$/'],
             'birth_place' => 'nullable|string|max:100',
             'birth_date' => 'nullable|date',
+            'gender' => 'nullable|in:L,P',
             'address' => 'nullable|string',
             'emergency_contact' => 'nullable|string|max:100',
             'job_title' => 'nullable|string|max:100',
@@ -341,10 +343,11 @@ class MemberController extends Controller
             Log::error('Member update failed', [
                 'member_id' => $member->id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            return back()->withErrors(['general' => 'Terjadi kesalahan pada server'])
-                ->with('error', 'Terjadi kesalahan pada server')
+            return redirect()->route('admin.members.edit', $member)
+                ->withErrors(['general' => 'Gagal menyimpan: '.$e->getMessage()])
                 ->withInput();
         }
     }

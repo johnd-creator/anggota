@@ -6,6 +6,12 @@
           <h2 class="text-lg font-semibold text-neutral-900">Kotak Masuk</h2>
           <p class="text-sm text-neutral-500">Surat yang ditujukan kepada Anda.</p>
         </div>
+        <Link v-if="canCreateLetter" href="/letters/create" class="inline-flex items-center gap-2 px-4 py-2 bg-brand-primary-600 text-white text-sm font-medium rounded-lg hover:bg-brand-primary-700 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Buat Surat
+        </Link>
       </div>
 
       <!-- Stats -->
@@ -148,6 +154,12 @@ const props = defineProps({
 const search = ref(props.filters?.search || '')
 const status = ref(props.filters?.status || '')
 const categoryId = ref(props.filters?.category_id || '')
+
+const page = usePage()
+const user = page.props.auth?.user
+const roleName = user?.role?.name
+
+const canCreateLetter = ['admin_unit', 'admin_pusat', 'bendahara', 'bendahara_pusat', 'super_admin', 'pengurus'].includes(roleName)
 
 watch([search, status, categoryId], ([s, st, cat]) => {
   router.get('/letters/inbox', { search: s, status: st, category_id: cat }, { preserveState: true, replace: true })

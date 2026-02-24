@@ -289,7 +289,7 @@ Route::middleware(['auth'])->group(function () {
             ->name('approvals');
 
         // Outbox & Create/Edit - sender roles only
-        Route::middleware('role:admin_unit,admin_pusat,super_admin,pengurus')->group(function () {
+        Route::middleware('role:admin_unit,admin_pusat,bendahara,super_admin,pengurus')->group(function () {
             Route::get('outbox', [\App\Http\Controllers\LetterController::class, 'outbox'])->name('outbox');
             Route::get('create', [\App\Http\Controllers\LetterController::class, 'create'])->name('create');
             Route::get('template-render', [\App\Http\Controllers\LetterController::class, 'templateRender'])->name('template-render');
@@ -325,7 +325,7 @@ Route::middleware(['auth'])->group(function () {
 
         // Attachments
         Route::post('{letter}/attachments', [\App\Http\Controllers\Letter\AttachmentController::class, 'store'])
-            ->middleware('role:admin_unit,admin_pusat,super_admin')
+            ->middleware('role:admin_unit,admin_pusat,bendahara,super_admin')
             ->name('attachments.store');
         Route::get('{letter}/attachments/{attachment}', [\App\Http\Controllers\Letter\AttachmentController::class, 'download'])
             ->middleware('role:anggota,bendahara,admin_unit,admin_pusat,super_admin')
@@ -344,7 +344,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Member search API for letter recipient autocomplete
     Route::get('api/members/search', [\App\Http\Controllers\LetterController::class, 'searchMembers'])
-        ->middleware('role:admin_unit,admin_pusat,super_admin,pengurus')
+        ->middleware('role:admin_unit,admin_pusat,bendahara,super_admin,pengurus')
         ->name('api.members.search');
 
     Route::get('/member/profile', [\App\Http\Controllers\Member\SelfProfileController::class, 'show'])->middleware('role:anggota,super_admin,admin_unit,bendahara,pengurus')->name('member.profile');

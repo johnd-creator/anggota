@@ -609,9 +609,13 @@ const showApprovalsCard = computed(() => {
 const showDuesCard = computed(() => {
     // Hide old card if finance dashboard is shown
     if (finance.value) return false;
-    return ['admin_unit', 'bendahara', 'super_admin'].includes(roleName.value);
+    return ['admin_unit', 'super_admin'].includes(roleName.value);
 });
-const showMemberDuesCard = computed(() => isMemberRole.value && !!duesSummary.value);
+const showMemberDuesCard = computed(() => {
+    // Only show for anggota and admin_unit, NOT for bendahara (they have finance dashboard)
+    if (roleName.value === 'bendahara') return false;
+    return isMemberRole.value && !!duesSummary.value;
+});
 const unitBadgeText = computed(() => {
     if (!showUnitMembersCard.value) return '';
     const unit = pg.auth?.user?.organization_unit;

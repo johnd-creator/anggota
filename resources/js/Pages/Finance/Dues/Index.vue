@@ -187,15 +187,34 @@
       </ModalBase>
 
       <!-- Revert Confirmation Modal -->
-      <ModalBase v-model:show="showRevertModal" title="Batalkan Pembayaran" size="md">
+      <ModalBase v-model:show="showRevertModal" title="Batalkan Pembayaran Iuran" size="md">
         <div class="space-y-4">
-          <p class="text-neutral-600">Anda yakin ingin menandai iuran bulan <strong>{{ period }}</strong> untuk <strong>{{ $toTitleCase(selectedMember?.full_name) }}</strong> sebagai <strong>Belum Bayar</strong>?</p>
-          <p class="text-sm text-neutral-500">Nominal dan catatan pembayaran sebelumnya akan dihapus.</p>
+          <div class="flex items-start gap-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
+            <span class="material-icons-round text-amber-500 text-2xl mt-0.5">info</span>
+            <div>
+              <p class="text-sm text-amber-800">
+                Anda yakin ingin membatalkan pembayaran iuran bulan <strong>{{ period }}</strong> untuk <strong>{{ $toTitleCase(selectedMember?.full_name) }}</strong>?
+              </p>
+              <p class="text-sm text-amber-700 mt-2">
+                Status akan diubah menjadi <strong>Belum Bayar</strong> dan nominal pembayaran sebesar <strong>{{ formatCurrency(selectedMember?.amount) }}</strong> akan dihapus dari sistem.
+              </p>
+            </div>
+          </div>
         </div>
         <template #footer>
-          <div class="flex justify-end space-x-3">
-            <SecondaryButton @click="showRevertModal = false">Batal</SecondaryButton>
-            <PrimaryButton class="bg-status-error hover:bg-status-error-dark focus:ring-status-error" @click="submitRevert" :loading="submitting">Batalkan</PrimaryButton>
+          <div class="flex justify-end gap-3">
+            <button @click="showRevertModal = false" :disabled="submitting"
+              class="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed">
+              Kembali
+            </button>
+            <button @click="submitRevert" :disabled="submitting"
+              class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+              <svg v-if="submitting" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              Ya
+            </button>
           </div>
         </template>
       </ModalBase>

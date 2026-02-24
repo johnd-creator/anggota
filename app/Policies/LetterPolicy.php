@@ -45,11 +45,11 @@ class LetterPolicy
 
     /**
      * Determine if user can create letters.
-     * Only admin_unit, admin_pusat, bendahara_pusat, super_admin, pengurus
+     * Only admin_unit, admin_pusat, bendahara, bendahara_pusat, super_admin, pengurus
      */
     public function create(User $user): bool
     {
-        return $user->hasRole(['admin_unit', 'admin_pusat', 'bendahara_pusat', 'super_admin', 'pengurus']);
+        return $user->hasRole(['admin_unit', 'admin_pusat', 'bendahara', 'bendahara_pusat', 'super_admin', 'pengurus']);
     }
 
     /**
@@ -229,14 +229,17 @@ class LetterPolicy
                 return $user->member_id && $letter->to_member_id === $user->member_id;
 
             case 'unit':
-                // User belongs to the destination unit
+                // User belongs to the destination unit (admin_unit, pengurus, bendahara)
                 $userUnitId = $user->currentUnitId();
+                if (! $user->hasRole(['admin_unit', 'pengurus', 'bendahara'])) {
+                    return false;
+                }
 
                 return $userUnitId !== null && $letter->to_unit_id === $userUnitId;
 
             case 'admin_pusat':
-                // Only admin_pusat or super_admin can see these
-                return $user->hasRole(['admin_pusat', 'super_admin']);
+                // admin_pusat, super_admin, and bendahara can see these
+                return $user->hasRole(['admin_pusat', 'bendahara', 'super_admin']);
 
             default:
                 return false;
@@ -256,8 +259,8 @@ class LetterPolicy
                 return $user->member_id && $letter->to_member_id === $user->member_id;
 
             case 'unit':
-                // Only admin roles of that unit can view
-                if (! $user->hasRole(['admin_unit', 'admin_pusat'])) {
+                // Only admin and pengurus roles of that unit can view
+                if (! $user->hasRole(['admin_unit', 'pengurus', 'bendahara', 'admin_pusat'])) {
                     return false;
                 }
                 $userUnitId = $user->currentUnitId();

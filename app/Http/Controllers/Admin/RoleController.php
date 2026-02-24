@@ -82,6 +82,16 @@ class RoleController extends Controller
             $rules['organization_unit_id'] = ['required', 'exists:organization_units,id'];
         }
 
+        // bendahara: require organization_unit_id
+        if ($role->name === 'bendahara') {
+            $rules['organization_unit_id'] = ['required', 'exists:organization_units,id'];
+        }
+
+        // pengurus: require organization_unit_id
+        if ($role->name === 'pengurus') {
+            $rules['organization_unit_id'] = ['required', 'exists:organization_units,id'];
+        }
+
         // bendahara_pusat: auto-assign to DPP
         if ($role->name === 'bendahara_pusat') {
             $dppOrg = \App\Models\OrganizationUnit::where('is_pusat', true)->first();

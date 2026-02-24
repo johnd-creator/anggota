@@ -21,12 +21,6 @@
         <div class="w-full max-w-xs">
           <InputField v-model="search" placeholder="Cari nama/email" class="w-full" />
         </div>
-        <div>
-          <SelectField v-model="filter.status" :options="statusOptions" class="w-40" />
-        </div>
-        <div>
-          <SelectField v-model="filter.unit" :options="unitOptions" class="w-64" />
-        </div>
       </div>
     </CardContainer>
 
@@ -137,17 +131,10 @@ import SummaryCard from '@/Components/UI/SummaryCard.vue';
  const unitOptions = units.map(u => ({ label: u.name, value: u.id }));
  const positionOptions = positions.map(p => ({ label: p.name, value: p.id }));
 
- const isGlobalUser = computed(() => {
-   return user && (user.role?.name === 'super_admin' || user.role?.name === 'admin_pusat');
- });
-const statusOptions = [
-  {label:'Semua Status', value:''},
-  {label:'Pending', value:'pending'},
-  {label:'Approved', value:'approved'},
-  {label:'Rejected', value:'rejected'},
-];
+  const isGlobalUser = computed(() => {
+    return user && (user.role?.name === 'super_admin' || user.role?.name === 'admin_pusat');
+  });
 const search = ref('');
-const filter = reactive({ status:'', unit:'' });
 
 const panelOpen = ref(false);
 const activeItem = ref(null);
@@ -156,8 +143,8 @@ const approveForm = reactive({ full_name:'', nip:'', union_position_id:'', email
 const rejectReason = ref('');
 const toast = reactive({ show:false, message:'', type:'info' });
 
-watch([search, () => filter.status, () => filter.unit], ([s, st, u]) => {
-    router.get('/admin/onboarding', { search: s, status: st, unit: u }, { preserveState: true, replace: true });
+watch(search, (s) => {
+    router.get('/admin/onboarding', { search: s }, { preserveState: true, replace: true });
 });
 
 

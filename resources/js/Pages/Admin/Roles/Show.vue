@@ -13,12 +13,18 @@
         <div class="text-sm"><span class="font-semibold">Deskripsi:</span> {{ role.description || '-' }}</div>
         <div class="text-sm"><span class="font-semibold">Domain Whitelist:</span> {{ (role.domain_whitelist||[]).join(', ') || '-' }}</div>
         <div class="mt-4">
-          <div class="text-sm font-semibold mb-2">Assign ke User</div>
+          <div class="text-sm font-semibold mb-2">
+            Assign ke User
+            <span v-if="['bendahara','pengurus'].includes(role.name)" class="text-xs text-amber-600 font-normal ml-2">(wajib pilih unit)</span>
+          </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             <InputField v-model="assignEmail" label="Email pengguna" />
-            <SelectField v-if="role.name==='admin_unit'" v-model="assignUnit" :options="unitOptions" label="Unit Pembangkit" />
+            <SelectField v-if="['admin_unit','bendahara','pengurus'].includes(role.name)" v-model="assignUnit" :options="unitOptions" label="Unit Organisasi *" required />
             <SecondaryButton class="md:justify-self-end" @click="assign">Assign</SecondaryButton>
           </div>
+          <p v-if="['bendahara','pengurus'].includes(role.name)" class="text-xs text-amber-600 mt-2">
+            ⚠️ User dengan role ini harus memiliki unit organisasi untuk mengakses fitur keuangan dan manajemen anggota.
+          </p>
         </div>
       </CardContainer>
 
@@ -94,7 +100,16 @@ const removing = ref(false);
 
 function assign(){
   const payload = { email: assignEmail.value };
-  if (role.name==='admin_unit') payload.organization_unit_id = assignUnit.value;
+
+  // Validate and set organization_unit_id for roles that require it
+  if (['admin_unit','bendahara','pengurus'].includes(role.name)) {
+    if (!assignUnit.value) {
+      alert('Unit organisasi wajib dipilih untuk role ini');
+      return;
+    }
+    payload.organization_unit_id = assignUnit.value;
+  }
+
   router.post(`/admin/roles/${role.id}/assign`, payload);
 }
 

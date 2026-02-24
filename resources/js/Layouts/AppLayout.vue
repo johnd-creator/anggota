@@ -73,8 +73,8 @@
           </button>
           <div v-show="expandedSections.letters" class="ml-6 space-y-1">
             <Link href="/letters/inbox" :class="subMenuItemClass('/letters/inbox')">Kotak Masuk</Link>
-            <Link v-if="isSuperAdmin || isAdminUnit || isAdminPusat || isPengurus" href="/letters/outbox" :class="subMenuItemClass('/letters/outbox')">Surat Keluar</Link>
-            <Link v-if="isSuperAdmin || canApproveLetters" href="/letters/approvals" :class="subMenuItemClass('/letters/approvals')">Perlu Persetujuan</Link>
+            <Link v-if="isSuperAdmin || isAdminUnit || isAdminPusat || isPengurus || isTreasurer" href="/letters/outbox" :class="subMenuItemClass('/letters/outbox')">Surat Keluar</Link>
+            <Link v-if="isSuperAdmin || canApproveLetters || isTreasurer" href="/letters/approvals" :class="subMenuItemClass('/letters/approvals')">Perlu Persetujuan</Link>
           </div>
         </template>
 
@@ -626,7 +626,7 @@ const canViewMembers = computed(() => ['super_admin', 'admin_unit', 'admin_pusat
 const canManageMembers = computed(() => ['super_admin', 'admin_unit', 'admin_pusat'].includes(roleName.value));
 const isMember = computed(() => ['anggota', 'admin_unit', 'bendahara', 'pengurus'].includes(roleName.value));
 const unionPositionName = computed(() => (page.props?.auth?.user?.union_position?.name || '').toLowerCase());
-const canApproveLetters = computed(() => ['ketua', 'sekretaris'].includes(unionPositionName.value));
+const canApproveLetters = computed(() => ['ketua', 'sekretaris', 'bendahara'].includes(unionPositionName.value));
 // Member self-service availability (profile + KTA portal).
 // Some users may not have role `anggota` (e.g. admin_unit/bendahara, or global admins)
 // but still have an associated Member record.

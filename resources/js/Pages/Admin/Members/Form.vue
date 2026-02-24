@@ -41,6 +41,27 @@
         </div>
 
         <form @submit.prevent="submit" class="p-8 space-y-10">
+          <div v-if="$page.props.errors?.general" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+            <div class="flex items-start gap-3">
+              <span class="material-icons-round text-red-500 text-xl mt-0.5">error</span>
+              <div class="flex-1">
+                <p class="text-sm font-semibold text-red-800">Gagal menyimpan data</p>
+                <p class="text-sm text-red-700 mt-1">{{ $page.props.errors.general }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="Object.keys(serverErrors).length > 0 && !$page.props.errors?.general" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+            <div class="flex items-start gap-3">
+              <span class="material-icons-round text-red-500 text-xl mt-0.5">warning</span>
+              <div class="flex-1">
+                <p class="text-sm font-semibold text-red-800">Mohon perbaiki kesalahan berikut:</p>
+                <ul class="text-sm text-red-700 mt-1 list-disc list-inside">
+                  <li v-for="(error, field) in serverErrors" :key="field">{{ error }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
           <!-- Step 1: Personal Identity -->
           <section v-show="step === 1">
             <div class="flex items-center gap-2 mb-6">
@@ -158,9 +179,9 @@
                 <p v-if="err('kta_number')" class="mt-1.5 text-sm text-red-500">{{ err('kta_number') }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="union_position_id">Jabatan Serikat</label>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="union_position_id">Jabatan Serikat <span class="text-red-500">*</span></label>
                 <div class="relative">
-                  <select v-model="form.union_position_id" id="union_position_id" :disabled="submitting"
+                  <select v-model="form.union_position_id" id="union_position_id" :disabled="submitting" required
                     class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:ring-2 focus:ring-[#1E3A8A]/20 focus:border-[#1E3A8A] appearance-none transition-all duration-200 shadow-sm cursor-pointer">
                     <option value="">Pilih Jabatan</option>
                     <option v-for="pos in positionOptions" :key="pos.value" :value="pos.value">{{ pos.label }}</option>
@@ -170,9 +191,9 @@
                 <p v-if="err('union_position_id')" class="mt-1.5 text-sm text-red-500">{{ err('union_position_id') }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="employment_type">Employment Type</label>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="employment_type">Employment Type <span class="text-red-500">*</span></label>
                 <div class="relative">
-                  <select v-model="form.employment_type" id="employment_type" :disabled="submitting"
+                  <select v-model="form.employment_type" id="employment_type" :disabled="submitting" required
                     class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:ring-2 focus:ring-[#1E3A8A]/20 focus:border-[#1E3A8A] appearance-none transition-all duration-200 shadow-sm cursor-pointer">
                     <option value="organik">Organik</option>
                     <option value="tkwt">TKWT</option>
@@ -182,9 +203,9 @@
                 <p v-if="err('employment_type')" class="mt-1.5 text-sm text-red-500">{{ err('employment_type') }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="status">Status</label>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5" for="status">Status <span class="text-red-500">*</span></label>
                 <div class="relative">
-                  <select v-model="form.status" id="status" :disabled="submitting"
+                  <select v-model="form.status" id="status" :disabled="submitting" required
                     class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:ring-2 focus:ring-[#1E3A8A]/20 focus:border-[#1E3A8A] appearance-none transition-all duration-200 shadow-sm cursor-pointer">
                     <option v-for="st in statusOptions" :key="st.value" :value="st.value">{{ st.label }}</option>
                   </select>
@@ -268,29 +289,29 @@
               </div>
             </div>
           </section>
-        </form>
 
-        <!-- Footer Actions -->
-        <div class="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-          <button type="button" @click="prevStep" :disabled="step === 1 || submitting"
-            class="px-6 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed">
-            Back
-          </button>
-          <div class="flex gap-3">
-            <button v-if="step < 3" type="button" @click="nextStep" :disabled="submitting"
-              class="px-6 py-2.5 rounded-xl text-sm font-medium text-[#1E3A8A] bg-white border border-[#1E3A8A]/20 hover:bg-blue-50 transition-all duration-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/50 disabled:opacity-50 disabled:cursor-not-allowed">
-              Next
+          <!-- Footer Actions inside form -->
+          <div class="mt-10 py-6 bg-slate-50 border-t border-slate-100 -mx-8 -mb-8 px-8 flex justify-between items-center rounded-b-2xl">
+            <button type="button" @click="prevStep" :disabled="step === 1 || submitting"
+              class="px-6 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed">
+              Back
             </button>
-            <button type="submit" :disabled="submitting"
-              class="px-6 py-2.5 rounded-xl text-sm font-medium text-white bg-[#1E3A8A] hover:bg-[#172554] shadow-lg shadow-[#1E3A8A]/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E3A8A] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-              <svg v-if="submitting" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-              </svg>
-              {{ member ? 'Update' : 'Save' }}
-            </button>
+            <div class="flex gap-3">
+              <button v-if="step < 3" type="button" @click="nextStep" :disabled="submitting"
+                class="px-6 py-2.5 rounded-xl text-sm font-medium text-[#1E3A8A] bg-white border border-[#1E3A8A]/20 hover:bg-blue-50 transition-all duration-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/50 disabled:opacity-50 disabled:cursor-not-allowed">
+                Next
+              </button>
+              <button type="submit" :disabled="submitting"
+                class="px-6 py-2.5 rounded-xl text-sm font-medium text-white bg-[#1E3A8A] hover:bg-[#172554] shadow-lg shadow-[#1E3A8A]/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E3A8A] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                <svg v-if="submitting" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                {{ member ? 'Update' : 'Save' }}
+              </button>
+            </div>
           </div>
-        </div>
+        </form>
       </main>
     </div>
   </AppLayout>
@@ -363,7 +384,12 @@ function previewUrl(file) { return URL.createObjectURL(file); }
 
 function submit() {
   const data = new FormData();
-  Object.entries(form).forEach(([k, v]) => data.append(k, v ?? ''));
+  const { company_email, ...formWithoutCompanyEmail } = form;
+  Object.entries(formWithoutCompanyEmail).forEach(([k, v]) => {
+    if (v !== null && v !== undefined && v !== '') {
+      data.append(k, v);
+    }
+  });
   if (photo) data.append('photo', photo);
   documents.forEach(d => data.append('documents[]', d));
 
@@ -377,15 +403,36 @@ function submit() {
 
   const options = {
     forceFormData: true,
-    onStart() { submitting.value = true; },
+    onStart() {
+      console.log('Form submit started');
+      submitting.value = true;
+    },
     onProgress: (e) => { if (e && e.percentage) progress.value = e.percentage; },
-    onFinish() { submitting.value = false; },
+    onFinish() {
+      console.log('Form submit finished');
+      submitting.value = false;
+    },
     onError(errs) {
+      console.log('Form submit errors:', errs);
       const personalFields = ['full_name', 'email', 'phone', 'birth_place', 'birth_date', 'address', 'emergency_contact', 'nip', 'gender'];
       const orgFields = ['job_title', 'kta_number', 'union_position_id', 'employment_type', 'status', 'join_date', 'company_join_date', 'organization_unit_id', 'notes'];
       const keys = Object.keys(errs || {});
+      console.log('Error fields:', keys);
+
       if (keys.some(k => personalFields.includes(k))) step.value = 1;
       else if (keys.some(k => orgFields.includes(k))) step.value = 2;
+
+      if (keys.length > 0) {
+        const firstErrorField = keys[0];
+        const element = document.getElementById(firstErrorField);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.focus();
+        }
+      }
+    },
+    onSuccess() {
+      console.log('Form submit successful');
     }
   };
   if (member) {
