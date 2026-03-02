@@ -63,34 +63,34 @@ class MemberImportService
         $normalized = $row;
 
         // Name
-        if (empty($normalized['full_name']) && ! empty($normalized['personal_full_name'])) {
+        if (empty($normalized['full_name']) && !empty($normalized['personal_full_name'])) {
             $normalized['full_name'] = $normalized['personal_full_name'];
         }
 
         // Primary member email in this app historically corresponds to personal email (if available).
         // Fall back to company_email when personal email is not provided.
         if (empty($normalized['email'])) {
-            if (! empty($normalized['personal_email'])) {
+            if (!empty($normalized['personal_email'])) {
                 $normalized['email'] = $normalized['personal_email'];
-            } elseif (! empty($normalized['company_email'])) {
+            } elseif (!empty($normalized['company_email'])) {
                 $normalized['email'] = $normalized['company_email'];
             }
         }
 
         // Phone / NIP / dates
-        if (empty($normalized['phone']) && ! empty($normalized['personal_phone'])) {
+        if (empty($normalized['phone']) && !empty($normalized['personal_phone'])) {
             $normalized['phone'] = $normalized['personal_phone'];
         }
-        if (empty($normalized['nip']) && ! empty($normalized['personal_nip'])) {
+        if (empty($normalized['nip']) && !empty($normalized['personal_nip'])) {
             $normalized['nip'] = $normalized['personal_nip'];
         }
-        if (empty($normalized['birth_place']) && ! empty($normalized['personal_birth_place'])) {
+        if (empty($normalized['birth_place']) && !empty($normalized['personal_birth_place'])) {
             $normalized['birth_place'] = $normalized['personal_birth_place'];
         }
-        if (empty($normalized['birth_date']) && ! empty($normalized['personal_birth_date'])) {
+        if (empty($normalized['birth_date']) && !empty($normalized['personal_birth_date'])) {
             $normalized['birth_date'] = $normalized['personal_birth_date'];
         }
-        if (empty($normalized['gender']) && ! empty($normalized['personal_gender'])) {
+        if (empty($normalized['gender']) && !empty($normalized['personal_gender'])) {
             $normalized['gender'] = $normalized['personal_gender'];
         }
 
@@ -172,7 +172,7 @@ class MemberImportService
                 $rowErrors = array_merge($rowErrors, $this->dbConflictErrors($row, $effectiveUnitId));
             }
 
-            if (! empty($rowErrors)) {
+            if (!empty($rowErrors)) {
                 $errors[] = [
                     'row_number' => $rowNumber,
                     'errors' => $rowErrors,
@@ -259,7 +259,7 @@ class MemberImportService
     public function preview(UploadedFile $file, ?int $unitId, User $actor): ImportBatch
     {
         // Store file securely (not public)
-        $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
+        $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
         $storedPath = $file->storeAs('imports', $filename, 'local');
         $fileHash = hash_file('sha256', $file->getRealPath());
 
@@ -353,7 +353,7 @@ class MemberImportService
             $errors[] = $this->createFieldError(
                 'full_name',
                 'critical',
-                mb_substr($fullName, 0, 50).'...',
+                mb_substr($fullName, 0, 50) . '...',
                 'Nama lengkap terlalu panjang (maksimal 255 karakter)',
                 'Maksimal 255 karakter'
             );
@@ -366,15 +366,15 @@ class MemberImportService
                 'critical',
                 null,
                 'Status keanggotaan wajib diisi',
-                'Gunakan salah satu: '.implode(', ', self::VALID_STATUSES)
+                'Gunakan salah satu: ' . implode(', ', self::VALID_STATUSES)
             );
-        } elseif (! in_array($status, self::VALID_STATUSES, true)) {
+        } elseif (!in_array($status, self::VALID_STATUSES, true)) {
             $errors[] = $this->createFieldError(
                 'status',
                 'critical',
                 $status,
                 "Status '{$status}' tidak valid",
-                'Gunakan salah satu: '.implode(', ', self::VALID_STATUSES)
+                'Gunakan salah satu: ' . implode(', ', self::VALID_STATUSES)
             );
         }
 
@@ -395,7 +395,7 @@ class MemberImportService
                 'Email pribadi (Gmail) wajib diisi untuk login dengan Google SSO',
                 'Gunakan email Gmail, contoh: nama@gmail.com (kolom personal_email atau email)'
             );
-        } elseif (! str_ends_with($personalEmail, '@gmail.com')) {
+        } elseif (!str_ends_with($personalEmail, '@gmail.com')) {
             $errors[] = $this->createFieldError(
                 'email',
                 'critical',
@@ -408,7 +408,7 @@ class MemberImportService
         // company_email: Jika diisi, harus domain @plnipservices.co.id (opsional)
         $companyEmail = isset($row['company_email']) ? strtolower(trim($row['company_email'])) : '';
 
-        if (! empty($companyEmail) && ! str_ends_with($companyEmail, '@plnipservices.co.id')) {
+        if (!empty($companyEmail) && !str_ends_with($companyEmail, '@plnipservices.co.id')) {
             $errors[] = $this->createFieldError(
                 'company_email',
                 'warning',
@@ -419,7 +419,7 @@ class MemberImportService
         }
 
         // email: Format email valid (hanya validasi jika diisi)
-        if (! empty($email) && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = $this->createFieldError(
                 'email',
                 'warning',
@@ -432,7 +432,7 @@ class MemberImportService
         // company_email: Jika diisi, harus domain @plnipservices.co.id (opsional)
         $companyEmail = isset($row['company_email']) ? strtolower(trim($row['company_email'])) : '';
 
-        if (! empty($companyEmail) && ! str_ends_with($companyEmail, '@plnipservices.co.id')) {
+        if (!empty($companyEmail) && !str_ends_with($companyEmail, '@plnipservices.co.id')) {
             $errors[] = $this->createFieldError(
                 'company_email',
                 'warning',
@@ -443,7 +443,7 @@ class MemberImportService
         }
 
         // email: Format email valid (hanya validasi jika diisi)
-        if (! empty($email) && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = $this->createFieldError(
                 'email',
                 'warning',
@@ -454,7 +454,7 @@ class MemberImportService
         }
 
         // phone: Format telepon valid (digit, spasi, +, -, (, ))
-        if (! empty($phone) && ! preg_match('/^[\d\s\-\+\(\)]+$/', $phone)) {
+        if (!empty($phone) && !preg_match('/^[\d\s\-\+\(\)]+$/', $phone)) {
             $errors[] = $this->createFieldError(
                 'phone',
                 'warning',
@@ -465,7 +465,7 @@ class MemberImportService
         }
 
         // birth_date: Format tanggal valid
-        if (! empty($birthDate) && ! $this->parseDate($birthDate)) {
+        if (!empty($birthDate) && !$this->parseDate($birthDate)) {
             $errors[] = $this->createFieldError(
                 'birth_date',
                 'warning',
@@ -476,7 +476,7 @@ class MemberImportService
         }
 
         // gender: L atau P
-        if (! empty($gender) && ! in_array($gender, self::VALID_GENDERS, true)) {
+        if (!empty($gender) && !in_array($gender, self::VALID_GENDERS, true)) {
             $errors[] = $this->createFieldError(
                 'gender',
                 'warning',
@@ -487,7 +487,7 @@ class MemberImportService
         }
 
         // join_date: Format tanggal valid
-        if (! empty($joinDate) && ! $this->parseDate($joinDate)) {
+        if (!empty($joinDate) && !$this->parseDate($joinDate)) {
             $errors[] = $this->createFieldError(
                 'join_date',
                 'warning',
@@ -498,7 +498,7 @@ class MemberImportService
         }
 
         // employment_type: organik atau tkwt
-        if (! empty($employmentType) && ! in_array($employmentType, self::VALID_EMPLOYMENT_TYPES, true)) {
+        if (!empty($employmentType) && !in_array($employmentType, self::VALID_EMPLOYMENT_TYPES, true)) {
             $errors[] = $this->createFieldError(
                 'employment_type',
                 'warning',
@@ -509,7 +509,7 @@ class MemberImportService
         }
 
         // nip: Format alphanumeric (was numeric only)
-        if (! empty($nip) && ! preg_match('/^[A-Za-z0-9]+$/', $nip)) {
+        if (!empty($nip) && !preg_match('/^[A-Za-z0-9]+$/', $nip)) {
             $errors[] = $this->createFieldError(
                 'nip',
                 'warning',
@@ -520,7 +520,7 @@ class MemberImportService
         }
 
         // nra: Format UNIT-YEAR-SEQUENCE (pattern: ^[A-Z]-\d{4}-\d{3,4}$)
-        if (! empty($nra) && ! preg_match('/^[A-Z]+-\d{4}-\d{3,4}$/', $nra)) {
+        if (!empty($nra) && !preg_match('/^[A-Z]+-\d{4}-\d{3,4}$/', $nra)) {
             $errors[] = $this->createFieldError(
                 'nra',
                 'warning',
@@ -531,11 +531,11 @@ class MemberImportService
         }
 
         // union_position_code: Validasi exist di database
-        if (! empty($unionPosCode)) {
+        if (!empty($unionPosCode)) {
             $posExists = \App\Models\UnionPosition::where('code', $unionPosCode)
                 ->orWhere('name', $unionPosCode)
                 ->exists();
-            if (! $posExists) {
+            if (!$posExists) {
                 // Try case-insensitive search or suggest checking Master Data
                 $errors[] = $this->createFieldError(
                     'union_position_code',
@@ -560,7 +560,7 @@ class MemberImportService
                     'Unit organisasi wajib diisi untuk import global',
                     'Isi dengan ID unit organisasi yang valid'
                 );
-            } elseif (! OrganizationUnit::where('id', $orgUnitId)->exists()) {
+            } elseif (!OrganizationUnit::where('id', $orgUnitId)->exists()) {
                 $errors[] = $this->createFieldError(
                     'organization_unit_id',
                     'critical',
@@ -571,7 +571,7 @@ class MemberImportService
             }
         } else {
             // Unit-scoped batch: Check if row tries to inject different unit
-            if (! empty($orgUnitId) && (int) $orgUnitId !== (int) $unitId) {
+            if (!empty($orgUnitId) && (int) $orgUnitId !== (int) $unitId) {
                 $errors[] = $this->createFieldError(
                     'organization_unit_id',
                     'critical',
@@ -611,13 +611,13 @@ class MemberImportService
         $rows = [];
         $handle = fopen($file->getRealPath(), 'r');
 
-        if (! $handle) {
+        if (!$handle) {
             return [];
         }
 
         // Read header
         $header = fgetcsv($handle);
-        if (! $header) {
+        if (!$header) {
             fclose($handle);
 
             return [];
@@ -637,7 +637,7 @@ class MemberImportService
         // Read data rows
         while (($row = fgetcsv($handle)) !== false) {
             // Skip empty rows
-            if (! trim(implode('', $row))) {
+            if (!trim(implode('', $row))) {
                 continue;
             }
 
@@ -682,9 +682,9 @@ class MemberImportService
         }
         $local = $parts[0];
         $domain = $parts[1];
-        $maskedLocal = substr($local, 0, 2).'***';
+        $maskedLocal = substr($local, 0, 2) . '***';
 
-        return $maskedLocal.'@'.$domain;
+        return $maskedLocal . '@' . $domain;
     }
 
     /**
@@ -755,7 +755,7 @@ class MemberImportService
     public function parseStoredFile(string $storedPath): array
     {
         $disk = Storage::disk('local');
-        if (! $disk->exists($storedPath)) {
+        if (!$disk->exists($storedPath)) {
             return [];
         }
         $fullPath = $disk->path($storedPath);
@@ -767,16 +767,7 @@ class MemberImportService
         }
 
         if (in_array($extension, ['xlsx', 'xls'])) {
-            $rows = $this->parseXlsxWithSpout($fullPath);
-
-            if (empty($rows)) {
-                \Log::warning('Spout returned empty rows, trying PhpSpreadsheet fallback', [
-                    'path' => $fullPath,
-                ]);
-                $rows = $this->parseSpreadsheet($fullPath);
-            }
-
-            return $rows;
+            return $this->parseSpreadsheet($fullPath);
         }
 
         return [];
@@ -803,7 +794,7 @@ class MemberImportService
             $header = [];
             foreach ($headerRow as $key => $value) {
                 $normalized = strtolower(trim((string) $value));
-                if (! empty($normalized)) {
+                if (!empty($normalized)) {
                     $header[$key] = $normalized;
                 }
             }
@@ -816,7 +807,7 @@ class MemberImportService
             $rows = [];
             foreach ($data as $dataRow) {
                 // Skip empty rows
-                $nonEmpty = array_filter($dataRow, fn ($v) => ! empty(trim((string) $v)));
+                $nonEmpty = array_filter($dataRow, fn($v) => !empty(trim((string) $v)));
                 if (empty($nonEmpty)) {
                     continue;
                 }
@@ -830,92 +821,10 @@ class MemberImportService
 
             return $rows;
         } catch (\Exception $e) {
-            \Log::error('PhpSpreadsheet parse error: '.$e->getMessage(), [
+            \Log::error('PhpSpreadsheet parse error: ' . $e->getMessage(), [
                 'path' => $path,
                 'trace' => $e->getTraceAsString(),
             ]);
-
-            return [];
-        }
-    }
-
-    /**
-     * Parse XLSX/XLS file using Spout library (memory-efficient streaming).
-     */
-    private function parseXlsxWithSpout(string $path): array
-    {
-        try {
-            $reader = \Box\Spout\Reader\Common\Creator\ReaderEntityFactory::createReaderFromFile($path);
-            $reader->open($path);
-
-            $rows = [];
-            $header = null;
-
-            foreach ($reader->getSheetIterator() as $sheet) {
-                if (! $sheet->isActive()) {
-                    continue;
-                }
-
-                $rowIndex = 0;
-                foreach ($sheet->getRowIterator() as $row) {
-                    $cells = $row->getCells();
-                    $rowData = [];
-                    foreach ($cells as $cell) {
-                        $value = $cell->getValue();
-                        if ($value instanceof \DateTime) {
-                            $value = $value->format('Y-m-d');
-                        }
-                        $rowData[] = $value;
-                    }
-
-                    if ($rowIndex === 0) {
-                        // First row is header
-                        $header = [];
-                        foreach ($rowData as $colName) {
-                            $normalized = strtolower(trim((string) $colName));
-                            if (! empty($normalized)) {
-                                $header[] = $normalized;
-                            } else {
-                                // Keep empty slot to preserve column mapping
-                                $header[] = null;
-                            }
-                        }
-                        $rowIndex++;
-
-                        continue;
-                    }
-
-                    // Skip empty rows
-                    $nonEmpty = array_filter($rowData, fn ($v) => ! empty(trim((string) $v)));
-                    if (empty($nonEmpty)) {
-                        $rowIndex++;
-
-                        continue;
-                    }
-
-                    // Map to header keys
-                    $mapped = [];
-                    foreach ($header as $colIndex => $colName) {
-                        if ($colName !== null && isset($rowData[$colIndex])) {
-                            $mapped[$colName] = trim((string) $rowData[$colIndex]);
-                        }
-                    }
-                    $rows[] = $mapped;
-                    $rowIndex++;
-                }
-
-                break;
-            }
-
-            $reader->close();
-
-            return $rows;
-        } catch (\Exception $e) {
-            \Log::error('Spout parse error: '.$e->getMessage(), [
-                'path' => $path,
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             return [];
         }
     }
@@ -928,13 +837,13 @@ class MemberImportService
         $rows = [];
         $handle = fopen($path, 'r');
 
-        if (! $handle) {
+        if (!$handle) {
             return [];
         }
 
         // Read header
         $header = fgetcsv($handle);
-        if (! $header) {
+        if (!$header) {
             fclose($handle);
 
             return [];
@@ -952,7 +861,7 @@ class MemberImportService
 
         // Read data rows
         while (($row = fgetcsv($handle)) !== false) {
-            if (! trim(implode('', $row))) {
+            if (!trim(implode('', $row))) {
                 continue;
             }
 
@@ -985,7 +894,7 @@ class MemberImportService
         $ktaNumber = isset($row['kta_number']) ? strtoupper(trim($row['kta_number'])) : null;
         $nipRaw = isset($row['nip']) ? trim($row['nip']) : null;
         $joinDate = isset($row['join_date']) ? $this->parseDate(trim($row['join_date'])) : null;
-        if (! $joinDate) {
+        if (!$joinDate) {
             $joinDate = now()->toDateString();
         }
         $birthPlace = isset($row['birth_place']) ? trim((string) $row['birth_place']) : null;
@@ -993,7 +902,7 @@ class MemberImportService
         $gender = isset($row['gender']) ? strtoupper(trim((string) $row['gender'])) : null;
         $address = isset($row['address']) ? trim((string) $row['address']) : null;
         $employmentType = isset($row['employment_type']) ? strtolower(trim((string) $row['employment_type'])) : null;
-        if (! $employmentType || ! in_array($employmentType, ['organik', 'tkwt'], true)) {
+        if (!$employmentType || !in_array($employmentType, ['organik', 'tkwt'], true)) {
             $employmentType = 'organik';
         }
         $companyJoinDate = isset($row['company_join_date']) ? $this->parseDate(trim((string) $row['company_join_date'])) : null;
@@ -1010,14 +919,14 @@ class MemberImportService
         $effectiveUnitId = $unitId;
         if ($effectiveUnitId === null) {
             $rowUnitId = isset($row['organization_unit_id']) ? (int) trim($row['organization_unit_id']) : null;
-            if (! $rowUnitId) {
+            if (!$rowUnitId) {
                 return ['action' => 'error', 'member' => null]; // Global batch requires unit per row
             }
             $effectiveUnitId = $rowUnitId;
         }
 
         // Ensure status is within allowed enum (fallback to aktif)
-        if (! in_array($status, self::VALID_STATUSES, true)) {
+        if (!in_array($status, self::VALID_STATUSES, true)) {
             $status = 'aktif';
         }
 
@@ -1031,12 +940,12 @@ class MemberImportService
                 ->where('nip', $nip)
                 ->first();
         }
-        if (! $existing && $nra) {
+        if (!$existing && $nra) {
             $existing = Member::where('organization_unit_id', $effectiveUnitId)
                 ->where('nra', $nra)
                 ->first();
         }
-        if (! $existing && $email) {
+        if (!$existing && $email) {
             $existing = Member::where('organization_unit_id', $effectiveUnitId)
                 ->where('email', $email)
                 ->first();
@@ -1086,7 +995,7 @@ class MemberImportService
                 if ($unionPositionId) {
                     $existing->union_position_id = $unionPositionId;
                 }
-                if ($email && ! $existing->email) {
+                if ($email && !$existing->email) {
                     $existing->email = $email;
                 }
                 $existing->save();
@@ -1095,7 +1004,7 @@ class MemberImportService
             } else {
                 // If NRA is missing, generate it (and a sequence number) from the unit and join year.
                 $sequenceNumber = null;
-                if (! $nra) {
+                if (!$nra) {
                     $gen = \App\Services\NraGenerator::generate($effectiveUnitId, $joinYear);
                     $nra = $gen['nra'];
                     $sequenceNumber = $gen['sequence'];
@@ -1108,7 +1017,7 @@ class MemberImportService
 
                 // FIX: Generate KTA number if missing (KTA format: 010-SPPIPS-24001 vs NRA: 010-24-001)
                 // This ensures consistency with manual/google login creation
-                if (! $ktaNumber) {
+                if (!$ktaNumber) {
                     $ktaGen = \App\Services\KtaGenerator::generate($effectiveUnitId, $joinYear);
                     $ktaNumber = $ktaGen['kta'];
                     // Note: KtaGenerator also generates a sequence, but we already have one from NraGenerator or fallback.
@@ -1125,7 +1034,7 @@ class MemberImportService
                         // and implicitely update NRA if we hadn't already fixed it?
                         // Actually, let's keep it simple: Use generated KTA.
                         // If we didn't have NRA, regenerate NRA with new sequence?
-                        if (! $nra) {
+                        if (!$nra) {
                             $yearTwoDigit = (int) substr((string) $joinYear, -2);
                             $nra = sprintf('%03d-%02d-%03d', $effectiveUnitId, $yearTwoDigit, $sequenceNumber);
                         }
@@ -1134,8 +1043,8 @@ class MemberImportService
 
                 // Some environments enforce NOT NULL for email; generate a placeholder if missing.
                 $finalEmail = $email;
-                if (! $finalEmail) {
-                    $finalEmail = 'import+'.Str::uuid().'@invalid.local';
+                if (!$finalEmail) {
+                    $finalEmail = 'import+' . Str::uuid() . '@invalid.local';
                 }
 
                 // Create new member with unit scope
@@ -1190,17 +1099,17 @@ class MemberImportService
 
         // Priority: personal_email (Gmail untuk SSO) > email > company_email (info tambahan)
         $targetEmail = $personalEmail ?: ($email ?: $companyEmail);
-        if (! $targetEmail) {
+        if (!$targetEmail) {
             return;
         }
 
         $roleId = \App\Models\Role::where('name', 'anggota')->value('id');
-        if (! $roleId) {
+        if (!$roleId) {
             return;
         }
 
         $user = User::where('email', $targetEmail)->first();
-        if (! $user) {
+        if (!$user) {
             $password = Str::random(16);
             $hashedPassword = \Illuminate\Support\Facades\Hash::make($password);
 
@@ -1223,7 +1132,7 @@ class MemberImportService
             // Mencegah user yang di-import tidak punya member_id
             $user->member_id = $member->id;
 
-            if ($effectiveUnitId && ! $user->organization_unit_id) {
+            if ($effectiveUnitId && !$user->organization_unit_id) {
                 $user->organization_unit_id = $effectiveUnitId;
             }
             if ($companyEmail && $user->company_email !== $companyEmail) {
