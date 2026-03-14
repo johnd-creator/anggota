@@ -22,6 +22,8 @@ class OnboardingController extends Controller
 
         $user = $request->user();
         $unitId = $user->currentUnitId();
+        $status = $request->string('status')->toString() ?: 'pending';
+        $search = trim($request->string('search')->toString());
 
         // Build base query with unit scope for non-global users
         $baseQuery = PendingMember::query();
@@ -40,19 +42,13 @@ class OnboardingController extends Controller
         // Query for pending items (respect filter.status parameter)
         $query = (clone $baseQuery)->with('unit');
 
-        if ($request->has('status') && $request->status) {
-            $query->where('status', $request->status);
-        } else {
-            // Default to show pending only
-            $query->where('status', 'pending');
-        }
+        $query->where('status', $status);
 
         // Search by name or email
-        if ($request->has('search') && $request->search) {
-            $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('name', 'like', "%{$searchTerm}%")
-                  ->orWhere('email', 'like', "%{$searchTerm}%");
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -70,6 +66,10 @@ class OnboardingController extends Controller
                 'pending' => (clone $statsQuery)->where('status', 'pending')->count(),
                 'approved' => (clone $statsQuery)->where('status', 'approved')->count(),
                 'rejected' => (clone $statsQuery)->where('status', 'rejected')->count(),
+            ],
+            'filters' => [
+                'search' => $search,
+                'status' => $status,
             ],
         ]);
     }

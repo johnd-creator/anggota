@@ -233,4 +233,108 @@ class OnboardingAdminUnitTest extends TestCase
         $items = $response->viewData('page')['props']['items'];
         $this->assertCount(0, $items['data']);
     }
+
+    public function test_admin_unit_can_search_pending_members_by_name_and_email()
+    {
+        $adminUnitRole = Role::where('name', 'admin_unit')->first();
+        $unit = OrganizationUnit::factory()->create(['name' => 'Unit A']);
+
+        PendingMember::factory()->create([
+            'email' => 'alpha.member@gmail.com',
+            'name' => 'Alpha Member',
+            'status' => 'pending',
+            'organization_unit_id' => $unit->id,
+        ]);
+
+        PendingMember::factory()->create([
+            'email' => 'beta.member@gmail.com',
+            'name' => 'Beta Person',
+            'status' => 'pending',
+            'organization_unit_id' => $unit->id,
+        ]);
+
+        PendingMember::factory()->create([
+            'email' => 'alpha.approved@gmail.com',
+            'name' => 'Alpha Approved',
+            'status' => 'approved',
+            'organization_unit_id' => $unit->id,
+        ]);
+
+        $adminUnitUser = User::factory()->create([
+            'role_id' => $adminUnitRole->id,
+            'organization_unit_id' => $unit->id,
+        ]);
+
+        $this->actingAs($adminUnitUser);
+
+        $response = $this->get('/admin/onboarding?search=Alpha');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn (AssertableInertiaPage $page) => $page
+            ->component('Admin/Onboarding/Index')
+            ->where('filters.search', 'Alpha')
+            ->where('filters.status', 'pending')
+            ->has('items.data', 1)
+            ->where('items.data.0.name', 'Alpha Member')
+            ->where('items.data.0.email', 'alpha.member@gmail.com')
+        );
+
+        $response = $this->get('/admin/onboarding?search=beta.member@gmail.com');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn (AssertableInertiaPage $page) => $page
+            ->component('Admin/Onboarding/Index')
+            ->where('filters.search', 'beta.member@gmail.com')
+            ->where('filters.status', 'pending')
+            ->has('items.data', 1)
+            ->where('items.data.0.name', 'Beta Person')
+            ->where('items.data.0.email', 'beta.member@gmail.com')
+        );
+    }
+
+    public function test_admin_unit_can_search_with_explicit_rejected_status_filter()
+    {
+        $adminUnitRole = Role::where('name', 'admin_unit')->first();
+        $unit = OrganizationUnit::factory()->create(['name' => 'Unit A']);
+
+        PendingMember::factory()->create([
+            'email' => 'gamma.pending@gmail.com',
+            'name' => 'Gamma Pending',
+            'status' => 'pending',
+            'organization_unit_id' => $unit->id,
+        ]);
+
+        PendingMember::factory()->create([
+            'email' => 'gamma.rejected@gmail.com',
+            'name' => 'Gamma Rejected',
+            'status' => 'rejected',
+            'organization_unit_id' => $unit->id,
+        ]);
+
+        PendingMember::factory()->create([
+            'email' => 'delta.rejected@gmail.com',
+            'name' => 'Delta Rejected',
+            'status' => 'rejected',
+            'organization_unit_id' => $unit->id,
+        ]);
+
+        $adminUnitUser = User::factory()->create([
+            'role_id' => $adminUnitRole->id,
+            'organization_unit_id' => $unit->id,
+        ]);
+
+        $this->actingAs($adminUnitUser);
+
+        $response = $this->get('/admin/onboarding?status=rejected&search=Gamma');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn (AssertableInertiaPage $page) => $page
+            ->component('Admin/Onboarding/Index')
+            ->where('filters.search', 'Gamma')
+            ->where('filters.status', 'rejected')
+            ->has('items.data', 1)
+            ->where('items.data.0.name', 'Gamma Rejected')
+            ->where('items.data.0.email', 'gamma.rejected@gmail.com')
+        );
+    }
 }
