@@ -134,6 +134,7 @@
                     <Link :href="'/admin/aspirations/' + asp.id" class="text-sm font-medium text-neutral-900 hover:text-blue-600">
                       {{ asp.title }}
                     </Link>
+                    <span v-if="asp.is_anonymous && asp.can_view_creator" class="ml-2 px-2 py-0.5 rounded text-xs bg-purple-100 text-purple-700">Anonim</span>
                     <span v-if="asp.merged_into_id" class="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-500">Merged</span>
                   </div>
                   <p class="text-xs text-neutral-500 mt-0.5">{{ asp.category?.name }}</p>
@@ -144,7 +145,7 @@
                     Digabungkan
                   </span>
                 </td>
-                <td class="px-6 py-4 text-sm text-neutral-600">{{ $toTitleCase(asp.member?.full_name) || '-' }}</td>
+                <td class="px-6 py-4 text-sm text-neutral-600">{{ asp.can_view_creator ? ($toTitleCase(asp.member?.full_name) || '-') : 'Anonym' }}</td>
                 <td class="px-6 py-4 text-sm text-neutral-600">{{ asp.unit?.name || '-' }}</td>
                 <td class="px-6 py-4">
                   <span class="inline-flex items-center gap-1 px-2 py-1 bg-neutral-100 rounded-full text-sm font-medium text-neutral-700">

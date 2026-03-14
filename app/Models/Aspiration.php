@@ -19,10 +19,12 @@ class Aspiration extends Model
         'merged_into_id',
         'support_count',
         'user_id',
+        'is_anonymous',
     ];
 
     protected $casts = [
         'support_count' => 'integer',
+        'is_anonymous' => 'boolean',
     ];
 
     // Relationships
@@ -102,6 +104,11 @@ class Aspiration extends Model
     {
         $this->support_count = $this->supports()->count();
         $this->save();
+    }
+
+    public function isAnonymous(): bool
+    {
+        return (bool) $this->is_anonymous;
     }
 
     // Scopes

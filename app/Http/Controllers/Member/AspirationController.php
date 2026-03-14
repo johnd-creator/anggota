@@ -75,9 +75,10 @@ class AspirationController extends Controller
                 ->toArray();
         }
 
-        $aspirations->getCollection()->transform(function ($aspiration) use ($supportedIds, $member) {
+        $aspirations->getCollection()->transform(function ($aspiration) use ($supportedIds, $member, $user) {
             $aspiration->setAttribute('is_supported', in_array($aspiration->id, $supportedIds, true));
             $aspiration->setAttribute('is_own', $member ? ($aspiration->member_id === $member->id) : false);
+            $aspiration->setAttribute('can_view_creator', $user->can('viewCreatorInfo', $aspiration));
             return $aspiration;
         });
 
@@ -108,6 +109,7 @@ class AspirationController extends Controller
             'body' => 'required|string|min:10',
             'tags' => 'nullable|array',
             'tags.*' => 'string|max:50',
+            'is_anonymous' => 'boolean',
         ]);
 
         $user = $request->user();
@@ -143,6 +145,7 @@ class AspirationController extends Controller
                 'body' => $validated['body'],
                 'status' => 'new',
                 'support_count' => 0,
+                'is_anonymous' => $validated['is_anonymous'] ?? false,
             ]);
 
             // Handle tags
@@ -198,6 +201,7 @@ class AspirationController extends Controller
 
         $aspiration->is_supported = $member ? $aspiration->isSupporter($member) : false;
         $aspiration->is_own = $member && $aspiration->member_id === $member->id;
+        $aspiration->can_view_creator = $user->can('viewCreatorInfo', $aspiration);
 
         return Inertia::render('Member/Aspirations/Show', [
             'aspiration' => $aspiration,

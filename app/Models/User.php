@@ -246,4 +246,13 @@ class User extends Authenticatable
 
         return false;
     }
+
+    /**
+     * Check if user can view creator information of anonymous aspirations.
+     * Only super_admin can view anonymous creator info.
+     */
+    public function canViewAnonymousCreator(): bool
+    {
+        return $this->hasRole('super_admin');
+    }
 }

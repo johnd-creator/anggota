@@ -47,6 +47,15 @@ class OnboardingController extends Controller
             $query->where('status', 'pending');
         }
 
+        // Search by name or email
+        if ($request->has('search') && $request->search) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%")
+                  ->orWhere('email', 'like', "%{$searchTerm}%");
+            });
+        }
+
         $pendings = $query->latest()->paginate(10)->withQueryString();
 
         // Stats from scoped base query (not global)

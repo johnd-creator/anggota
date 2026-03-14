@@ -17,7 +17,7 @@
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
-              {{ $toTitleCase(aspiration.member?.full_name) }}
+              {{ aspiration.can_view_creator ? $toTitleCase(aspiration.member?.full_name) : 'Anonym' }}
             </span>
             <span class="flex items-center gap-1">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,7 +111,7 @@
               <div v-for="merged in aspiration.merged_from" :key="merged.id" class="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
                 <div>
                   <p class="text-sm font-medium text-neutral-900">{{ merged.title }}</p>
-                  <p class="text-xs text-neutral-500">Oleh {{ $toTitleCase(merged.member?.full_name) }}</p>
+                  <p class="text-xs text-neutral-500">Oleh {{ merged.can_view_creator ? $toTitleCase(merged.member?.full_name) : 'Anonym' }}</p>
                 </div>
                 <span class="text-sm text-neutral-500">+{{ merged.support_count }} dukungan</span>
               </div>

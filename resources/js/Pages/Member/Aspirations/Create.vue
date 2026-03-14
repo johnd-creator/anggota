@@ -50,6 +50,26 @@
             <p class="text-xs text-neutral-500 mt-1">Minimal 10 karakter</p>
           </div>
 
+          <!-- Anonymous Option -->
+          <div class="flex items-start gap-3">
+            <div class="flex items-center h-5">
+              <input
+                v-model="form.is_anonymous"
+                type="checkbox"
+                id="is_anonymous"
+                class="w-4 h-4 text-blue-600 border-neutral-300 rounded focus:ring-blue-500"
+              />
+            </div>
+            <div class="flex-1">
+              <label for="is_anonymous" class="text-sm font-medium text-neutral-700 cursor-pointer">
+                Kirim sebagai anonim
+              </label>
+              <p class="text-xs text-neutral-500 mt-1">
+                Identitas Anda akan disembunyikan dari anggota lain. Hanya admin yang dapat melihatnya.
+              </p>
+            </div>
+          </div>
+
           <!-- Tags -->
           <div>
             <label class="block text-sm font-medium text-neutral-700 mb-1">Tag (Opsional)</label>
@@ -136,6 +156,7 @@ const form = useForm({
   title: '',
   body: '',
   tags: [],
+  is_anonymous: false,
 });
 
 const newTag = ref('');

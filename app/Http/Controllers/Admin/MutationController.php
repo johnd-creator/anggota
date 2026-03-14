@@ -8,6 +8,7 @@ use App\Models\Member;
 use App\Models\OrganizationUnit;
 use App\Models\ActivityLog;
 use App\Services\NraGenerator;
+use App\Services\KtaGenerator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -146,11 +147,21 @@ class MutationController extends Controller
         $mutation->save();
 
         $member = $mutation->member;
-        $year = (int) now()->year;
-        $gen = NraGenerator::generate($mutation->to_unit_id, $year);
+
+        // PENTING: Gunakan join_year yang sudah ada (tahun bergabung ke serikat)
+        // JANGAN gunakan now()->year karena join_year tidak boleh berubah saat mutasi
+        $joinYear = $member->join_year;
+
+        // Generate nomor registrasi untuk organisasi baru dengan join_year anggota
+        $gen = NraGenerator::generate($mutation->to_unit_id, $joinYear);
+
+        // Generate nomor KTA untuk organisasi baru dengan join_year anggota
+        $ktaGen = KtaGenerator::generate($mutation->to_unit_id, $joinYear);
+
         $member->organization_unit_id = $mutation->to_unit_id;
         $member->nra = $gen['nra'];
-        $member->join_year = $year;
+        $member->kta_number = $ktaGen['kta'];  // ← Tambah KTA number
+        // join_year TIDAK di-update (tetap menggunakan nilai yang sudah ada)
         $member->sequence_number = $gen['sequence'];
         $member->save();
 

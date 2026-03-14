@@ -74,6 +74,12 @@ class AspirationController extends Controller
 
         $aspirations = $query->paginate(15)->withQueryString();
 
+        // Add can_view_creator attribute to each aspiration
+        $aspirations->getCollection()->transform(function ($aspiration) use ($user) {
+            $aspiration->can_view_creator = $user->can('viewCreatorInfo', $aspiration);
+            return $aspiration;
+        });
+
         // Stats - scoped to user's unit for non-global
         $statsUnitId = $isGlobal ? null : $unitId;
 
@@ -103,6 +109,14 @@ class AspirationController extends Controller
             'mergedFrom.member:id,full_name',
             'mergedInto.member:id,full_name',
         ]);
+
+        // Add can_view_creator attribute
+        $aspiration->can_view_creator = $user->can('viewCreatorInfo', $aspiration);
+
+        // Add can_view_creator to merged aspirations
+        $aspiration->mergedFrom->each(function ($merged) use ($user) {
+            $merged->can_view_creator = $user->can('viewCreatorInfo', $merged);
+        });
 
         // Load supporters with pagination
         $supporters = $aspiration->supporters()

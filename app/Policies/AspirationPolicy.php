@@ -119,4 +119,18 @@ class AspirationPolicy
     {
         return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'bendahara']);
     }
+
+    /**
+     * Determine if user can view creator information of anonymous aspiration
+     */
+    public function viewCreatorInfo(User $user, Aspiration $aspiration): bool
+    {
+        // If not anonymous, anyone with view permission can see creator
+        if (!$aspiration->isAnonymous()) {
+            return true;
+        }
+
+        // Only super_admin can see anonymous creator
+        return $user->canViewAnonymousCreator();
+    }
 }
