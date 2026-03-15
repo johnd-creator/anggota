@@ -49,7 +49,7 @@ class LetterApproverController extends Controller
     {
         $units = OrganizationUnit::orderBy('name')->get(['id', 'name']);
         $users = User::with('role')
-            ->whereHas('role', fn($q) => $q->whereIn('name', ['admin_unit', 'admin_pusat', 'super_admin']))
+            ->whereHas('role', fn($q) => $q->whereIn('name', ['admin_unit', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat', 'super_admin']))
             ->orderBy('name')
             ->get(['id', 'name', 'role_id']);
 
@@ -105,7 +105,7 @@ class LetterApproverController extends Controller
     {
         $units = OrganizationUnit::orderBy('name')->get(['id', 'name']);
         $users = User::with('role')
-            ->whereHas('role', fn($q) => $q->whereIn('name', ['admin_unit', 'admin_pusat', 'super_admin']))
+            ->whereHas('role', fn($q) => $q->whereIn('name', ['admin_unit', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat', 'super_admin']))
             ->orderBy('name')
             ->get(['id', 'name', 'role_id']);
 

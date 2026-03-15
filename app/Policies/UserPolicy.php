@@ -8,12 +8,12 @@ class UserPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'pengurus_pusat']);
     }
 
     public function view(User $user, User $target): bool
     {
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
@@ -30,4 +30,3 @@ class UserPolicy
         return false;
     }
 }
-

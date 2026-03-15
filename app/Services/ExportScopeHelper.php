@@ -12,15 +12,15 @@ class ExportScopeHelper
 {
     /**
      * Get the effective unit ID for export operations.
-     * Non-global users are forced to their own unit (ignores request param).
+     * Users with control scope can filter by any unit.
+     * Other users are forced to their own unit (ignores request param).
      */
     public static function getEffectiveUnitId(User $user, ?int $requestedUnitId): ?int
     {
-        if ($user->hasGlobalAccess()) {
-            return $requestedUnitId; // Global users can filter by any unit
+        if ($user->canViewGlobalScope()) {
+            return $requestedUnitId;
         }
 
-        // Non-global users are forced to their own unit
         return $user->currentUnitId();
     }
 
@@ -29,7 +29,7 @@ class ExportScopeHelper
      */
     public static function canExportForUnit(User $user, ?int $unitId): bool
     {
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
@@ -38,11 +38,11 @@ class ExportScopeHelper
 
     /**
      * Check if PII should be masked for this user.
-     * Global users (super_admin, admin_pusat) see full PII.
+     * Central control roles and super admin can review full PII in export/report flows.
      */
     public static function shouldMaskPii(User $user): bool
     {
-        return !$user->hasGlobalAccess();
+        return ! $user->canViewGlobalScope();
     }
 
     /**

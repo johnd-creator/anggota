@@ -12,7 +12,7 @@ class MutationRequestPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'pengurus_pusat']);
     }
 
     /**
@@ -21,7 +21,7 @@ class MutationRequestPolicy
      */
     public function view(User $user, MutationRequest $mutation): bool
     {
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
@@ -37,7 +37,7 @@ class MutationRequestPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'pengurus_pusat']);
     }
 
     /**
@@ -46,7 +46,7 @@ class MutationRequestPolicy
      */
     public function createFor(User $user, \App\Models\Member $member): bool
     {
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
@@ -88,7 +88,7 @@ class MutationRequestPolicy
             return false;
         }
 
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 

@@ -7,7 +7,7 @@
           <p class="text-sm text-neutral-500">Atur kategori pemasukan dan pengeluaran untuk unit Anda.</p>
         </div>
         <div class="flex flex-wrap gap-3">
-          <CtaButton v-if="$page.props.auth.user.role?.name!=='pengurus'" href="/finance/categories/create">
+          <CtaButton v-if="!['pengurus', 'pengurus_pusat'].includes($page.props.auth.user.role?.name)" href="/finance/categories/create">
             <template #icon>
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             </template>

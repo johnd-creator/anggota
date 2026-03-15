@@ -22,7 +22,7 @@ class AspirationController extends Controller
         Gate::authorize('viewAnyAdmin', Aspiration::class);
 
         $user = $request->user();
-        $isGlobal = $user->hasGlobalAccess();
+        $isGlobal = $user->canViewGlobalScope();
         $unitId = $user->currentUnitId();
 
         $query = Aspiration::with(['category', 'member:id,full_name', 'unit:id,name']);
@@ -99,6 +99,7 @@ class AspirationController extends Controller
     public function show(Request $request, Aspiration $aspiration)
     {
         Gate::authorize('view', $aspiration);
+        $user = $request->user();
 
         $aspiration->load([
             'category',

@@ -223,7 +223,7 @@ class ViewController extends Controller
         }
 
         if ($letter->to_type === 'admin_pusat') {
-            return in_array($user->role?->name, ['admin_pusat', 'super_admin'], true);
+            return in_array($user->role?->name, ['admin_pusat', 'bendahara_pusat', 'pengurus_pusat', 'super_admin'], true);
         }
 
         return false;

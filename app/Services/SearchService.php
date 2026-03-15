@@ -152,7 +152,7 @@ class SearchService
 
         if ($roleName === 'anggota') {
             $query->where('member_id', $user->member_id);
-        } elseif (in_array($roleName, ['admin_unit', 'bendahara'])) {
+        } elseif (in_array($roleName, ['admin_unit', 'bendahara', 'bendahara_pusat', 'pengurus_pusat'])) {
             $unitId = $user->currentUnitId();
             if ($unitId) {
                 $query->where('organization_unit_id', $unitId);
@@ -208,7 +208,7 @@ class SearchService
             return $query->whereRaw('0=1');
         }
 
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return $query;
         }
 
@@ -555,7 +555,7 @@ class SearchService
         // "anggota/bendahara/admin_unit: full_name, kta_number only"
 
         $roleName = $this->roleName($user);
-        $isGlobalAdmin = in_array($roleName, ['admin_pusat', 'super_admin']);
+        $isGlobalAdmin = $user->canViewGlobalScope();
 
         $meta = ['unit' => $item->unit?->name];
         if ($isGlobalAdmin && $item->email) {
@@ -683,15 +683,15 @@ class SearchService
         // Aspirations currently have no feature flag
         $types[] = 'aspirations';
 
-        if (in_array($role, ['admin_unit', 'admin_pusat', 'super_admin', 'bendahara', 'pengurus'])) {
+        if (in_array($role, ['admin_unit', 'admin_pusat', 'super_admin', 'bendahara', 'bendahara_pusat', 'pengurus', 'pengurus_pusat'])) {
             $types[] = 'members';
         }
 
-        if (in_array($role, ['admin_unit', 'admin_pusat', 'super_admin', 'pengurus'])) {
+        if (in_array($role, ['admin_unit', 'admin_pusat', 'super_admin', 'pengurus', 'pengurus_pusat'])) {
             $types[] = 'users';
         }
 
-        if ($this->featureEnabled('finance') && in_array($role, ['admin_unit', 'bendahara', 'super_admin', 'pengurus'])) {
+        if ($this->featureEnabled('finance') && in_array($role, ['admin_unit', 'bendahara', 'bendahara_pusat', 'super_admin', 'pengurus', 'pengurus_pusat', 'admin_pusat'])) {
             $types[] = 'dues_payments';
             $types[] = 'finance_ledgers';
         }

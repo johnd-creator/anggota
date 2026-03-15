@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\Aspiration;
 use App\Models\Member;
 use App\Models\OrganizationUnit;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class PengurusRoleAccessTest extends TestCase
@@ -160,6 +162,7 @@ class PengurusRoleAccessTest extends TestCase
             'organization_unit_id' => $this->unit->id,
             'full_name' => 'Test API Search',
             'nra' => 'NRA001',
+            'kta_number' => 'KTA-PENGURUS-001',
             'status' => 'aktif',
         ]);
 
@@ -170,7 +173,7 @@ class PengurusRoleAccessTest extends TestCase
 
         $this->assertGreaterThan(0, count($data['results']['members']));
         $this->assertStringContainsString('Test API Search', $data['results']['members'][0]['title']);
-        $this->assertEquals('NRA001', $data['results']['members'][0]['snippet']);
+        $this->assertEquals('KTA-PENGURUS-001', $data['results']['members'][0]['snippet']);
     }
 
     public function test_pengurus_can_search_members_via_topbar_api()
@@ -235,16 +238,24 @@ class PengurusRoleAccessTest extends TestCase
 
     public function test_pengurus_can_view_aspirations_via_member()
     {
-        $aspirasi = \App\Models\Aspiration::factory()->create([
+        $aspirasi = Aspiration::factory()->create([
             'member_id' => $this->member->id,
+            'user_id' => $this->pengurus->id,
+            'organization_unit_id' => $this->unit->id,
             'title' => 'Test Aspirasi Member',
-            'status' => 'pending',
+            'status' => 'new',
         ]);
 
         $response = $this->get('/member/aspirations');
 
         $response->assertStatus(200);
-        $this->assertStringContainsString('Test Aspirasi Member', $response->inertia('page'));
+        $response->assertInertia(
+            fn (Assert $page) => $page
+                ->component('Member/Aspirations/Index')
+                ->has('aspirations.data', 1)
+                ->where('aspirations.data.0.title', 'Test Aspirasi Member')
+                ->where('aspirations.data.0.status', 'new')
+        );
     }
 
     public function test_pengurus_can_access_settings()

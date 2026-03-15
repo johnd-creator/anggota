@@ -304,7 +304,7 @@ class ApprovalController extends Controller
                     })->get();
             } elseif ($letter->to_type === 'admin_pusat') {
                 $users = User::whereHas('role', function ($q) {
-                    $q->whereIn('name', ['admin_pusat', 'super_admin']);
+                    $q->whereIn('name', ['admin_pusat', 'bendahara_pusat', 'pengurus_pusat', 'super_admin']);
                 })->get();
             } else {
                 $users = collect();

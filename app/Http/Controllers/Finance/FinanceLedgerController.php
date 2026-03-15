@@ -97,8 +97,12 @@ class FinanceLedgerController extends Controller
 
         // Monthly summary - scoped to unit
         $monthStart = now()->startOfMonth()->toDateString();
-        $monthQuery = FinanceLedger::query()
-            ->when(!$isGlobal, fn($q) => $q->where('organization_unit_id', $unitId));
+        $monthQuery = FinanceLedger::query();
+        if (!$isGlobal) {
+            $monthQuery->where('organization_unit_id', $unitId);
+        } elseif ($unitParam) {
+            $monthQuery->where('organization_unit_id', (int) $unitParam);
+        }
         if ($workflowEnabled) {
             $monthQuery->where('status', 'approved');
         }
@@ -133,7 +137,7 @@ class FinanceLedgerController extends Controller
         Gate::authorize('create', FinanceLedger::class);
         $user = Auth::user();
         $unitId = $user->currentUnitId();
-        $isGlobal = $user->canViewGlobalScope();
+        $isGlobal = $user->hasGlobalAccess();
 
         $units = $isGlobal ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
         $categories = FinanceCategory::select('id', 'name', 'type', 'organization_unit_id')
@@ -156,7 +160,7 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('create', FinanceLedger::class);
         $user = Auth::user();
-        $isGlobal = $user->canViewGlobalScope();
+        $isGlobal = $user->hasGlobalAccess();
         $unitId = $isGlobal ? (int) $request->input('organization_unit_id') : $user->currentUnitId();
         $workflowEnabled = FinanceLedger::workflowEnabled();
 
@@ -218,7 +222,7 @@ class FinanceLedgerController extends Controller
         Gate::authorize('update', $ledger);
         $user = Auth::user();
         $unitId = $user->currentUnitId();
-        $isGlobal = $user->canViewGlobalScope();
+        $isGlobal = $user->hasGlobalAccess();
 
         $units = $isGlobal ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
         $categories = FinanceCategory::select('id', 'name', 'type', 'organization_unit_id')
@@ -241,7 +245,7 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('update', $ledger);
         $user = Auth::user();
-        $isGlobal = $user->canViewGlobalScope();
+        $isGlobal = $user->hasGlobalAccess();
         $unitId = $isGlobal ? (int) $request->input('organization_unit_id') : $user->currentUnitId();
 
         $validated = $request->validate([
@@ -401,8 +405,9 @@ class FinanceLedgerController extends Controller
     {
         Gate::authorize('viewAny', FinanceLedger::class);
         $user = Auth::user();
-        $unitId = $user->currentUnitId();
         $isGlobal = $user->canViewGlobalScope();
+        $requestedUnitId = $request->filled('unit_id') ? (int) $request->query('unit_id') : null;
+        $effectiveUnitId = \App\Services\ExportScopeHelper::getEffectiveUnitId($user, $requestedUnitId);
 
         $query = FinanceLedger::query()->with(['category', 'organizationUnit', 'creator']);
 
@@ -415,11 +420,10 @@ class FinanceLedgerController extends Controller
         $unitParam = $request->query('unit_id');
 
         // Apply unit scope
-        if (!$isGlobal) {
-            $query->where('organization_unit_id', $unitId);
-        } else {
-            if ($unitParam)
-                $query->where('organization_unit_id', (int) $unitParam);
+        if ($effectiveUnitId) {
+            $query->where('organization_unit_id', $effectiveUnitId);
+        } elseif (!$isGlobal) {
+            $query->whereRaw('1=0');
         }
 
         if ($dateStart)
@@ -437,9 +441,9 @@ class FinanceLedgerController extends Controller
 
         $rowCount = (clone $query)->count();
         $filename = 'ledgers_' . now()->format('Ymd_His') . '.csv';
-        \App\Services\ExportScopeHelper::auditExport($user, 'finance.ledgers', $unitId, $rowCount);
+        \App\Services\ExportScopeHelper::auditExport($user, 'finance.ledgers', $effectiveUnitId, $rowCount);
 
-        return response()->streamDownload(function () use ($query, $user, $unitId) {
+        return response()->streamDownload(function () use ($query) {
             $out = fopen('php://output', 'w');
             fputcsv($out, ['Tanggal', 'Kategori', 'Tipe', 'Nominal', 'Deskripsi', 'Unit', 'Dibuat Oleh', 'Status']);
             $count = 0;

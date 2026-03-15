@@ -15,7 +15,7 @@ class LetterPolicy
     public function view(User $user, Letter $letter): bool
     {
         // Super admin & global viewers can view all
-        if ($user->canViewGlobalScope()) {
+        if ($user->hasGlobalAccess()) {
             return true;
         }
 
@@ -49,7 +49,7 @@ class LetterPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole(['admin_unit', 'admin_pusat', 'bendahara', 'bendahara_pusat', 'super_admin', 'pengurus']);
+        return $user->hasRole(['admin_unit', 'admin_pusat', 'bendahara', 'bendahara_pusat', 'super_admin', 'pengurus', 'pengurus_pusat']);
     }
 
     /**
@@ -123,7 +123,7 @@ class LetterPolicy
             return false;
         }
 
-        if ($user->canViewGlobalScope()) {
+        if ($user->hasGlobalAccess()) {
             return true;
         }
 
@@ -141,7 +141,7 @@ class LetterPolicy
             return false;
         }
 
-        if ($user->canViewGlobalScope()) {
+        if ($user->hasGlobalAccess()) {
             return true;
         }
 
@@ -157,7 +157,7 @@ class LetterPolicy
     protected function canApprove(User $user, Letter $letter): bool
     {
         // Global access can approve all
-        if ($user->canViewGlobalScope()) {
+        if ($user->hasGlobalAccess()) {
             return true;
         }
 
@@ -165,7 +165,7 @@ class LetterPolicy
 
         // For Pusat letters (from_unit_id = null), only admin_pusat/super_admin
         if ($letterUnitId === null) {
-            return $user->hasRole(['admin_pusat', 'bendahara_pusat', 'super_admin']);
+            return $user->hasRole(['admin_pusat', 'bendahara_pusat', 'pengurus_pusat', 'super_admin']);
         }
 
         // User must be in the same unit as the letter's from_unit
@@ -231,7 +231,7 @@ class LetterPolicy
             case 'unit':
                 // User belongs to the destination unit (admin_unit, pengurus, bendahara)
                 $userUnitId = $user->currentUnitId();
-                if (! $user->hasRole(['admin_unit', 'pengurus', 'bendahara'])) {
+                if (! $user->hasRole(['anggota', 'admin_unit', 'pengurus', 'bendahara', 'bendahara_pusat', 'pengurus_pusat'])) {
                     return false;
                 }
 
@@ -239,7 +239,7 @@ class LetterPolicy
 
             case 'admin_pusat':
                 // admin_pusat, super_admin, and bendahara can see these
-                return $user->hasRole(['admin_pusat', 'bendahara', 'super_admin']);
+                return $user->hasRole(['admin_pusat', 'bendahara_pusat', 'pengurus_pusat', 'super_admin']);
 
             default:
                 return false;
@@ -260,7 +260,7 @@ class LetterPolicy
 
             case 'unit':
                 // Only admin and pengurus roles of that unit can view
-                if (! $user->hasRole(['admin_unit', 'pengurus', 'bendahara', 'admin_pusat'])) {
+                if (! $user->hasRole(['admin_unit', 'pengurus', 'bendahara', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat'])) {
                     return false;
                 }
                 $userUnitId = $user->currentUnitId();
@@ -268,7 +268,7 @@ class LetterPolicy
                 return $userUnitId !== null && $letter->to_unit_id === $userUnitId;
 
             case 'admin_pusat':
-                return $user->hasRole(['admin_pusat', 'super_admin']);
+                return $user->hasRole(['admin_pusat', 'bendahara_pusat', 'pengurus_pusat', 'super_admin']);
 
             default:
                 return false;

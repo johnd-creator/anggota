@@ -23,7 +23,7 @@ class DuesPaymentPolicy
      */
     public function view(User $user, DuesPayment $duesPayment): bool
     {
-        // Global access (super_admin, admin_pusat, bendahara_pusat)
+        // Control scope can monitor any unit dues.
         if ($user->canViewGlobalScope()) {
             return true;
         }
@@ -34,7 +34,7 @@ class DuesPaymentPolicy
         }
 
         // Bendahara/pengurus can view dues in their unit
-        if ($user->hasRole(['bendahara', 'pengurus'])) {
+        if ($user->hasRole(['bendahara', 'pengurus', 'pengurus_pusat'])) {
             $unitId = $user->currentUnitId();
 
             return $unitId !== null && $unitId === $duesPayment->organization_unit_id;
@@ -48,7 +48,7 @@ class DuesPaymentPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'bendahara', 'bendahara_pusat']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'bendahara', 'bendahara_pusat']);
     }
 
     /**

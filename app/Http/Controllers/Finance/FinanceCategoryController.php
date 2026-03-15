@@ -19,7 +19,7 @@ class FinanceCategoryController extends Controller
         Gate::authorize('viewAny', FinanceCategory::class);
 
         $user = Auth::user();
-        $isGlobal = $user->hasGlobalAccess();
+        $isGlobal = $user->canViewGlobalScope();
         $unitId = $user->currentUnitId();
 
         $query = FinanceCategory::query()->with(['organizationUnit', 'creator']);
@@ -54,7 +54,7 @@ class FinanceCategoryController extends Controller
 
         $categories = $query->orderBy('name')->paginate(10)->withQueryString();
 
-        $units = $isGlobal ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
+        $units = $user->canViewGlobalScope() ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
 
         return Inertia::render('Finance/Categories/Index', [
             'categories' => $categories,
@@ -228,8 +228,12 @@ class FinanceCategoryController extends Controller
         Gate::authorize('viewAny', FinanceCategory::class);
 
         $user = Auth::user();
-        $isGlobal = $user->hasGlobalAccess();
+        $isGlobal = $user->canViewGlobalScope();
         $unitId = $user->currentUnitId();
+        $requestedUnitId = $request->query('unit_id');
+        $auditUnitId = !$isGlobal
+            ? $unitId
+            : ($requestedUnitId === 'null' ? null : ($requestedUnitId ? (int) $requestedUnitId : null));
 
         $query = FinanceCategory::query()->with(['organizationUnit', 'creator']);
 
@@ -258,8 +262,8 @@ class FinanceCategoryController extends Controller
 
         $rowCount = (clone $query)->count();
         $filename = 'finance_categories_' . now()->format('Ymd_His') . '.csv';
-        \App\Services\ExportScopeHelper::auditExport($user, 'finance.categories', $unitId, $rowCount);
-        return response()->streamDownload(function () use ($query, $user, $unitId) {
+        \App\Services\ExportScopeHelper::auditExport($user, 'finance.categories', $auditUnitId, $rowCount);
+        return response()->streamDownload(function () use ($query) {
             $out = fopen('php://output', 'w');
             fputcsv($out, ['Nama', 'Tipe', 'Unit', 'Dibuat Oleh']);
             $count = 0;

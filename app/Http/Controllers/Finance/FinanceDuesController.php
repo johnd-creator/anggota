@@ -129,7 +129,7 @@ class FinanceDuesController extends Controller
         }
 
         // Get recurring categories for quick action
-        $userUnitId = $user->canViewGlobalScope() ? null : $user->currentUnitId();
+        $userUnitId = $user->hasGlobalAccess() ? null : $user->currentUnitId();
         $recurringCategories = FinanceCategory::query()
             ->recurring()
             ->where('type', 'income')
@@ -238,7 +238,7 @@ class FinanceDuesController extends Controller
         // Authorization: validate all members belong to user's unit (for non-global)
         $members = Member::whereIn('id', $validated['member_ids'])->get();
 
-        if (!$user->canViewGlobalScope()) {
+        if (!$user->hasGlobalAccess()) {
             $userUnitId = $user->currentUnitId();
             foreach ($members as $member) {
                 if ($member->organization_unit_id !== $userUnitId) {
@@ -262,7 +262,7 @@ class FinanceDuesController extends Controller
         );
 
         // Audit log
-        $unitId = $user->canViewGlobalScope() ? null : $user->currentUnitId();
+        $unitId = $user->hasGlobalAccess() ? null : $user->currentUnitId();
         app(\App\Services\AuditService::class)->log(
             'dues.batch_mark_paid',
             [

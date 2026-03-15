@@ -130,7 +130,7 @@ const props = defineProps({
 const page = usePage();
 const user = computed(() => page.props.auth.user);
 const roleName = computed(() => user.value?.role?.name || '');
-const canSelectUnit = computed(() => ['super_admin', 'admin_pusat'].includes(roleName.value));
+const canSelectUnit = computed(() => ['super_admin', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat'].includes(roleName.value));
 const userUnitName = computed(() => user.value?.organization_unit?.name);
 
 const unitOptions = computed(() => [

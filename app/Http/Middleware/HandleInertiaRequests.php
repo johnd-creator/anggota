@@ -153,7 +153,7 @@ class HandleInertiaRequests extends Middleware
 
                 $user = $request->user();
                 $roleName = $user?->role?->name;
-                $isGlobal = $user?->hasGlobalAccess() ?? false;
+                $isGlobal = $user?->canViewGlobalScope() ?? false;
                 $unitId = $user?->currentUnitId();
 
                 // Cache key suffix for scoped data

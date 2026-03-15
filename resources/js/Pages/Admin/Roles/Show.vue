@@ -16,6 +16,7 @@
           <div class="text-sm font-semibold mb-2">
             Assign ke User
             <span v-if="['bendahara','pengurus'].includes(role.name)" class="text-xs text-amber-600 font-normal ml-2">(wajib pilih unit)</span>
+            <span v-else-if="['admin_pusat','bendahara_pusat','pengurus_pusat'].includes(role.name)" class="text-xs text-blue-600 font-normal ml-2">(otomatis ke DPP)</span>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             <InputField v-model="assignEmail" label="Email pengguna" />
@@ -24,6 +25,9 @@
           </div>
           <p v-if="['bendahara','pengurus'].includes(role.name)" class="text-xs text-amber-600 mt-2">
             ⚠️ User dengan role ini harus memiliki unit organisasi untuk mengakses fitur keuangan dan manajemen anggota.
+          </p>
+          <p v-else-if="['admin_pusat','bendahara_pusat','pengurus_pusat'].includes(role.name)" class="text-xs text-blue-600 mt-2">
+            User dengan role pusat akan otomatis menjalankan konteks organisasi DPP.
           </p>
         </div>
       </CardContainer>

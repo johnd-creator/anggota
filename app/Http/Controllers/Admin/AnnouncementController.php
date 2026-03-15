@@ -73,22 +73,21 @@ class AnnouncementController extends Controller
         Gate::authorize('create', Announcement::class);
 
         $user = auth()->user();
-        $isGlobal = in_array($user->role?->name, ['super_admin', 'admin_pusat']);
+        $canCreateGlobal = $user->hasGlobalAccess() || $user->isPusatRole();
+        $canSelectAnyUnit = $user->hasGlobalAccess();
         $unitId = $user?->currentUnitId();
 
         // Determine allowed scopes
         $allowedScopes = [];
-        if ($isGlobal) {
+        if ($canCreateGlobal) {
             $allowedScopes[] = ['value' => 'global_all', 'label' => 'Global (Semua User)'];
             $allowedScopes[] = ['value' => 'global_officers', 'label' => 'Global (Hanya Pengurus)'];
-            // Optional: Allow global admin to create unit announcement
             $allowedScopes[] = ['value' => 'unit', 'label' => 'Unit Organisasi'];
         } else {
-            // Admin Unit
             $allowedScopes[] = ['value' => 'unit', 'label' => 'Unit Organisasi'];
         }
 
-        $units = $isGlobal
+        $units = $canSelectAnyUnit
             ? OrganizationUnit::select('id', 'name')->orderBy('name')->get()
             : [];
 
@@ -99,8 +98,8 @@ class AnnouncementController extends Controller
             'defaults' => [
                 'is_active' => true,
                 'pin_to_dashboard' => false,
-                'scope_type' => $isGlobal ? 'global_all' : 'unit',
-                'organization_unit_id' => $isGlobal ? null : $unitId,
+                'scope_type' => $canCreateGlobal ? 'global_all' : 'unit',
+                'organization_unit_id' => $canSelectAnyUnit ? null : $unitId,
             ]
         ]);
     }
@@ -125,10 +124,11 @@ class AnnouncementController extends Controller
         $announcement->load('attachments');
 
         $user = auth()->user();
-        $isGlobal = in_array($user->role?->name, ['super_admin', 'admin_pusat']);
+        $canCreateGlobal = $user->hasGlobalAccess() || $user->isPusatRole();
+        $canSelectAnyUnit = $user->hasGlobalAccess();
 
         $allowedScopes = [];
-        if ($isGlobal) {
+        if ($canCreateGlobal) {
             $allowedScopes[] = ['value' => 'global_all', 'label' => 'Global (Semua User)'];
             $allowedScopes[] = ['value' => 'global_officers', 'label' => 'Global (Hanya Pengurus)'];
             $allowedScopes[] = ['value' => 'unit', 'label' => 'Unit Organisasi'];
@@ -136,7 +136,7 @@ class AnnouncementController extends Controller
             $allowedScopes[] = ['value' => 'unit', 'label' => 'Unit Organisasi'];
         }
 
-        $units = $isGlobal
+        $units = $canSelectAnyUnit
             ? OrganizationUnit::select('id', 'name')->orderBy('name')->get()
             : [];
 

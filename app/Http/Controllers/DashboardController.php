@@ -16,7 +16,7 @@ class DashboardController extends Controller
             return redirect()->route('itworks');
         }
 
-        $isGlobal = $user?->hasGlobalAccess() ?? false;
+        $isGlobal = $user?->canViewGlobalScope() ?? false;
         $unitId = $user?->currentUnitId();
 
         return Inertia::render('Dashboard', [
@@ -161,7 +161,7 @@ class DashboardController extends Controller
         }
 
         $roleName = $user->role?->name;
-        if (! in_array($roleName, ['super_admin', 'admin_pusat', 'admin_unit', 'anggota', 'bendahara', 'pengurus'], true)) {
+        if (! in_array($roleName, ['super_admin', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat', 'admin_unit', 'anggota', 'bendahara', 'pengurus'], true)) {
             return null;
         }
 
@@ -194,7 +194,7 @@ class DashboardController extends Controller
             ->first();
 
         $drafts = 0;
-        if (in_array($roleName, ['super_admin', 'admin_unit', 'admin_pusat', 'pengurus'], true)) {
+        if (in_array($roleName, ['super_admin', 'admin_unit', 'admin_pusat', 'bendahara', 'bendahara_pusat', 'pengurus', 'pengurus_pusat'], true)) {
             $drafts = Letter::where('creator_user_id', $user->id)
                 ->whereIn('status', ['draft', 'revision'])
                 ->count();
@@ -265,8 +265,8 @@ class DashboardController extends Controller
             return $query->where('to_type', 'unit')->where('to_unit_id', $unitId);
         }
 
-        // admin_pusat & super_admin: inbox is letters addressed to admin_pusat
-        if (in_array($roleName, ['admin_pusat', 'super_admin'], true)) {
+        // Central roles and super admin consume the DPP/admin_pusat inbox.
+        if (in_array($roleName, ['admin_pusat', 'bendahara_pusat', 'pengurus_pusat', 'super_admin'], true)) {
             return $query->where('to_type', 'admin_pusat');
         }
 
@@ -425,7 +425,7 @@ class DashboardController extends Controller
             $unitId = $user->currentUnitId();
 
             return \App\Http\Controllers\Finance\FinanceDuesController::getDashboardSummary($unitId);
-        } elseif (in_array($roleName, ['super_admin', 'admin_pusat'], true)) {
+        } elseif (in_array($roleName, ['super_admin', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat'], true)) {
             return \App\Http\Controllers\Finance\FinanceDuesController::getDashboardSummary();
         }
 
@@ -439,7 +439,7 @@ class DashboardController extends Controller
             $unitId = $user->currentUnitId();
 
             return \App\Http\Controllers\Finance\FinanceDuesController::getUnpaidMembers($unitId, null, 20);
-        } elseif (in_array($roleName, ['super_admin', 'admin_pusat'], true)) {
+        } elseif (in_array($roleName, ['super_admin', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat'], true)) {
             return \App\Http\Controllers\Finance\FinanceDuesController::getUnpaidMembers(null, null, 20);
         }
 
@@ -449,11 +449,14 @@ class DashboardController extends Controller
     private function getFinanceData($user)
     {
         $roleName = $user->role?->name;
-        if (! in_array($roleName, ['admin_unit', 'bendahara', 'super_admin', 'pengurus'], true)) {
+        if (! in_array($roleName, ['admin_unit', 'bendahara', 'super_admin', 'pengurus', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat'], true)) {
             return null;
         }
 
-        $financeUnitId = ($roleName === 'super_admin') ? null : $user->currentUnitId();
+        $financeUnitId = $user->canViewGlobalScope() ? null : $user->currentUnitId();
+        $monthKeyExpression = \App\Models\FinanceLedger::query()->getConnection()->getDriverName() === 'sqlite'
+            ? "strftime('%Y-%m', date)"
+            : "DATE_FORMAT(date, '%Y-%m')";
 
         // 1. Current Balance
         $balance = \App\Models\FinanceLedger::query()
@@ -468,7 +471,7 @@ class DashboardController extends Controller
             ->where('status', 'approved')
             ->whereYear('date', now()->year)
             ->selectRaw("
-                DATE_FORMAT(date, '%Y-%m') as month_key,
+                {$monthKeyExpression} as month_key,
                 SUM(CASE WHEN type='income' THEN amount ELSE 0 END) as income,
                 SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as expense
             ")

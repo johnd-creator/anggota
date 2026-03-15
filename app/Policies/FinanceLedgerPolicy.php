@@ -9,16 +9,16 @@ class FinanceLedgerPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_unit', 'bendahara', 'pengurus']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'bendahara', 'bendahara_pusat', 'pengurus', 'pengurus_pusat']);
     }
 
     public function view(User $user, FinanceLedger $ledger): bool
     {
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
-        if ($user->hasRole(['admin_unit', 'bendahara', 'pengurus'])) {
+        if ($user->hasRole(['admin_unit', 'bendahara', 'pengurus', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat'])) {
             $unitId = $user->currentUnitId();
 
             return $unitId !== null && $unitId === $ledger->organization_unit_id;
@@ -29,7 +29,7 @@ class FinanceLedgerPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'bendahara']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'bendahara', 'bendahara_pusat']);
     }
 
     public function update(User $user, FinanceLedger $ledger): bool
@@ -38,7 +38,7 @@ class FinanceLedgerPolicy
             return true;
         }
 
-        if ($user->hasRole('bendahara')) {
+        if ($user->hasRole(['bendahara', 'admin_pusat', 'bendahara_pusat'])) {
             // Bendahara cannot edit approved/rejected ledgers when workflow is enabled
             if (FinanceLedger::workflowEnabled() && in_array($ledger->status, ['approved', 'rejected'])) {
                 return false;
@@ -59,7 +59,7 @@ class FinanceLedgerPolicy
             return true;
         }
 
-        if ($user->hasRole('bendahara')) {
+        if ($user->hasRole(['bendahara', 'admin_pusat', 'bendahara_pusat'])) {
             // Bendahara cannot delete approved/rejected ledgers when workflow is enabled
             if (FinanceLedger::workflowEnabled() && in_array($ledger->status, ['approved', 'rejected'])) {
                 return false;
@@ -92,7 +92,7 @@ class FinanceLedgerPolicy
             return true;
         }
 
-        if ($user->hasRole('admin_unit')) {
+        if ($user->hasRole(['admin_unit', 'admin_pusat', 'pengurus_pusat'])) {
             $unitId = $user->currentUnitId();
 
             return $unitId !== null && $unitId === $ledger->organization_unit_id;

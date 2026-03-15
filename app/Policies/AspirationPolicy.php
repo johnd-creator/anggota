@@ -12,7 +12,7 @@ class AspirationPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['anggota', 'bendahara', 'admin_unit', 'admin_pusat', 'super_admin', 'pengurus']);
+        return $user->hasRole(['anggota', 'bendahara', 'admin_unit', 'admin_pusat', 'super_admin', 'pengurus', 'pengurus_pusat', 'bendahara_pusat']);
     }
 
     /**
@@ -20,7 +20,7 @@ class AspirationPolicy
      */
     public function view(User $user, Aspiration $aspiration): bool
     {
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
@@ -35,7 +35,7 @@ class AspirationPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole(['anggota', 'bendahara', 'super_admin', 'admin_pusat', 'admin_unit', 'pengurus']);
+        return $user->hasRole(['anggota', 'bendahara', 'super_admin', 'admin_pusat', 'admin_unit', 'pengurus', 'pengurus_pusat', 'bendahara_pusat']);
     }
 
     /**
@@ -44,7 +44,7 @@ class AspirationPolicy
     public function support(User $user, Aspiration $aspiration): bool
     {
         // Global admins can support any (though weird, but allowed for testing/engagement)
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
@@ -74,7 +74,7 @@ class AspirationPolicy
      */
     public function update(User $user, Aspiration $aspiration): bool
     {
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
@@ -108,7 +108,7 @@ class AspirationPolicy
      */
     public function viewAnyAdmin(User $user): bool
     {
-        return $user->hasRole(['admin_unit', 'admin_pusat', 'super_admin']);
+        return $user->hasRole(['admin_unit', 'admin_pusat', 'super_admin', 'pengurus_pusat']);
     }
 
     /**
@@ -117,7 +117,7 @@ class AspirationPolicy
      */
     public function export(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'bendahara']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'bendahara', 'bendahara_pusat', 'pengurus_pusat']);
     }
 
     /**

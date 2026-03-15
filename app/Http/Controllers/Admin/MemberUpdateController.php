@@ -21,7 +21,7 @@ class MemberUpdateController extends Controller
 
         // Build base query with unit scope for non-global users
         $baseQuery = MemberUpdateRequest::query();
-        if (!$user->hasGlobalAccess()) {
+        if (!$user->canViewGlobalScope()) {
             $baseQuery->whereHas('member', function ($q) use ($unitId) {
                 $q->where('organization_unit_id', $unitId);
             });

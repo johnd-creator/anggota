@@ -329,8 +329,8 @@ class LetterController extends Controller
             if (! $fromUnitId) {
                 return back()->withErrors(['from_unit_id' => 'User harus memiliki unit terkait.']);
             }
-        } elseif ($user->hasRole(['admin_pusat', 'bendahara_pusat'])) {
-            // admin_pusat & bendahara_pusat: auto-set to DPP
+        } elseif ($user->hasRole(['admin_pusat', 'bendahara_pusat', 'pengurus_pusat'])) {
+            // Central roles always operate with DPP as sender context.
             $fromUnitId = $user->managedOrganization?->id;
             if (! $fromUnitId) {
                 return back()->withErrors(['from_unit_id' => 'Organisasi DPP belum disetup.']);
@@ -663,7 +663,7 @@ class LetterController extends Controller
         }
 
         if ($letter->to_type === 'admin_pusat') {
-            return in_array($user->role?->name, ['admin_pusat', 'super_admin'], true);
+            return in_array($user->role?->name, ['admin_pusat', 'bendahara_pusat', 'pengurus_pusat', 'super_admin'], true);
         }
 
         return false;
@@ -1141,7 +1141,7 @@ class LetterController extends Controller
                     })->get();
             } elseif ($letter->to_type === 'admin_pusat') {
                 $users = User::whereHas('role', function ($q) {
-                    $q->whereIn('name', ['admin_pusat', 'super_admin']);
+                    $q->whereIn('name', ['admin_pusat', 'bendahara_pusat', 'pengurus_pusat', 'super_admin']);
                 })->get();
             } else {
                 $users = collect();

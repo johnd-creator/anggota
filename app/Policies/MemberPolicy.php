@@ -9,17 +9,17 @@ class MemberPolicy
 {
     public function viewAny(User $user): bool
     {
-        // admin_pusat & bendahara_pusat can view all members
+        // Central roles can monitor members across units.
         if ($user->canViewGlobalScope()) {
             return true;
         }
 
-        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'bendahara', 'bendahara_pusat', 'pengurus']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'bendahara', 'bendahara_pusat', 'pengurus', 'pengurus_pusat']);
     }
 
     public function view(User $user, Member $member): bool
     {
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
@@ -68,7 +68,7 @@ class MemberPolicy
             return true;
         }
 
-        // admin_pusat & bendahara_pusat: can only edit if member belongs to DPP
+        // Central admin/treasurer can only edit DPP members.
         if ($user->hasRole(['admin_pusat', 'bendahara_pusat'])) {
             return $member->organizationUnit?->is_pusat ?? false;
         }
@@ -87,7 +87,7 @@ class MemberPolicy
             return true;
         }
 
-        // admin_pusat & bendahara_pusat: can only delete DPP members (should not exist anyway)
+        // Central admin/treasurer can only delete DPP members.
         if ($user->hasRole(['admin_pusat', 'bendahara_pusat'])) {
             return $member->organizationUnit?->is_pusat ?? false;
         }
@@ -101,7 +101,7 @@ class MemberPolicy
      */
     public function export(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'bendahara']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'bendahara', 'bendahara_pusat', 'pengurus_pusat']);
     }
 
     /**

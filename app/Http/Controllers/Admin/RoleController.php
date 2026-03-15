@@ -92,17 +92,8 @@ class RoleController extends Controller
             $rules['organization_unit_id'] = ['required', 'exists:organization_units,id'];
         }
 
-        // bendahara_pusat: auto-assign to DPP
-        if ($role->name === 'bendahara_pusat') {
-            $dppOrg = \App\Models\OrganizationUnit::where('is_pusat', true)->first();
-            if (! $dppOrg) {
-                return back()->with('error', 'Organisasi DPP belum disetup');
-            }
-            $request->merge(['organization_unit_id' => $dppOrg->id]);
-        }
-
-        // admin_pusat: auto-assign to DPP
-        if ($role->name === 'admin_pusat') {
+        // Central roles always operate in DPP context.
+        if (in_array($role->name, ['admin_pusat', 'bendahara_pusat', 'pengurus_pusat'], true)) {
             $dppOrg = \App\Models\OrganizationUnit::where('is_pusat', true)->first();
             if (! $dppOrg) {
                 return back()->with('error', 'Organisasi DPP belum disetup');
@@ -111,6 +102,11 @@ class RoleController extends Controller
         }
 
         $data = $request->validate($rules);
+
+        if (in_array($role->name, ['admin_pusat', 'bendahara_pusat', 'pengurus_pusat'], true)) {
+            $data['organization_unit_id'] = (int) $request->input('organization_unit_id');
+        }
+
         $user = User::where('email', $data['email'])->first();
 
         if (! $user) {

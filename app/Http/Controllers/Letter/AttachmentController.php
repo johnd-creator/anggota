@@ -79,7 +79,7 @@ class AttachmentController extends Controller
         } elseif ($letter->to_type === 'unit' && $letter->to_unit_id) {
             $isRecipient = $user->organization_unit_id === $letter->to_unit_id;
         } elseif ($letter->to_type === 'admin_pusat') {
-            $isRecipient = in_array($user->role?->name, ['admin_pusat', 'super_admin']);
+            $isRecipient = in_array($user->role?->name, ['admin_pusat', 'bendahara_pusat', 'pengurus_pusat', 'super_admin']);
         }
 
         if ($isRecipient) {

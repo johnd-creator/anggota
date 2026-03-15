@@ -159,7 +159,7 @@ const page = usePage()
 const user = page.props.auth?.user
 const roleName = user?.role?.name
 
-const canCreateLetter = ['admin_unit', 'admin_pusat', 'bendahara', 'bendahara_pusat', 'super_admin', 'pengurus'].includes(roleName)
+const canCreateLetter = ['admin_unit', 'admin_pusat', 'bendahara', 'bendahara_pusat', 'super_admin', 'pengurus', 'pengurus_pusat'].includes(roleName)
 
 watch([search, status, categoryId], ([s, st, cat]) => {
   router.get('/letters/inbox', { search: s, status: st, category_id: cat }, { preserveState: true, replace: true })

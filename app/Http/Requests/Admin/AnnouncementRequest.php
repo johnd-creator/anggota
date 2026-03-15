@@ -30,6 +30,12 @@ class AnnouncementRequest extends FormRequest
             ]);
         }
 
+        if ($user->isPusatRole() && $this->input('scope_type') === 'unit') {
+            $this->merge([
+                'organization_unit_id' => $user->currentUnitId(),
+            ]);
+        }
+
         // Ensure unit_id is null for global scopes
         if (in_array($this->input('scope_type'), ['global_all', 'global_officers'], true)) {
             $this->merge(['organization_unit_id' => null]);

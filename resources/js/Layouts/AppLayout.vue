@@ -616,15 +616,15 @@ function relativeTime(s) {
 }
 
 const roleName = computed(() => page.props?.auth?.user?.role?.name || '');
-const isAdminOrUnit = computed(() => ['super_admin', 'admin_unit', 'admin_pusat', 'pengurus'].includes(roleName.value));
+const isAdminOrUnit = computed(() => ['super_admin', 'admin_unit', 'admin_pusat', 'bendahara_pusat', 'pengurus', 'pengurus_pusat'].includes(roleName.value));
 const isSuperAdmin = computed(() => roleName.value === 'super_admin');
 const isAdminUnit = computed(() => roleName.value === 'admin_unit');
 const isAdminPusat = computed(() => roleName.value === 'admin_pusat');
-const isTreasurer = computed(() => roleName.value === 'bendahara');
-const isPengurus = computed(() => roleName.value === 'pengurus');
-const canViewMembers = computed(() => ['super_admin', 'admin_unit', 'admin_pusat', 'pengurus'].includes(roleName.value));
+const isTreasurer = computed(() => ['bendahara', 'bendahara_pusat'].includes(roleName.value));
+const isPengurus = computed(() => ['pengurus', 'pengurus_pusat'].includes(roleName.value));
+const canViewMembers = computed(() => ['super_admin', 'admin_unit', 'admin_pusat', 'bendahara_pusat', 'pengurus', 'pengurus_pusat'].includes(roleName.value));
 const canManageMembers = computed(() => ['super_admin', 'admin_unit', 'admin_pusat'].includes(roleName.value));
-const isMember = computed(() => ['anggota', 'admin_unit', 'bendahara', 'pengurus'].includes(roleName.value));
+const isMember = computed(() => ['anggota', 'admin_unit', 'bendahara', 'pengurus', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat'].includes(roleName.value));
 const unionPositionName = computed(() => (page.props?.auth?.user?.union_position?.name || '').toLowerCase());
 const canApproveLetters = computed(() => ['ketua', 'sekretaris', 'bendahara'].includes(unionPositionName.value));
 // Member self-service availability (profile + KTA portal).

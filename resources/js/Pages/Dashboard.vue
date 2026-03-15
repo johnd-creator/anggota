@@ -558,10 +558,10 @@ const page = usePage();
 const pg = page.props || {};
 
 const roleName = computed(() => pg.auth?.user?.role?.name || '');
-const isMemberRole = computed(() => ['anggota', 'admin_unit', 'bendahara', 'pengurus'].includes(roleName.value));
+const isMemberRole = computed(() => ['anggota', 'admin_unit', 'bendahara', 'pengurus', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat'].includes(roleName.value));
 const isSuperAdmin = computed(() => roleName.value === 'super_admin');
-const showAdminQueues = computed(() => ['super_admin', 'admin_unit', 'admin_pusat', 'pengurus'].includes(roleName.value));
-const showAdminCards = computed(() => ['super_admin', 'admin_unit', 'admin_pusat'].includes(roleName.value));
+const showAdminQueues = computed(() => ['super_admin', 'admin_unit', 'admin_pusat', 'bendahara_pusat', 'pengurus', 'pengurus_pusat'].includes(roleName.value));
+const showAdminCards = computed(() => ['super_admin', 'admin_unit', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat'].includes(roleName.value));
 const canOpenTotalMembers = computed(() => !['anggota', 'bendahara'].includes(roleName.value));
 
 const showUnpaidModal = ref(false);
@@ -601,7 +601,7 @@ const formatShortCurrency = (value) => {
     return value;
 };
 
-		const showUnitMembersCard = computed(() => ['admin_unit', 'bendahara', 'anggota', 'pengurus'].includes(roleName.value));
+const showUnitMembersCard = computed(() => ['admin_unit', 'bendahara', 'anggota', 'pengurus', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat'].includes(roleName.value));
 const showApprovalsCard = computed(() => {
     if (roleName.value === 'super_admin') return true;
     return pg.auth?.user?.union_position && ['ketua', 'sekretaris'].includes((pg.auth?.user?.union_position?.name || '').toLowerCase());

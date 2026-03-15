@@ -26,7 +26,7 @@ class MutationController extends Controller
         $unitId = $user->currentUnitId();
 
         // Apply unit scope via policy-based query filtering
-        if (!$user->hasGlobalAccess()) {
+        if (!$user->canViewGlobalScope()) {
             if ($unitId) {
                 $query->where(function ($q) use ($unitId) {
                     $q->where('from_unit_id', $unitId)
@@ -64,7 +64,7 @@ class MutationController extends Controller
             ->where('status', 'aktif');
 
         // Apply member scope
-        if (!$user->hasGlobalAccess()) {
+        if (!$user->canViewGlobalScope()) {
             if ($unitId) {
                 $membersQuery->where('organization_unit_id', $unitId);
             } else {

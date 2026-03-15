@@ -269,7 +269,7 @@ class Letter extends Model
         $roleName = $user->role?->name;
         $unitId = $user->currentUnitId();
 
-        if (in_array($roleName, ['anggota', 'bendahara'])) {
+        if (in_array($roleName, ['anggota', 'bendahara', 'bendahara_pusat'])) {
             return $query->where(function ($q) use ($user, $unitId) {
                 // Letters sent to this member
                 if ($user->member_id) {
@@ -286,7 +286,7 @@ class Letter extends Model
                     });
                 }
             });
-        } elseif ($roleName === 'admin_unit') {
+        } elseif (in_array($roleName, ['admin_unit', 'pengurus', 'pengurus_pusat'], true)) {
             return $query->where(function ($q) use ($unitId) {
                 // Letters sent to user's unit
                 if ($unitId) {
@@ -295,7 +295,7 @@ class Letter extends Model
                 }
             });
         } else {
-            // admin_pusat, super_admin - see letters to admin_pusat
+            // Central office roles and super_admin see letters addressed to pusat.
             return $query->where('to_type', 'admin_pusat');
         }
     }

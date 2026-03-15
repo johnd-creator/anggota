@@ -9,12 +9,12 @@ class PendingMemberPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'pengurus_pusat']);
     }
 
     public function view(User $user, PendingMember $pending): bool
     {
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
@@ -28,7 +28,7 @@ class PendingMemberPolicy
 
     public function approve(User $user, PendingMember $pending): bool
     {
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 
@@ -49,7 +49,7 @@ class PendingMemberPolicy
     public function delete(User $user, PendingMember $pending): bool
     {
         // Global users (super_admin, admin_pusat) can delete any pending member
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             return true;
         }
 

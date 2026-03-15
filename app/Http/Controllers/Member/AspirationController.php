@@ -38,7 +38,7 @@ class AspirationController extends Controller
 
         if ($unitId) {
             $query->byUnit($unitId);
-        } else if (!$user->hasGlobalAccess()) {
+        } else if (!$user->canViewGlobalScope()) {
             // If no unit and not global, return empty or redirect
             return redirect()->route('dashboard')->with('error', 'Unit tidak ditemukan');
         }
@@ -117,14 +117,14 @@ class AspirationController extends Controller
 
         // If not a member, ensure has admin role and use their unit
         if (!$member) {
-            if (!$user->hasRole(['super_admin', 'admin_pusat', 'admin_unit'])) {
+            if (!$user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'pengurus_pusat'])) {
                 return back()->withErrors(['member' => 'Profil anggota tidak ditemukan']);
             }
             // For admin_pusat/super_admin, they might not have a unit. If so, require unit selection or default?
             // User requirement: "ke 3 role ini seharusnya dapat menyampaikan".
             // Use currentUnitId() which handles both organization_unit_id and member->organization_unit_id
             $unitId = $user->currentUnitId();
-            if (!$unitId && !$user->hasGlobalAccess()) {
+            if (!$unitId && !$user->canViewGlobalScope()) {
                 return back()->withErrors(['unit' => 'Unit organisasi tidak ditemukan']);
             }
             // Global admins without unit cannot create aspirations in member view
@@ -163,7 +163,7 @@ class AspirationController extends Controller
                 $unitAdminUsers = \App\Models\User::whereHas('role', fn($q) => $q->where('name', 'admin_unit'))
                     ->where('organization_unit_id', $unitId)
                     ->get();
-                $globalAdmins = \App\Models\User::whereHas('role', fn($q) => $q->whereIn('name', ['super_admin', 'admin_pusat']))->get();
+                $globalAdmins = \App\Models\User::whereHas('role', fn($q) => $q->whereIn('name', ['super_admin', 'admin_pusat', 'pengurus_pusat']))->get();
                 $targets = $unitAdminUsers->merge($globalAdmins)->unique('id');
                 // Filter out current user
                 $targets = $targets->reject(fn($u) => $u->id === $user->id);

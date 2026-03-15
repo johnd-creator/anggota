@@ -27,7 +27,7 @@ class OnboardingController extends Controller
 
         // Build base query with unit scope for non-global users
         $baseQuery = PendingMember::query();
-        if (!$user->hasGlobalAccess()) {
+        if (!$user->canViewGlobalScope()) {
             // admin_unit can see ALL pending members (no organization_unit_id filter)
             if ($unitId) {
                 // Filter only if user has a unit, but allow all pending members
@@ -94,7 +94,7 @@ class OnboardingController extends Controller
 
         // Only require organization_unit_id for global users (super_admin, admin_pusat)
         // admin_unit will use their own unit automatically
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             $rules['organization_unit_id'] = 'required|exists:organization_units,id';
         }
 
@@ -104,7 +104,7 @@ class OnboardingController extends Controller
         // - admin_unit approves into their own unit
         // - global users approve into selected unit
         $unitId = null;
-        if ($user->hasGlobalAccess()) {
+        if ($user->canViewGlobalScope()) {
             $unitId = (int) $validated['organization_unit_id'];
         } else {
             $unitId = $user->currentUnitId();

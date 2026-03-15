@@ -56,7 +56,7 @@ class AnnouncementPolicy
         if (!$user->role)
             return false;
 
-        return in_array($user->role->name, ['super_admin', 'admin_pusat', 'admin_unit']);
+        return in_array($user->role->name, ['super_admin', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat', 'admin_unit']);
     }
 
     /**
@@ -65,7 +65,7 @@ class AnnouncementPolicy
     public function update(User $user, Announcement $announcement): bool
     {
         // Super/Pusat can update anything
-        if (in_array($user->role?->name, ['super_admin', 'admin_pusat'])) {
+        if (in_array($user->role?->name, ['super_admin', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat'])) {
             return true;
         }
 
@@ -88,6 +88,6 @@ class AnnouncementPolicy
 
     private function hasAdminPrivileges(User $user): bool
     {
-        return in_array($user->role?->name, ['super_admin', 'admin_pusat', 'admin_unit']);
+        return in_array($user->role?->name, ['super_admin', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat', 'admin_unit']);
     }
 }

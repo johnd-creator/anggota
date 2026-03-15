@@ -364,7 +364,7 @@ class MemberController extends Controller
 
         $user = $request->user();
         $unitId = $user?->currentUnitId();
-        $isGlobal = $user?->hasGlobalAccess() ?? false;
+        $isGlobal = $user?->canViewGlobalScope() ?? false;
 
         $queryBuilder = Member::query()
             ->where(function ($q) use ($query) {

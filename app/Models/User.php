@@ -117,7 +117,25 @@ class User extends Authenticatable
      */
     public function hasGlobalAccess(): bool
     {
-        return $this->hasRole(['super_admin', 'admin_pusat']);
+        return $this->hasRole('super_admin');
+    }
+
+    /**
+     * Check if user is acting as a DPP/central role.
+     */
+    public function isPusatRole(): bool
+    {
+        return $this->hasRole(['admin_pusat', 'bendahara_pusat', 'pengurus_pusat']);
+    }
+
+    /**
+     * Check if user can monitor data across units.
+     * This is broader than full global access because pusat roles
+     * still operate with DPP as their active unit context.
+     */
+    public function canControlAcrossUnits(): bool
+    {
+        return $this->hasRole('super_admin') || $this->isPusatRole();
     }
 
     /**
@@ -188,7 +206,7 @@ class User extends Authenticatable
     public function isOfficer(): bool
     {
         // Global admins can always view officer content for operational purposes
-        if ($this->hasRole(['super_admin', 'admin_pusat'])) {
+        if ($this->hasRole('super_admin') || $this->isPusatRole()) {
             return true;
         }
 
@@ -209,7 +227,7 @@ class User extends Authenticatable
      */
     public function getManagedOrganizationAttribute()
     {
-        if ($this->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+        if ($this->isPusatRole()) {
             return OrganizationUnit::where('is_pusat', true)->first();
         }
 
@@ -221,7 +239,7 @@ class User extends Authenticatable
      */
     public function canViewGlobalScope(): bool
     {
-        return $this->hasRole(['super_admin', 'admin_pusat', 'bendahara_pusat']);
+        return $this->canControlAcrossUnits();
     }
 
     /**
@@ -235,7 +253,7 @@ class User extends Authenticatable
         }
 
         // admin_pusat & bendahara_pusat can only manage DPP
-        if ($this->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+        if ($this->isPusatRole()) {
             return $org->is_pusat;
         }
 

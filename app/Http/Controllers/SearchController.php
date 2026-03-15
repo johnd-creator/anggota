@@ -74,7 +74,7 @@ class SearchController extends Controller
     {
         $roleName = $user->role?->name ?? 'anggota';
         // Only log for privileged users who might be searching outside their own data extensively
-        if (in_array($roleName, ['super_admin', 'admin_pusat'])) {
+        if ($user->canViewGlobalScope()) {
             $this->auditService->log($event, [
                 'query_hash' => hash('sha256', strtolower($query)),
                 'query_len' => strlen($query),

@@ -141,7 +141,7 @@ const user = computed(() => page.props.auth?.user || null);
 const unitOptions = computed(() => props.units.map((u) => ({ label: u.name, value: u.id })));
 const positionOptions = computed(() => props.positions.map((p) => ({ label: p.name, value: p.id })));
 const isGlobalUser = computed(() => {
-  return user.value && (user.value.role?.name === 'super_admin' || user.value.role?.name === 'admin_pusat');
+  return user.value && ['super_admin', 'admin_pusat', 'pengurus_pusat'].includes(user.value.role?.name);
 });
 const search = ref(props.filters.search || '');
 const activeStatus = computed(() => props.filters.status || 'pending');

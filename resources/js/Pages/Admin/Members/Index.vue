@@ -131,7 +131,7 @@
   const members = computed(() => page.props.members);
   const units = page.props.units || [];
   const unitOptions = units.map(u => ({ label: u.name, value: u.id }));
-  const isPengurus = computed(() => page.props.auth.user.role?.name === 'pengurus');
+  const isPengurus = computed(() => ['pengurus', 'pengurus_pusat'].includes(page.props.auth.user.role?.name));
 
 const initialFilters = page.props.filters || {};
 const filters = reactive({ status: '', units: initialFilters.units || [] });
@@ -193,4 +193,3 @@ function formatDate(d){
   } catch { return '-'; }
 }
 </script>
-
