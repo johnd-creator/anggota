@@ -391,8 +391,8 @@
           <!-- Right Side Actions -->
           <div class="flex items-center gap-3">
             <!-- Notification Bell -->
-            <div class="relative">
-              <button class="relative p-2 rounded-full bg-neutral-100 hover:bg-neutral-200 transition-colors" @click="toggleNotifDropdown">
+            <div ref="notifDropdownRef" class="relative">
+              <button class="relative p-2 rounded-full bg-neutral-100 hover:bg-neutral-200 transition-colors" @click.stop="toggleNotifDropdown">
                 <svg class="h-5 w-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
@@ -401,11 +401,17 @@
                 </span>
               </button>
               <!-- Notification Dropdown -->
-              <div v-show="notifOpen" class="absolute right-0 mt-2 w-80 bg-white border border-neutral-200 rounded-xl shadow-xl py-2 z-50">
+              <div v-show="notifOpen" class="absolute right-0 mt-2 w-80 bg-white border border-neutral-200 rounded-xl shadow-xl py-2 z-50" @click.stop>
                 <div class="px-4 py-2 border-b border-neutral-100">
                   <span class="text-sm font-semibold text-neutral-800">Notifikasi</span>
                 </div>
-                <div v-if="recent.length === 0" class="px-4 py-6 text-center text-sm text-neutral-500">
+                <div v-if="notifLoading" class="px-4 py-6 text-center text-sm text-neutral-500">
+                  Memuat notifikasi...
+                </div>
+                <div v-else-if="notifError" class="px-4 py-6 text-center text-sm text-neutral-500">
+                  Gagal memuat notifikasi.
+                </div>
+                <div v-else-if="recent.length === 0" class="px-4 py-6 text-center text-sm text-neutral-500">
                   Tidak ada notifikasi baru
                 </div>
                 <div v-else class="max-h-64 overflow-y-auto">
@@ -426,7 +432,7 @@
                   </button>
                 </div>
                 <div class="px-4 py-2 border-t border-neutral-100 flex items-center justify-between">
-                  <Link href="/notifications" class="text-sm text-brand-primary-600 hover:underline">Lihat semua</Link>
+                  <Link href="/notifications" class="text-sm text-brand-primary-600 hover:underline" @click="closeNotifDropdown">Lihat semua</Link>
                   <button class="text-xs text-neutral-600 hover:text-brand-primary-600" @click="markAllReadAndClear">Tandai dibaca</button>
                 </div>
               </div>
@@ -503,7 +509,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import UserAvatar from '@/Components/UI/UserAvatar.vue';
 import AlertBanner from '@/Components/UI/AlertBanner.vue';
@@ -525,6 +531,10 @@ const notifOpen = ref(false);
 const userMenuOpen = ref(false);
 const unreadCount = ref(page.props?.counters?.notifications_unread || 0);
 const recent = ref([]);
+const notifLoading = ref(false);
+const notifError = ref(false);
+const notifDropdownRef = ref(null);
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
 // Collapsible sections state
 const expandedSections = ref({
@@ -553,26 +563,68 @@ function toggleNotifDropdown() {
   notifOpen.value = !notifOpen.value;
   userMenuOpen.value = false;
   if (notifOpen.value) {
-    fetch('/notifications/recent')
-      .then(r => r.json())
-      .then(d => { 
-        recent.value = d.items || []; 
-        const ids = (recent.value || []).filter(x => !x.read_at).map(x => x.id);
-        if (ids.length) {
-          router.post('/notifications/read-batch', { ids }, {
-            onSuccess() {
-              unreadCount.value = Math.max(0, (unreadCount.value || 0) - ids.length);
-            }
-          });
-        }
-      })
-      .catch(() => { recent.value = []; });
+    void loadRecentNotifications();
   }
 }
 
-function openNotification(n) {
-  const link = n?.link || (n?.data && n.data.link) || null;
+function closeNotifDropdown() {
   notifOpen.value = false;
+}
+
+async function loadRecentNotifications() {
+  notifLoading.value = true;
+  notifError.value = false;
+
+  try {
+    const response = await fetch('/notifications/recent', {
+      headers: {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    });
+
+    const data = await response.json();
+    recent.value = data.items || [];
+  } catch (error) {
+    recent.value = [];
+    notifError.value = true;
+  } finally {
+    notifLoading.value = false;
+  }
+}
+
+async function markNotificationRead(id) {
+  if (!id) {
+    return false;
+  }
+
+  try {
+    const response = await fetch(`/notifications/${id}/read`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    });
+
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function openNotification(n) {
+  const link = n?.link || (n?.data && n.data.link) || null;
+  if (n && !n.read_at) {
+    const marked = await markNotificationRead(n.id);
+    if (marked) {
+      n.read_at = new Date().toISOString();
+      unreadCount.value = Math.max(0, (unreadCount.value || 0) - 1);
+    }
+  }
+
+  closeNotifDropdown();
   if (link) {
     router.visit(link);
   } else {
@@ -580,19 +632,49 @@ function openNotification(n) {
   }
 }
 
-function markAllReadAndClear() {
-  router.post('/notifications/read-all', {}, {
-    onSuccess() {
-      unreadCount.value = 0;
-      recent.value = [];
-      notifOpen.value = false;
-    },
-    onError() { console.error('Mark all read failed'); }
-  });
+async function markAllReadAndClear() {
+  try {
+    const response = await fetch('/notifications/read-all', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Mark all read failed');
+    }
+
+    unreadCount.value = 0;
+    recent.value = recent.value.map((item) => ({
+      ...item,
+      read_at: item.read_at || new Date().toISOString(),
+    }));
+    closeNotifDropdown();
+  } catch (error) {
+    console.error('Mark all read failed');
+  }
+}
+
+function handleDocumentClick(event) {
+  if (!notifOpen.value) {
+    return;
+  }
+
+  if (notifDropdownRef.value && !notifDropdownRef.value.contains(event.target)) {
+    closeNotifDropdown();
+  }
 }
 
 onMounted(() => {
   syncExpandedToRoute(page.url || window.location.pathname || '');
+  document.addEventListener('click', handleDocumentClick);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick);
 });
 
 watch(

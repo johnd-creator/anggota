@@ -61,6 +61,28 @@
                 </IconButton>
               </div>
             </div>
+
+            <div>
+              <h3 class="text-lg font-semibold mb-3">Letter Action Icons</h3>
+              <div class="space-y-4">
+                <div class="flex flex-wrap gap-3">
+                  <ActionIconButton action="preview" aria-label="Preview surat" />
+                  <ActionIconButton action="detail" aria-label="Lihat detail surat" />
+                  <ActionIconButton action="edit" aria-label="Edit surat" />
+                  <ActionIconButton action="delete" aria-label="Hapus surat" />
+                  <ActionIconButton action="submit" aria-label="Ajukan surat" />
+                  <ActionIconButton action="approve" aria-label="Setujui surat" />
+                  <ActionIconButton action="revise" aria-label="Minta revisi surat" />
+                  <ActionIconButton action="reject" aria-label="Tolak surat" />
+                </div>
+                <div class="flex flex-wrap gap-3">
+                  <ActionIconButton action="submit" aria-label="Ajukan surat" label="Ajukan" size="md" />
+                  <ActionIconButton action="approve" aria-label="Setujui surat" label="Setujui" size="md" />
+                  <ActionIconButton action="revise" aria-label="Minta revisi surat" label="Revisi" size="md" />
+                  <ActionIconButton action="reject" aria-label="Tolak surat" label="Tolak" size="md" />
+                </div>
+              </div>
+            </div>
           </div>
         </CardContainer>
       </section>
@@ -172,6 +194,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import PrimaryButton from '@/Components/UI/PrimaryButton.vue';
 import SecondaryButton from '@/Components/UI/SecondaryButton.vue';
 import IconButton from '@/Components/UI/IconButton.vue';
+import ActionIconButton from '@/Components/UI/ActionIconButton.vue';
 import InputField from '@/Components/UI/InputField.vue';
 import SelectField from '@/Components/UI/SelectField.vue';
 import ToggleSwitch from '@/Components/UI/ToggleSwitch.vue';

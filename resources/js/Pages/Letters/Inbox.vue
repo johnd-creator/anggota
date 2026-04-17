@@ -79,13 +79,19 @@
                 </td>
                 <td class="px-6 py-4 text-sm text-neutral-600">{{ formatDate(letter.created_at) }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div class="flex justify-end space-x-3">
-                    <Link :href="`/letters/${letter.id}/preview`" class="text-neutral-600 hover:text-neutral-800">
-                      Preview
-                    </Link>
-                    <Link :href="`/letters/${letter.id}`" class="text-brand-primary-600 hover:text-brand-primary-700">
-                      Detail
-                    </Link>
+                  <div class="flex justify-end items-center gap-2">
+                    <ActionIconButton
+                      action="preview"
+                      aria-label="Preview surat"
+                      title="Preview"
+                      @click="router.visit(`/letters/${letter.id}/preview`)"
+                    />
+                    <ActionIconButton
+                      action="detail"
+                      aria-label="Lihat detail surat"
+                      title="Detail"
+                      @click="router.visit(`/letters/${letter.id}`)"
+                    />
                   </div>
                 </td>
               </tr>
@@ -114,9 +120,20 @@
             ]"
         >
             <template #actions>
-                <Link :href="`/letters/${letter.id}`" class="text-brand-primary-600 text-sm font-medium">
-                    Detail
-                </Link>
+                <ActionIconButton
+                  action="preview"
+                  aria-label="Preview surat"
+                  title="Preview"
+                  size="md"
+                  @click="router.visit(`/letters/${letter.id}/preview`)"
+                />
+                <ActionIconButton
+                  action="detail"
+                  aria-label="Lihat detail surat"
+                  title="Detail"
+                  size="md"
+                  @click="router.visit(`/letters/${letter.id}`)"
+                />
             </template>
         </DataCard>
       </div>
@@ -143,6 +160,7 @@ import StatusBadge from '@/Components/UI/StatusBadge.vue'
 import ColorBadge from '@/Components/UI/ColorBadge.vue'
 import Pagination from '@/Components/UI/Pagination.vue'
 import DataCard from '@/Components/Mobile/DataCard.vue'
+import ActionIconButton from '@/Components/UI/ActionIconButton.vue'
 
 const props = defineProps({
   letters: Object,

@@ -78,11 +78,31 @@
                   <span v-else class="text-neutral-400 text-xs">-</span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div class="flex justify-end space-x-2">
-                    <Link :href="`/letters/${letter.id}`" class="text-brand-primary-600 hover:text-brand-primary-700">Detail</Link>
-                    <button @click="approveModal(letter)" class="text-green-600 hover:text-green-700">Setujui</button>
-                    <button @click="revisionModal(letter)" class="text-yellow-600 hover:text-yellow-700">Revisi</button>
-                    <button @click="rejectModal(letter)" class="text-red-600 hover:text-red-700">Tolak</button>
+                  <div class="flex justify-end items-center gap-2">
+                    <ActionIconButton
+                      action="detail"
+                      aria-label="Lihat detail surat"
+                      title="Detail"
+                      @click="router.visit(`/letters/${letter.id}`)"
+                    />
+                    <ActionIconButton
+                      action="approve"
+                      aria-label="Setujui surat"
+                      title="Setujui"
+                      @click="approveModal(letter)"
+                    />
+                    <ActionIconButton
+                      action="revise"
+                      aria-label="Minta revisi surat"
+                      title="Minta Revisi"
+                      @click="revisionModal(letter)"
+                    />
+                    <ActionIconButton
+                      action="reject"
+                      aria-label="Tolak surat"
+                      title="Tolak"
+                      @click="rejectModal(letter)"
+                    />
                   </div>
                 </td>
               </tr>
@@ -112,11 +132,37 @@
             ]"
         >
             <template #actions>
-                <div class="flex flex-wrap gap-2">
-                    <Link :href="`/letters/${letter.id}`" class="text-brand-primary-600 text-sm font-medium">
-                        Detail
-                    </Link>
-                </div>
+                <ActionIconButton
+                  action="detail"
+                  aria-label="Lihat detail surat"
+                  title="Detail"
+                  size="md"
+                  @click="router.visit(`/letters/${letter.id}`)"
+                />
+                <ActionIconButton
+                  action="approve"
+                  aria-label="Setujui surat"
+                  title="Setujui"
+                  label="Setujui"
+                  size="md"
+                  @click="approveModal(letter)"
+                />
+                <ActionIconButton
+                  action="revise"
+                  aria-label="Minta revisi surat"
+                  title="Minta Revisi"
+                  label="Revisi"
+                  size="md"
+                  @click="revisionModal(letter)"
+                />
+                <ActionIconButton
+                  action="reject"
+                  aria-label="Tolak surat"
+                  title="Tolak"
+                  label="Tolak"
+                  size="md"
+                  @click="rejectModal(letter)"
+                />
             </template>
         </DataCard>
         <div v-if="letters.data.length === 0" class="text-center py-8 text-neutral-500">
@@ -180,7 +226,7 @@
  
 <script setup>
 import { ref, watch } from 'vue'
-import { router, Link } from '@inertiajs/vue3'
+import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
 import InputField from '@/Components/UI/InputField.vue'
@@ -192,6 +238,7 @@ import ColorBadge from '@/Components/UI/ColorBadge.vue'
 import Pagination from '@/Components/UI/Pagination.vue'
 import SummaryCard from '@/Components/UI/SummaryCard.vue'
 import DataCard from '@/Components/Mobile/DataCard.vue'
+import ActionIconButton from '@/Components/UI/ActionIconButton.vue'
 
 const props = defineProps({
   letters: Object,

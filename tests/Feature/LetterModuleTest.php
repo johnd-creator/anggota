@@ -98,6 +98,36 @@ class LetterModuleTest extends TestCase
         ]);
     }
 
+    public function test_admin_unit_can_create_external_draft()
+    {
+        $response = $this->actingAs($this->adminUnit)
+            ->post(route('letters.store'), [
+                'letter_category_id' => $this->category->id,
+                'signer_type' => 'ketua',
+                'to_type' => 'eksternal',
+                'to_external_name' => 'MASKUR',
+                'to_external_org' => 'PT. PLN Indonesia Power Services Suralaya',
+                'to_external_address' => "Komp. PLTU Suralaya\nJl. Yos Sudarso",
+                'subject' => 'Permohonan Pertemuan LKS Bipartit',
+                'body' => '<p>Dengan hormat,</p><p>Mohon jadwal pertemuan.</p>',
+                'confidentiality' => 'biasa',
+                'urgency' => 'biasa',
+            ]);
+
+        $response->assertRedirect(route('letters.outbox'));
+
+        $this->assertDatabaseHas('letters', [
+            'creator_user_id' => $this->adminUnit->id,
+            'from_unit_id' => $this->unit->id,
+            'to_type' => 'eksternal',
+            'to_external_name' => 'MASKUR',
+            'to_external_org' => 'PT. PLN Indonesia Power Services Suralaya',
+            'to_external_address' => "Komp. PLTU Suralaya\nJl. Yos Sudarso",
+            'subject' => 'Permohonan Pertemuan LKS Bipartit',
+            'status' => 'draft',
+        ]);
+    }
+
     public function test_letter_to_member_shows_in_member_inbox()
     {
         // Create letter to the member
