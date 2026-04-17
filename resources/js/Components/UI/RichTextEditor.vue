@@ -117,6 +117,25 @@
 
       <span class="tiptap-divider"></span>
 
+      <button
+        type="button"
+        @click="changeIndent(1)"
+        :disabled="disabled"
+        title="Geser ke kanan"
+      >
+        ⇥
+      </button>
+      <button
+        type="button"
+        @click="changeIndent(-1)"
+        :disabled="disabled"
+        title="Geser ke kiri"
+      >
+        ⇤
+      </button>
+
+      <span class="tiptap-divider"></span>
+
       <!-- Link -->
       <button
         type="button"
@@ -186,6 +205,17 @@
 
       <span class="tiptap-divider"></span>
 
+      <button
+        type="button"
+        @click="insertPageBreak"
+        :disabled="disabled"
+        title="Pindah ke halaman baru"
+      >
+        ⤓
+      </button>
+
+      <span class="tiptap-divider"></span>
+
       <!-- Undo/Redo -->
       <button
         type="button"
@@ -213,6 +243,7 @@
 <script setup>
 import { ref, watch, onBeforeUnmount } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
+import { Extension } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -244,6 +275,49 @@ let debounceTimer = null
 
 // Table menu visibility
 const showTableMenu = ref(false)
+const MAX_INDENT = 5
+const INDENT_STEP_PX = 32
+
+const Indent = Extension.create({
+  name: 'indent',
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['paragraph', 'heading', 'bulletList', 'orderedList', 'blockquote', 'table'],
+        attributes: {
+          indent: {
+            default: 0,
+            parseHTML: element => {
+              const dataIndent = Number(element.getAttribute('data-indent') || 0)
+              if (!Number.isNaN(dataIndent) && dataIndent > 0) {
+                return Math.min(dataIndent, MAX_INDENT)
+              }
+
+              const style = element.getAttribute('style') || ''
+              const match = style.match(/margin-left\s*:\s*(\d+)px/i)
+              if (!match) return 0
+
+              const parsed = Math.round(Number(match[1]) / INDENT_STEP_PX)
+              if (Number.isNaN(parsed) || parsed < 1) return 0
+
+              return Math.min(parsed, MAX_INDENT)
+            },
+            renderHTML: attributes => {
+              const indent = Number(attributes.indent || 0)
+              if (!indent) return {}
+
+              return {
+                'data-indent': String(indent),
+                style: `margin-left: ${indent * INDENT_STEP_PX}px;`,
+              }
+            },
+          },
+        },
+      },
+    ]
+  },
+})
 
 const editor = useEditor({
   content: props.modelValue || '',
@@ -266,6 +340,7 @@ const editor = useEditor({
     TextAlign.configure({
       types: ['heading', 'paragraph'],
     }),
+    Indent,
     Table.configure({
       resizable: true,
       HTMLAttributes: {
@@ -320,6 +395,30 @@ function setLink() {
 function insertTable() {
   if (!editor.value) return
   editor.value.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: false }).run()
+}
+
+function getIndentTarget() {
+  if (!editor.value) return null
+  if (editor.value.isActive('table')) return 'table'
+  if (editor.value.isActive('bulletList')) return 'bulletList'
+  if (editor.value.isActive('orderedList')) return 'orderedList'
+  if (editor.value.isActive('blockquote')) return 'blockquote'
+  if (editor.value.isActive('heading')) return 'heading'
+  return 'paragraph'
+}
+
+function changeIndent(direction) {
+  const target = getIndentTarget()
+  if (!editor.value || !target) return
+
+  const current = Number(editor.value.getAttributes(target).indent || 0)
+  const next = Math.max(0, Math.min(MAX_INDENT, current + direction))
+  editor.value.chain().focus().updateAttributes(target, { indent: next }).run()
+}
+
+function insertPageBreak() {
+  if (!editor.value) return
+  editor.value.chain().focus().setHorizontalRule().run()
 }
 
 onBeforeUnmount(() => {

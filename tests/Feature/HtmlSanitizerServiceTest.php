@@ -86,6 +86,26 @@ class HtmlSanitizerServiceTest extends TestCase
         $this->assertStringContainsString('text-align: left', $clean);
     }
 
+    public function test_margin_left_style_and_indent_attribute_are_preserved(): void
+    {
+        $dirty = '<p data-indent="2" style="margin-left: 64px; color: red;">Indented</p>';
+        $clean = $this->sanitizer->sanitize($dirty);
+
+        $this->assertStringContainsString('data-indent="2"', $clean);
+        $this->assertStringContainsString('margin-left: 64px', $clean);
+        $this->assertStringNotContainsString('color:', $clean);
+    }
+
+    public function test_horizontal_rule_is_preserved_for_page_break_marker(): void
+    {
+        $dirty = '<p>Halaman 1</p><hr><p>Halaman 2</p>';
+        $clean = $this->sanitizer->sanitize($dirty);
+
+        $this->assertStringContainsString('<hr>', $clean);
+        $this->assertStringContainsString('Halaman 1', $clean);
+        $this->assertStringContainsString('Halaman 2', $clean);
+    }
+
     public function test_safe_links_are_preserved(): void
     {
         $dirty = '<p><a href="https://example.com">Link</a></p>';

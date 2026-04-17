@@ -52,12 +52,12 @@ class HtmlSanitizerService
      */
     protected const ALLOWED_ATTRIBUTES = [
         'a' => ['href', 'target', 'rel'],
-        'p' => ['style'],
-        'h2' => ['style'],
-        'h3' => ['style'],
+        'p' => ['style', 'data-indent'],
+        'h2' => ['style', 'data-indent'],
+        'h3' => ['style', 'data-indent'],
         'span' => ['style'],
         // Table attributes
-        'table' => ['class', 'style'],
+        'table' => ['class', 'style', 'data-indent'],
         'th' => ['colspan', 'rowspan', 'style', 'data-colwidth'],
         'td' => ['colspan', 'rowspan', 'style', 'data-colwidth'],
         'col' => ['style', 'data-colwidth'],
@@ -65,6 +65,9 @@ class HtmlSanitizerService
         'tr' => [],
         'thead' => [],
         'tbody' => [],
+        'ul' => ['style', 'data-indent'],
+        'ol' => ['style', 'data-indent'],
+        'blockquote' => ['style', 'data-indent'],
     ];
 
     /**
@@ -303,16 +306,24 @@ class HtmlSanitizerService
 
     /**
      * Sanitize style attribute.
-     * Only allows text-align with specific values.
+     * Only allows text-align and margin-left with specific values.
      */
     protected function sanitizeStyle(string $style): string
     {
-        // Only allow text-align property
+        $safeDeclarations = [];
+
         if (preg_match('/text-align\s*:\s*(left|center|right|justify)/i', $style, $matches)) {
-            return 'text-align: ' . strtolower($matches[1]);
+            $safeDeclarations[] = 'text-align: ' . strtolower($matches[1]);
         }
 
-        return '';
+        if (preg_match('/margin-left\s*:\s*(\d+)px/i', $style, $matches)) {
+            $margin = (int) $matches[1];
+            if ($margin >= 0 && $margin <= 160) {
+                $safeDeclarations[] = 'margin-left: ' . $margin . 'px';
+            }
+        }
+
+        return implode('; ', $safeDeclarations);
     }
 
     /**

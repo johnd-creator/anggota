@@ -8,7 +8,7 @@
     <style>
         @page {
             size: A4;
-            margin: 20mm;
+            margin: 42mm 20mm 26mm 20mm;
         }
 
         body {
@@ -25,6 +25,13 @@
             border-bottom: 2px solid #1a1a1a;
             padding-bottom: 12px;
             margin-bottom: 24px;
+        }
+
+        .fixed-header {
+            position: fixed;
+            top: -30mm;
+            left: 0;
+            right: 0;
         }
 
         .header-content {
@@ -97,6 +104,29 @@
 
         .letter-meta .label {
             font-weight: bold;
+        }
+
+        .letter-meta-left {
+            width: 68%;
+        }
+
+        .meta-row {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .meta-row td {
+            padding: 0 0 2px 0;
+            vertical-align: top;
+        }
+
+        .meta-row .meta-label {
+            width: 92px;
+            font-weight: bold;
+        }
+
+        .meta-row .meta-colon {
+            width: 12px;
         }
 
         /* Recipient */
@@ -268,7 +298,7 @@
         /* Footer */
         .footer {
             position: fixed;
-            bottom: 0;
+            bottom: -16mm;
             left: 0;
             right: 0;
             text-align: center;
@@ -276,6 +306,33 @@
             color: #666;
             border-top: 1px solid #ddd;
             padding-top: 8px;
+        }
+
+        .letter-body hr {
+            border: none;
+            border-top: 1px dashed #94a3b8;
+            page-break-before: always;
+            margin: 0;
+        }
+
+        .letter-body [data-indent="1"] {
+            margin-left: 32px;
+        }
+
+        .letter-body [data-indent="2"] {
+            margin-left: 64px;
+        }
+
+        .letter-body [data-indent="3"] {
+            margin-left: 96px;
+        }
+
+        .letter-body [data-indent="4"] {
+            margin-left: 128px;
+        }
+
+        .letter-body [data-indent="5"] {
+            margin-left: 160px;
         }
     </style>
 </head>
@@ -302,7 +359,7 @@
     @endphp
 
     <!-- Header / Letterhead -->
-    <div class="header">
+    <div class="header fixed-header">
         <div class="header-content">
             <div class="logo-cell">
                 @if($letter->fromUnit?->letterhead_logo_path && file_exists(public_path('storage/' . $letter->fromUnit->letterhead_logo_path)))
@@ -338,10 +395,24 @@
     <div class="letter-meta">
         <table>
             <tr>
-                <td style="width: 60%;">
-                    <span class="label">Nomor:</span> {{ $letter->letter_number ?? '(Belum digenerate)' }}<br>
-                    <span class="label">Lampiran:</span> {{ $attachmentLabel }}<br>
-                    <span class="label">Perihal:</span> {{ $letter->subject }}
+                <td class="letter-meta-left">
+                    <table class="meta-row">
+                        <tr>
+                            <td class="meta-label">Nomor</td>
+                            <td class="meta-colon">:</td>
+                            <td>{{ $letter->letter_number ?? '(Belum digenerate)' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="meta-label">Lampiran</td>
+                            <td class="meta-colon">:</td>
+                            <td>{{ $attachmentLabel }}</td>
+                        </tr>
+                        <tr>
+                            <td class="meta-label">Perihal</td>
+                            <td class="meta-colon">:</td>
+                            <td>{{ $letter->subject }}</td>
+                        </tr>
+                    </table>
                 </td>
                 <td style="text-align: right;">
                     {{ $unitCity }}, {{ $letterDate }}

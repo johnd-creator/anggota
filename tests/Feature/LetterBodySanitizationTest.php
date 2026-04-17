@@ -184,4 +184,28 @@ class LetterBodySanitizationTest extends TestCase
         $this->assertStringContainsString('target="_blank"', $letter->body);
         $this->assertStringContainsString('noopener', $letter->body);
     }
+
+    public function test_indent_and_page_break_markup_are_preserved(): void
+    {
+        $bodyWithLayoutControls = '<p data-indent="2" style="margin-left: 64px;">Paragraf menjorok</p><hr><table class="formal-letter-table" data-indent="1" style="margin-left: 32px;"><tbody><tr><td>Label</td><td>:</td><td>Isi</td></tr></tbody></table>';
+
+        $response = $this->actingAs($this->user)->post('/letters', [
+            'letter_category_id' => $this->category->id,
+            'signer_type' => 'ketua',
+            'to_type' => 'admin_pusat',
+            'subject' => 'Layout Control Test',
+            'body' => $bodyWithLayoutControls,
+            'confidentiality' => 'biasa',
+            'urgency' => 'biasa',
+        ]);
+
+        $response->assertRedirect();
+
+        $letter = Letter::latest()->first();
+        $this->assertNotNull($letter);
+        $this->assertStringContainsString('data-indent="2"', $letter->body);
+        $this->assertStringContainsString('margin-left: 64px', $letter->body);
+        $this->assertStringContainsString('<hr>', $letter->body);
+        $this->assertStringContainsString('data-indent="1"', $letter->body);
+    }
 }

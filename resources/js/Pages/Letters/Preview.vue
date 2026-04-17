@@ -1,6 +1,5 @@
 <template>
   <div class="min-h-screen bg-neutral-200 py-8 print:bg-white print:py-0">
-    <!-- Print/Back buttons - hide on print -->
     <div class="max-w-[210mm] mx-auto mb-4 flex gap-2 print:hidden">
       <button @click="goBack" class="px-4 py-2 text-sm bg-white border border-neutral-300 rounded shadow hover:bg-neutral-50">
         ← Kembali
@@ -13,27 +12,23 @@
       </a>
     </div>
 
-    <!-- A4 Paper -->
-    <div class="w-[210mm] min-h-[297mm] mx-auto bg-white shadow-lg print:shadow-none p-[20mm] relative flex flex-col">
-      <!-- Header / Letterhead -->
-      <div class="border-b-2 border-neutral-900 pb-3 mb-6">
+    <div class="letter-document screen-letter-document w-[210mm] min-h-[297mm] mx-auto bg-white shadow-lg print:shadow-none p-[20mm] relative">
+      <div class="letterhead-repeat border-b-2 border-neutral-900 pb-3 mb-6">
         <div class="flex items-center gap-4">
-          <!-- Logo -->
           <div class="w-24 h-24 flex-shrink-0">
             <img v-if="letterheadLogo" :src="letterheadLogo" alt="Logo" class="w-full h-full object-contain" />
             <img v-else :src="defaultLogo" alt="Logo" class="w-full h-full object-contain" />
           </div>
 
-          <!-- Title & Contact -->
           <div class="flex-1 text-center leading-snug">
             <div class="text-[16px] font-semibold tracking-wide text-neutral-900">SERIKAT PEKERJA</div>
             <div class="text-[14px] font-bold uppercase text-neutral-900">
               PT PLN INDONESIA POWER SERVICES (SP PIPS)
             </div>
             <div class="flex justify-center gap-x-2">
-            <div class="text-[12px] font-semibold uppercase text-neutral-900">{{ unitOrgTypeLine }}</div>
-            <div class="text-[12px] font-semibold uppercase text-neutral-900">{{ unitNameLine }}</div>
-                </div>
+              <div class="text-[12px] font-semibold uppercase text-neutral-900">{{ unitOrgTypeLine }}</div>
+              <div class="text-[12px] font-semibold uppercase text-neutral-900">{{ unitNameLine }}</div>
+            </div>
             <div v-if="unitAddressLine" class="mt-1 text-[10px] text-neutral-700">
               {{ unitAddressLine }}
             </div>
@@ -45,117 +40,272 @@
             </div>
           </div>
 
-          <!-- Spacer so text stays centered like official letterhead -->
           <div class="w-24 h-24 flex-shrink-0" aria-hidden="true"></div>
         </div>
       </div>
 
-      <!-- Letter Number / Date -->
-      <div class="flex justify-between mb-4">
-        <div>
-          <p class="text-sm"><strong>Nomor:</strong> {{ letter.letter_number || '(Belum digenerate)' }}</p>
-          <p class="text-sm"><strong>Lampiran:</strong> {{ attachmentsLabel }}</p>
-          <p class="text-sm"><strong>Perihal:</strong> {{ letter.subject }}</p>
+      <div class="letter-document-body">
+        <div class="flex justify-between mb-4 gap-6">
+          <div class="space-y-1 flex-1">
+            <div class="meta-row text-sm">
+              <span class="font-semibold">Nomor</span>
+              <span>:</span>
+              <span>{{ letter.letter_number || '(Belum digenerate)' }}</span>
+            </div>
+            <div class="meta-row text-sm">
+              <span class="font-semibold">Lampiran</span>
+              <span>:</span>
+              <span>{{ attachmentsLabel }}</span>
+            </div>
+            <div class="meta-row text-sm">
+              <span class="font-semibold">Perihal</span>
+              <span>:</span>
+              <span>{{ letter.subject }}</span>
+            </div>
+          </div>
+          <div class="text-right text-sm">
+            <p>{{ cityDateLine }}</p>
+          </div>
         </div>
-        <div class="text-right text-sm">
-          <p>{{ cityDateLine }}</p>
+
+        <div class="mb-4 text-sm">
+          <p><strong>Kepada Yth,</strong></p>
+          <p class="whitespace-pre-wrap">{{ recipientName }}</p>
         </div>
-      </div>
 
-      <!-- Recipient -->
-      <div class="mb-4 text-sm">
-        <p><strong>Kepada Yth,</strong></p>
-        <p class="whitespace-pre-wrap">{{ recipientName }}</p>
-      </div>
+        <div class="letter-body text-sm leading-relaxed" v-html="bodyHtml"></div>
 
-      <!-- Body -->
-      <div class="letter-body text-sm leading-relaxed" v-html="bodyHtml"></div>
+        <div class="mt-10 signature-section">
+          <div v-if="letter.signer_type_secondary" class="flex justify-between gap-8">
+            <div class="text-center w-56">
+              <p class="text-sm">{{ cityDateLine }}</p>
+              <p class="text-sm font-semibold mt-1">{{ primarySignerTitle }}</p>
 
-      <!-- Signature Block -->
-      <div class="mt-10">
-        <!-- Dual signature layout (when secondary signer exists) -->
-        <div v-if="letter.signer_type_secondary" class="flex justify-between gap-8">
-          <!-- Primary Signer (Ketua/Sekretaris) -->
-          <div class="text-center w-56">
+              <template v-if="isFinal">
+                <div class="mt-2 flex justify-center">
+                  <img :src="qrSrc" alt="QR" class="w-16 h-16 block bg-white" @error="qrError = true" />
+                </div>
+                <p v-if="qrError" class="mt-1 text-xs text-neutral-500">
+                  <a :href="verifyUrl" class="underline text-blue-600">Link Verifikasi</a>
+                </p>
+              </template>
+              <template v-else>
+                <div class="mt-2 h-16 flex items-center justify-center">
+                  <span v-if="letter.approved_by" class="text-xs text-green-600 italic">✓ Disetujui</span>
+                  <span v-else class="text-xs text-neutral-400 italic">Menunggu Persetujuan</span>
+                </div>
+              </template>
+
+              <p class="mt-2 text-sm font-semibold underline">{{ primarySignerName }}</p>
+            </div>
+
+            <div class="text-center w-56">
+              <p class="text-sm">{{ cityDateLine }}</p>
+              <p class="text-sm font-semibold mt-1">{{ secondarySignerTitle }}</p>
+
+              <div class="mt-2 h-16 flex items-center justify-center">
+                <span v-if="letter.approved_secondary_by" class="text-xs text-green-600 italic">✓ Disetujui</span>
+                <span v-else class="text-xs text-neutral-400 italic">Menunggu Persetujuan</span>
+              </div>
+
+              <p class="mt-2 text-sm font-semibold underline">{{ secondarySignerName }}</p>
+            </div>
+          </div>
+
+          <div v-else class="ml-auto text-center w-56">
             <p class="text-sm">{{ cityDateLine }}</p>
-            <p class="text-sm font-semibold mt-1">{{ primarySignerTitle }}</p>
-            
-            <!-- QR only if final -->
+            <p class="text-sm font-semibold mt-1">{{ signerTitle }}</p>
+
             <template v-if="isFinal">
               <div class="mt-2 flex justify-center">
-                <img :src="qrSrc" alt="QR" class="w-16 h-16 block bg-white" @error="qrError = true" />
+                <img :src="qrSrc" alt="QR" class="w-20 h-20 block bg-white" @error="qrError = true" />
               </div>
               <p v-if="qrError" class="mt-1 text-xs text-neutral-500">
                 <a :href="verifyUrl" class="underline text-blue-600">Link Verifikasi</a>
               </p>
+              <p v-else class="mt-1 text-[10px] text-neutral-400">Scan untuk verifikasi</p>
             </template>
             <template v-else>
-              <div class="mt-2 h-16 flex items-center justify-center">
-                <span v-if="letter.approved_by" class="text-xs text-green-600 italic">✓ Disetujui</span>
-                <span v-else class="text-xs text-neutral-400 italic">Menunggu Persetujuan</span>
+              <div class="mt-2 h-20 flex items-center justify-center">
+                <span class="text-xs text-neutral-400 italic">Menunggu Persetujuan</span>
               </div>
             </template>
-            
-            <p class="mt-2 text-sm font-semibold underline">{{ primarySignerName }}</p>
-          </div>
-          
-          <!-- Secondary Signer (Bendahara) -->
-          <div class="text-center w-56">
-            <p class="text-sm">{{ cityDateLine }}</p>
-            <p class="text-sm font-semibold mt-1">{{ secondarySignerTitle }}</p>
-            
-            <div class="mt-2 h-16 flex items-center justify-center">
-              <span v-if="letter.approved_secondary_by" class="text-xs text-green-600 italic">✓ Disetujui</span>
-              <span v-else class="text-xs text-neutral-400 italic">Menunggu Persetujuan</span>
-            </div>
-            
-            <p class="mt-2 text-sm font-semibold underline">{{ secondarySignerName }}</p>
+
+            <p class="mt-2 text-sm font-semibold underline">{{ signerName }}</p>
           </div>
         </div>
-        
-        <!-- Single signature layout (existing behavior) -->
-        <div v-else class="ml-auto text-center w-56">
-          <p class="text-sm">{{ cityDateLine }}</p>
-          <p class="text-sm font-semibold mt-1">{{ signerTitle }}</p>
 
-          <!-- QR as approval stamp (only for final letters) -->
-          <template v-if="isFinal">
-            <div class="mt-2 flex justify-center">
-              <img :src="qrSrc" alt="QR" class="w-20 h-20 block bg-white" @error="qrError = true" />
-            </div>
-            <p v-if="qrError" class="mt-1 text-xs text-neutral-500">
-              <a :href="verifyUrl" class="underline text-blue-600">Link Verifikasi</a>
-            </p>
-            <p v-else class="mt-1 text-[10px] text-neutral-400">Scan untuk verifikasi</p>
-          </template>
-          <template v-else>
-            <div class="mt-2 h-20 flex items-center justify-center">
-              <span class="text-xs text-neutral-400 italic">Menunggu Persetujuan</span>
-            </div>
-          </template>
+        <div class="min-h-8"></div>
 
-          <p class="mt-2 text-sm font-semibold underline">{{ signerName }}</p>
+        <div v-if="tembusanList.length" class="text-sm leading-relaxed tembusan-section">
+          <p class="font-semibold mb-1">Tembusan:</p>
+          <ol class="list-decimal list-inside space-y-0.5">
+            <li v-for="(item, idx) in tembusanList" :key="idx">{{ item }}</li>
+          </ol>
         </div>
       </div>
 
-      <!-- Spacer pushes tembusan to bottom for short letters -->
-      <div class="flex-1 min-h-8"></div>
-
-      <!-- Tembusan (selalu di bawah kiri) -->
-      <div v-if="tembusanList.length" class="text-sm leading-relaxed">
-        <p class="font-semibold mb-1">Tembusan:</p>
-        <ol class="list-decimal list-inside space-y-0.5">
-          <li v-for="(item, idx) in tembusanList" :key="idx">{{ item }}</li>
-        </ol>
-      </div>
-
-      <!-- Footer -->
-      <div v-if="letter.from_unit?.letterhead_footer_text" class="absolute bottom-[15mm] left-[20mm] right-[20mm] text-center text-xs text-neutral-500 border-t border-neutral-200 pt-2">
+      <div v-if="letter.from_unit?.letterhead_footer_text" class="letter-document-footer text-center text-xs text-neutral-500 border-t border-neutral-200 pt-2 mt-6">
         {{ letter.from_unit.letterhead_footer_text }}
       </div>
     </div>
 
-    <!-- Attachments (below paper, screen only) -->
+    <table class="print-letter-document">
+      <thead>
+        <tr>
+          <th>
+            <div class="print-letterhead">
+              <div class="flex items-center gap-4">
+                <div class="w-24 h-24 flex-shrink-0">
+                  <img v-if="letterheadLogo" :src="letterheadLogo" alt="Logo" class="w-full h-full object-contain" />
+                  <img v-else :src="defaultLogo" alt="Logo" class="w-full h-full object-contain" />
+                </div>
+
+                <div class="flex-1 text-center leading-snug">
+                  <div class="text-[16px] font-semibold tracking-wide text-neutral-900">SERIKAT PEKERJA</div>
+                  <div class="text-[14px] font-bold uppercase text-neutral-900">
+                    PT PLN INDONESIA POWER SERVICES (SP PIPS)
+                  </div>
+                  <div class="flex justify-center gap-x-2">
+                    <div class="text-[12px] font-semibold uppercase text-neutral-900">{{ unitOrgTypeLine }}</div>
+                    <div class="text-[12px] font-semibold uppercase text-neutral-900">{{ unitNameLine }}</div>
+                  </div>
+                  <div v-if="unitAddressLine" class="mt-1 text-[10px] text-neutral-700">
+                    {{ unitAddressLine }}
+                  </div>
+                  <div v-if="unitContactLine" class="text-[10px] text-neutral-700">
+                    {{ unitContactLine }}
+                  </div>
+                  <div class="text-[10px] text-neutral-700">
+                    No Bukti Pencatatan Disnaker : 951/SP/JS/X/2024, Tanggal 1 Oktober 2024
+                  </div>
+                </div>
+
+                <div class="w-24 h-24 flex-shrink-0" aria-hidden="true"></div>
+              </div>
+            </div>
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr>
+          <td>
+            <div class="print-letter-body">
+              <div class="flex justify-between mb-4 gap-6">
+                <div class="space-y-1 flex-1">
+                  <div class="meta-row text-sm">
+                    <span class="font-semibold">Nomor</span>
+                    <span>:</span>
+                    <span>{{ letter.letter_number || '(Belum digenerate)' }}</span>
+                  </div>
+                  <div class="meta-row text-sm">
+                    <span class="font-semibold">Lampiran</span>
+                    <span>:</span>
+                    <span>{{ attachmentsLabel }}</span>
+                  </div>
+                  <div class="meta-row text-sm">
+                    <span class="font-semibold">Perihal</span>
+                    <span>:</span>
+                    <span>{{ letter.subject }}</span>
+                  </div>
+                </div>
+                <div class="text-right text-sm">
+                  <p>{{ cityDateLine }}</p>
+                </div>
+              </div>
+
+              <div class="mb-4 text-sm">
+                <p><strong>Kepada Yth,</strong></p>
+                <p class="whitespace-pre-wrap">{{ recipientName }}</p>
+              </div>
+
+              <div class="letter-body text-sm leading-relaxed" v-html="bodyHtml"></div>
+
+              <div class="mt-10 signature-section">
+                <div v-if="letter.signer_type_secondary" class="flex justify-between gap-8">
+                  <div class="text-center w-56">
+                    <p class="text-sm">{{ cityDateLine }}</p>
+                    <p class="text-sm font-semibold mt-1">{{ primarySignerTitle }}</p>
+
+                    <template v-if="isFinal">
+                      <div class="mt-2 flex justify-center">
+                        <img :src="qrSrc" alt="QR" class="w-16 h-16 block bg-white" @error="qrError = true" />
+                      </div>
+                      <p v-if="qrError" class="mt-1 text-xs text-neutral-500">
+                        <a :href="verifyUrl" class="underline text-blue-600">Link Verifikasi</a>
+                      </p>
+                    </template>
+                    <template v-else>
+                      <div class="mt-2 h-16 flex items-center justify-center">
+                        <span v-if="letter.approved_by" class="text-xs text-green-600 italic">✓ Disetujui</span>
+                        <span v-else class="text-xs text-neutral-400 italic">Menunggu Persetujuan</span>
+                      </div>
+                    </template>
+
+                    <p class="mt-2 text-sm font-semibold underline">{{ primarySignerName }}</p>
+                  </div>
+
+                  <div class="text-center w-56">
+                    <p class="text-sm">{{ cityDateLine }}</p>
+                    <p class="text-sm font-semibold mt-1">{{ secondarySignerTitle }}</p>
+
+                    <div class="mt-2 h-16 flex items-center justify-center">
+                      <span v-if="letter.approved_secondary_by" class="text-xs text-green-600 italic">✓ Disetujui</span>
+                      <span v-else class="text-xs text-neutral-400 italic">Menunggu Persetujuan</span>
+                    </div>
+
+                    <p class="mt-2 text-sm font-semibold underline">{{ secondarySignerName }}</p>
+                  </div>
+                </div>
+
+                <div v-else class="ml-auto text-center w-56">
+                  <p class="text-sm">{{ cityDateLine }}</p>
+                  <p class="text-sm font-semibold mt-1">{{ signerTitle }}</p>
+
+                  <template v-if="isFinal">
+                    <div class="mt-2 flex justify-center">
+                      <img :src="qrSrc" alt="QR" class="w-20 h-20 block bg-white" @error="qrError = true" />
+                    </div>
+                    <p v-if="qrError" class="mt-1 text-xs text-neutral-500">
+                      <a :href="verifyUrl" class="underline text-blue-600">Link Verifikasi</a>
+                    </p>
+                    <p v-else class="mt-1 text-[10px] text-neutral-400">Scan untuk verifikasi</p>
+                  </template>
+                  <template v-else>
+                    <div class="mt-2 h-20 flex items-center justify-center">
+                      <span class="text-xs text-neutral-400 italic">Menunggu Persetujuan</span>
+                    </div>
+                  </template>
+
+                  <p class="mt-2 text-sm font-semibold underline">{{ signerName }}</p>
+                </div>
+              </div>
+
+              <div class="min-h-8"></div>
+
+              <div v-if="tembusanList.length" class="text-sm leading-relaxed tembusan-section">
+                <p class="font-semibold mb-1">Tembusan:</p>
+                <ol class="list-decimal list-inside space-y-0.5">
+                  <li v-for="(item, idx) in tembusanList" :key="`print-cc-${idx}`">{{ item }}</li>
+                </ol>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+
+      <tfoot v-if="letter.from_unit?.letterhead_footer_text">
+        <tr>
+          <td>
+            <div class="print-letter-footer text-center text-xs text-neutral-500 border-t border-neutral-200 pt-2 mt-6">
+              {{ letter.from_unit.letterhead_footer_text }}
+            </div>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+
     <div v-if="letter.attachments?.length" class="max-w-[210mm] mx-auto mt-4 print:hidden">
       <div class="bg-white shadow rounded p-4">
         <h3 class="text-sm font-semibold mb-2 border-b pb-1">📎 Lampiran ({{ letter.attachments.length }})</h3>
@@ -186,7 +336,6 @@ const props = defineProps({
 
 const qrError = ref(false)
 
-// Default logo fallback
 const defaultLogo = new URL('../../../images/logo.png', import.meta.url).href
 
 const letterheadLogo = computed(() => {
@@ -216,7 +365,6 @@ const unitAddressLine = computed(() => {
 const unitContactLine = computed(() => {
   const u = props.letter.from_unit
   if (!u) return ''
-  // Prefer explicit letterhead overrides if set
   const phone = u.letterhead_phone || u.phone
   const email = u.letterhead_email || u.email
   const parts = []
@@ -240,7 +388,6 @@ const unitNameLine = computed(() => {
 const cityName = computed(() => {
   const u = props.letter.from_unit
   if (u?.letterhead_city) return u.letterhead_city
-  // Default Jakarta only for DPP/pusat
   if (u?.organization_type === 'DPP') return 'Jakarta'
   return ''
 })
@@ -258,7 +405,7 @@ const cityDateLine = computed(() => {
 
 const recipientName = computed(() => {
   if (props.letter.to_type === 'unit') return props.letter.to_unit?.name || 'Unit'
-  if (props.letter.to_type === 'member') return this.$toTitleCase(props.letter.to_member?.full_name) || 'Anggota'
+  if (props.letter.to_type === 'member') return props.letter.to_member?.full_name || 'Anggota'
   if (props.letter.to_type === 'admin_pusat') return 'Admin Pusat'
   if (props.letter.to_type === 'eksternal') {
     const parts = []
@@ -290,18 +437,15 @@ const signerName = computed(() => {
   return '(Menunggu Persetujuan)'
 })
 
-// Dual signature computed properties
 const primarySignerTitle = computed(() => {
   return props.letter.signer_type === 'ketua' ? 'Ketua' : 'Sekretaris'
 })
 
 const primarySignerName = computed(() => {
-  // Show name if primary approval done (even if status is still 'submitted' in dual flow)
   return props.letter.approved_by?.name || '(Menunggu Persetujuan)'
 })
 
 const secondarySignerTitle = computed(() => {
-  // Currently only bendahara supported
   return props.letter.signer_type_secondary === 'bendahara' ? 'Bendahara' : 'Penandatangan 2'
 })
 
@@ -331,10 +475,126 @@ function formatFileSize(bytes) {
 </script>
 
 <style scoped>
+.meta-row {
+  display: grid;
+  grid-template-columns: 92px 12px minmax(0, 1fr);
+  align-items: start;
+}
+
+.letter-body :deep(hr) {
+  border: 0;
+  border-top: 1px dashed rgb(148 163 184);
+  margin: 1.25rem 0;
+}
+
+.letter-body :deep([data-indent="1"]) { margin-left: 32px; }
+.letter-body :deep([data-indent="2"]) { margin-left: 64px; }
+.letter-body :deep([data-indent="3"]) { margin-left: 96px; }
+.letter-body :deep([data-indent="4"]) { margin-left: 128px; }
+.letter-body :deep([data-indent="5"]) { margin-left: 160px; }
+
+.signature-section,
+.tembusan-section,
+.letter-document-footer,
+.print-letter-footer {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-letter-document {
+  display: none;
+}
+
 @media print {
   @page {
     size: A4;
+    margin: 20mm;
+  }
+
+  html,
+  body {
+    background: white !important;
+  }
+
+  .min-h-screen {
+    min-height: auto !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    background: white !important;
+  }
+
+  .screen-letter-document {
+    display: none !important;
+  }
+
+  .print-letter-document {
+    display: table !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+  }
+
+  .print-letter-document thead {
+    display: table-header-group !important;
+  }
+
+  .print-letter-document tbody {
+    display: table-row-group !important;
+  }
+
+  .print-letter-document tfoot {
+    display: table-row-group !important;
+  }
+
+  .print-letter-document th,
+  .print-letter-document td {
+    padding: 0 !important;
+    vertical-align: top !important;
+    text-align: left !important;
+  }
+
+  .print-letterhead {
+    box-sizing: border-box !important;
+    border-bottom: 2px solid rgb(23 23 23) !important;
+    padding-bottom: 3mm !important;
+    margin-bottom: 6mm !important;
+    background: white !important;
+  }
+
+  .print-letter-body {
+    padding-top: 6mm !important;
+  }
+
+  .print-letter-footer {
+    display: block !important;
+    position: static !important;
+    margin-top: 6mm !important;
+    padding-top: 2mm !important;
+    border-top-color: rgb(229 229 229) !important;
+    background: transparent !important;
+  }
+
+  .letter-body :deep(hr) {
+    page-break-before: always;
+    break-before: page;
+    border-top-color: transparent;
     margin: 0;
+  }
+
+  .signature-section,
+  .tembusan-section {
+    break-inside: avoid-page;
+  }
+
+  .signature-section,
+  .tembusan-section,
+  .letter-document-footer,
+  .print-letter-footer,
+  .meta-row {
+    orphans: 3;
+    widows: 3;
   }
 }
 </style>
