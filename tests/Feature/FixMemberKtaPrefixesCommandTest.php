@@ -76,9 +76,9 @@ class FixMemberKtaPrefixesCommandTest extends TestCase
         $unit = OrganizationUnit::factory()->create(['code' => '011']);
         $first = Member::factory()->create([
             'organization_unit_id' => $unit->id,
-            'join_year' => 2024,
-            'sequence_number' => 1,
-            'kta_number' => '011-SPPIPS-24001',
+            'join_year' => 2025,
+            'sequence_number' => 2,
+            'kta_number' => '011-SPPIPS-25002',
         ]);
         $second = Member::factory()->create([
             'organization_unit_id' => $unit->id,
@@ -93,7 +93,7 @@ class FixMemberKtaPrefixesCommandTest extends TestCase
         ]);
 
         $this->assertSame(1, $first->fresh()->sequence_number);
-        $this->assertSame('011-SPPIPS-24001', $first->fresh()->kta_number);
+        $this->assertSame('011-SPPIPS-25001', $first->fresh()->kta_number);
         $this->assertSame(2, $second->fresh()->sequence_number);
         $this->assertSame('011-SPPIPS-25002', $second->fresh()->kta_number);
     }

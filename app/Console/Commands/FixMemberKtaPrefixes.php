@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Member;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class FixMemberKtaPrefixes extends Command
 {
@@ -93,7 +94,6 @@ class FixMemberKtaPrefixes extends Command
         $fixed = 0;
         $skipped = 0;
         $targets = [];
-        $targetKtas = [];
 
         $members = Member::query()
             ->with('unit:id,code,name')
@@ -114,14 +114,6 @@ class FixMemberKtaPrefixes extends Command
                 $this->line("SKIP member {$member->id}: unit/code/join data tidak valid untuk KTA.");
                 continue;
             }
-
-            if (isset($targetKtas[$targetKta])) {
-                $skipped++;
-                $this->line("SKIP member {$member->id}: target {$targetKta} duplikat dengan member {$targetKtas[$targetKta]} dalam rencana resequence.");
-                continue;
-            }
-
-            $targetKtas[$targetKta] = $member->id;
             $targets[$member->id] = [
                 'member' => $member,
                 'sequence_number' => $targetSequence,
@@ -134,18 +126,6 @@ class FixMemberKtaPrefixes extends Command
             $targetSequence = $target['sequence_number'];
             $targetKta = $target['kta_number'];
 
-            $conflict = Member::query()
-                ->where('kta_number', $targetKta)
-                ->whereKeyNot($memberId)
-                ->whereNotIn('id', array_keys($targets))
-                ->first(['id']);
-
-            if ($conflict) {
-                $skipped++;
-                $this->line("SKIP member {$memberId}: target {$targetKta} sudah dipakai member {$conflict->id}.");
-                continue;
-            }
-
             if ($member->kta_number === $targetKta && (int) $member->sequence_number === $targetSequence) {
                 continue;
             }
@@ -153,14 +133,43 @@ class FixMemberKtaPrefixes extends Command
             $oldKta = $member->kta_number ?: '(empty)';
             $this->line(($apply ? 'FIX' : 'WOULD FIX') . " member {$memberId}: {$oldKta} / seq {$member->sequence_number} -> {$targetKta} / seq {$targetSequence}");
 
-            if ($apply) {
-                $member->forceFill([
-                    'kta_number' => $targetKta,
-                    'sequence_number' => $targetSequence,
-                ])->save();
-            }
-
             $fixed++;
+        }
+
+        if ($apply && ! empty($targets)) {
+            DB::transaction(function () use ($targets): void {
+                $orderedIds = array_keys($targets);
+                $rows = Member::query()
+                    ->whereIn('id', $orderedIds)
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy('id');
+
+                foreach ($orderedIds as $memberId) {
+                    $member = $rows->get($memberId);
+                    if (! $member) {
+                        continue;
+                    }
+
+                    $member->forceFill([
+                        'kta_number' => $this->temporaryKta($memberId),
+                    ])->save();
+                }
+
+                foreach ($orderedIds as $memberId) {
+                    $member = $rows->get($memberId);
+                    $target = $targets[$memberId];
+
+                    if (! $member) {
+                        continue;
+                    }
+
+                    $member->forceFill([
+                        'kta_number' => $target['kta_number'],
+                        'sequence_number' => $target['sequence_number'],
+                    ])->save();
+                }
+            });
         }
 
         $this->info("Checked: {$checked}; " . ($apply ? 'Fixed' : 'Would fix') . ": {$fixed}; Skipped: {$skipped}");
@@ -185,5 +194,10 @@ class FixMemberKtaPrefixes extends Command
         $yearTwoDigit = (int) substr((string) $member->join_year, -2);
 
         return sprintf('%s-SPPIPS-%02d%03d', $unitCode, $yearTwoDigit, $sequenceNumber);
+    }
+
+    private function temporaryKta(int $memberId): string
+    {
+        return "__RESEQ__{$memberId}__" . now()->format('YmdHisv');
     }
 }
