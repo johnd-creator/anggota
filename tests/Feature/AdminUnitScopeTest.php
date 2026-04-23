@@ -63,6 +63,28 @@ test('admin_pusat can filter members by unit on the index page', function(){
     );
 });
 
+test('admin_pusat can access master data pages', function(){
+    Artisan::call('migrate', ['--force' => true]);
+
+    $dpp = OrganizationUnit::create([
+        'code' => '001',
+        'name' => 'DPP',
+        'address' => 'Alamat DPP',
+        'is_pusat' => true,
+    ]);
+
+    $roleAdminPusat = Role::firstOrCreate(['name' => 'admin_pusat'], ['label' => 'Admin Pusat']);
+    $adminPusat = User::factory()->create([
+        'role_id' => $roleAdminPusat->id,
+        'organization_unit_id' => $dpp->id,
+    ]);
+
+    $this->actingAs($adminPusat)->get('/admin/units')->assertStatus(200);
+    $this->actingAs($adminPusat)->get('/admin/union-positions')->assertStatus(200);
+    $this->actingAs($adminPusat)->get('/admin/aspiration-categories')->assertStatus(200);
+    $this->actingAs($adminPusat)->get('/admin/letter-categories')->assertStatus(200);
+});
+
 test('admin_unit export is limited to their unit', function(){
     Artisan::call('migrate', ['--force' => true]);
     $unitA = OrganizationUnit::create(['code' => '012', 'name' => 'Unit UA', 'address' => 'Alamat UA']);

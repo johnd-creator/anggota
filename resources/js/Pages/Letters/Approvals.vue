@@ -4,14 +4,7 @@
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 class="text-lg font-semibold text-neutral-900">Perlu Persetujuan</h2>
-          <p class="text-sm text-neutral-500">
-            {{ monitoringOnly ? 'Surat pusat yang Anda buat untuk dimonitor.' : 'Surat yang menunggu persetujuan Anda.' }}
-          </p>
         </div>
-      </div>
-
-      <div v-if="monitoringOnly" class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-        Mode monitoring aktif. Anda dapat melihat antrian surat pusat, tetapi tidak dapat melakukan approve/revise/reject dari halaman ini.
       </div>
 
       <!-- Stats -->

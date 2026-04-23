@@ -59,7 +59,7 @@ class MutationRequestPolicy
 
     /**
      * Determine if user can approve a mutation request.
-     * Only global roles can approve, and only when status is pending.
+     * Only super_admin and admin_pusat can approve, and only when status is pending.
      */
     public function approve(User $user, MutationRequest $mutation): bool
     {
@@ -67,7 +67,7 @@ class MutationRequestPolicy
             return false;
         }
 
-        return $user->hasGlobalAccess();
+        return $user->hasRole(['super_admin', 'admin_pusat']);
     }
 
     /**

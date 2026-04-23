@@ -119,13 +119,18 @@ class PolicyUnitScopeTest extends TestCase
         $this->assertFalse($adminUnitA->can('view', $mutation));
     }
 
-    public function test_only_global_access_can_approve_mutations(): void
+    public function test_super_admin_and_admin_pusat_can_approve_mutations(): void
     {
         $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A']);
         $unitB = OrganizationUnit::factory()->create(['name' => 'Unit B']);
 
         $superAdmin = User::factory()->create([
             'role_id' => Role::where('name', 'super_admin')->first()->id,
+        ]);
+
+        $adminPusat = User::factory()->create([
+            'role_id' => Role::where('name', 'admin_pusat')->first()->id,
+            'organization_unit_id' => $unitA->id,
         ]);
 
         $adminUnit = User::factory()->create([
@@ -144,6 +149,7 @@ class PolicyUnitScopeTest extends TestCase
         ]);
 
         $this->assertTrue($superAdmin->can('approve', $mutation));
+        $this->assertTrue($adminPusat->can('approve', $mutation));
         $this->assertFalse($adminUnit->can('approve', $mutation));
     }
 
@@ -243,6 +249,36 @@ class PolicyUnitScopeTest extends TestCase
         $response = $this->actingAs($superAdmin)->get("/admin/mutations/{$mutation->id}");
 
         $response->assertStatus(200);
+    }
+
+    public function test_admin_pusat_can_view_any_and_approve_mutation(): void
+    {
+        $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A']);
+        $unitB = OrganizationUnit::factory()->create(['name' => 'Unit B']);
+
+        $adminPusat = User::factory()->create([
+            'role_id' => Role::where('name', 'admin_pusat')->first()->id,
+            'organization_unit_id' => $unitA->id,
+        ]);
+
+        $member = Member::factory()->create(['organization_unit_id' => $unitA->id]);
+
+        $mutation = MutationRequest::create([
+            'member_id' => $member->id,
+            'from_unit_id' => $unitA->id,
+            'to_unit_id' => $unitB->id,
+            'status' => 'pending',
+            'submitted_by' => $adminPusat->id,
+        ]);
+
+        $response = $this->actingAs($adminPusat)->get("/admin/mutations/{$mutation->id}");
+        $response->assertStatus(200);
+
+        $approveResponse = $this->actingAs($adminPusat)->post("/admin/mutations/{$mutation->id}/approve");
+        $approveResponse->assertRedirect();
+
+        $mutation->refresh();
+        $this->assertSame('approved', $mutation->status);
     }
 
     // ========================================

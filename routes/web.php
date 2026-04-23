@@ -197,14 +197,14 @@ Route::middleware(['auth'])->group(function () {
         Route::get('users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'show'])
             ->whereNumber('user')
             ->name('users.show');
-        Route::resource('union-positions', \App\Http\Controllers\Admin\UnionPositionController::class)->middleware('role:super_admin')->names('union_positions');
+        Route::resource('union-positions', \App\Http\Controllers\Admin\UnionPositionController::class)->middleware('role:super_admin,admin_pusat')->names('union_positions');
         Route::resource('roles', \App\Http\Controllers\Admin\RoleController::class)->middleware('role:super_admin');
         Route::post('roles/{role}/assign', [\App\Http\Controllers\Admin\RoleController::class, 'assign'])->middleware('role:super_admin')->name('roles.assign');
         Route::delete('roles/{role}/users/{user}', [\App\Http\Controllers\Admin\RoleController::class, 'removeUser'])->middleware('role:super_admin')->name('roles.remove_user');
 
         // Admin Aspirations (Categories & Main)
-        Route::resource('aspiration-categories', \App\Http\Controllers\Admin\AspirationCategoryController::class)->middleware('role:super_admin');
-        Route::resource('letter-categories', \App\Http\Controllers\Admin\LetterCategoryController::class)->middleware('role:super_admin');
+        Route::resource('aspiration-categories', \App\Http\Controllers\Admin\AspirationCategoryController::class)->middleware('role:super_admin,admin_pusat');
+        Route::resource('letter-categories', \App\Http\Controllers\Admin\LetterCategoryController::class)->middleware('role:super_admin,admin_pusat');
         Route::resource('letter-approvers', \App\Http\Controllers\Admin\LetterApproverController::class)->middleware('role:super_admin,admin_pusat,pengurus_pusat');
         Route::post('letter-approvers/{letter_approver}/toggle-active', [\App\Http\Controllers\Admin\LetterApproverController::class, 'toggleActive'])->middleware('role:super_admin,admin_pusat,pengurus_pusat')->name('letter-approvers.toggle-active');
         Route::get('aspirations', [\App\Http\Controllers\Admin\AspirationController::class, 'index'])->middleware('role:admin_unit,admin_pusat,super_admin,pengurus_pusat')->name('aspirations.index');
@@ -232,8 +232,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('mutations/create', [\App\Http\Controllers\Admin\MutationController::class, 'create'])->name('mutations.create');
         Route::post('mutations', [\App\Http\Controllers\Admin\MutationController::class, 'store'])->name('mutations.store');
         Route::get('mutations/{mutation}', [\App\Http\Controllers\Admin\MutationController::class, 'show'])->name('mutations.show');
-        Route::post('mutations/{mutation}/approve', [\App\Http\Controllers\Admin\MutationController::class, 'approve'])->middleware(['role:super_admin', 'throttle:10,1'])->name('mutations.approve');
-        Route::post('mutations/{mutation}/reject', [\App\Http\Controllers\Admin\MutationController::class, 'reject'])->middleware(['role:super_admin', 'throttle:10,1'])->name('mutations.reject');
+        Route::post('mutations/{mutation}/approve', [\App\Http\Controllers\Admin\MutationController::class, 'approve'])->middleware(['role:super_admin,admin_pusat', 'throttle:10,1'])->name('mutations.approve');
+        Route::post('mutations/{mutation}/reject', [\App\Http\Controllers\Admin\MutationController::class, 'reject'])->middleware(['role:super_admin,admin_pusat', 'throttle:10,1'])->name('mutations.reject');
         Route::post('mutations/{mutation}/cancel', [\App\Http\Controllers\Admin\MutationController::class, 'cancel'])->name('mutations.cancel');
 
         Route::get('members-export', [\App\Http\Controllers\ReportsExportController::class, 'adminMembersExport'])->name('members.export');

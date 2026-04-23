@@ -125,10 +125,10 @@
             <Link href="/admin/members" :class="subMenuItemClass('/admin/members')">Daftar Anggota</Link>
             <Link v-if="canManageMembers" href="/admin/members/import" :class="subMenuItemClass('/admin/members/import')">Import Anggota</Link>
             <Link v-if="canManageMembers" href="/admin/units" :class="subMenuItemClass('/admin/units')">Unit Pembangkit</Link>
-            <Link v-if="isSuperAdmin" href="/admin/union-positions" :class="subMenuItemClass('/admin/union-positions')">Jabatan Serikat</Link>
+            <Link v-if="isSuperAdmin || isAdminPusat" href="/admin/union-positions" :class="subMenuItemClass('/admin/union-positions')">Jabatan Serikat</Link>
             <Link v-if="isSuperAdmin" href="/admin/roles" :class="subMenuItemClass('/admin/roles')">Role & Access</Link>
-            <Link v-if="isSuperAdmin" href="/admin/aspiration-categories" :class="subMenuItemClass('/admin/aspiration-categories')">Kategori Aspirasi</Link>
-            <Link v-if="isSuperAdmin" href="/admin/letter-categories" :class="subMenuItemClass('/admin/letter-categories')">Kategori Surat</Link>
+            <Link v-if="isSuperAdmin || isAdminPusat" href="/admin/aspiration-categories" :class="subMenuItemClass('/admin/aspiration-categories')">Kategori Aspirasi</Link>
+            <Link v-if="isSuperAdmin || isAdminPusat" href="/admin/letter-categories" :class="subMenuItemClass('/admin/letter-categories')">Kategori Surat</Link>
             <Link v-if="isSuperAdmin || isAdminPusat" href="/admin/letter-approvers" :class="subMenuItemClass('/admin/letter-approvers')">Letter Approvers</Link>
           </div>
 
@@ -747,7 +747,7 @@ function subMenuItemClass(path) {
 
 function sectionHeaderClass(section) {
   const hasActiveChild = {
-    members: ['/admin/members', '/admin/units', '/admin/union-positions', '/admin/roles', '/admin/aspiration-categories', '/admin/letter-categories', '/admin/letter-approvers'].some(p => page.url.startsWith(p)),
+              members: ['/admin/members', '/admin/units', '/admin/union-positions', '/admin/roles', '/admin/aspiration-categories', '/admin/letter-categories', '/admin/letter-approvers'].some(p => page.url.startsWith(p)),
     mutations: page.url.startsWith('/admin/mutations'),
     onboarding: page.url.startsWith('/admin/onboarding'),
     financials: ['/finance/categories', '/finance/ledgers', '/finance/dues'].some(p => page.url.startsWith(p)),

@@ -23,8 +23,8 @@
           </ul>
         </div>
         <div class="mt-4 text-right">
-          <PrimaryButton v-if="$page.props.auth.user.role?.name==='super_admin'" @click="approveOpen=true">Approve</PrimaryButton>
-          <SecondaryButton v-if="$page.props.auth.user.role?.name==='super_admin'" class="ml-2" @click="rejectOpen=true">Tolak</SecondaryButton>
+          <PrimaryButton v-if="canApprove" @click="approveOpen=true">Approve</PrimaryButton>
+          <SecondaryButton v-if="canApprove" class="ml-2" @click="rejectOpen=true">Tolak</SecondaryButton>
         </div>
       </CardContainer>
     </div>
@@ -72,6 +72,7 @@ import { ref, reactive, computed } from 'vue';
 const page = usePage();
 const mutation = page.props.mutation;
 const dueDate = computed(() => mutation?.due_date || '-');
+const canApprove = computed(() => ['super_admin', 'admin_pusat'].includes(page.props.auth.user.role?.name));
 const approveOpen = ref(false);
 const rejectOpen = ref(false);
 const approveNote = ref('');

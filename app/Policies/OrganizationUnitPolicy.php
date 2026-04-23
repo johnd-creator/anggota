@@ -13,7 +13,7 @@ class OrganizationUnitPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_unit']);
+        return $user->hasRole(['super_admin', 'admin_unit', 'admin_pusat']);
     }
 
     /**
@@ -21,7 +21,7 @@ class OrganizationUnitPolicy
      */
     public function view(User $user, OrganizationUnit $organizationUnit): bool
     {
-        return $user->hasRole(['super_admin', 'admin_unit']);
+        return $user->hasRole(['super_admin', 'admin_unit', 'admin_pusat']);
     }
 
     /**
@@ -29,7 +29,7 @@ class OrganizationUnitPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole('super_admin');
+        return $user->hasRole(['super_admin', 'admin_pusat']);
     }
 
     /**
@@ -37,7 +37,7 @@ class OrganizationUnitPolicy
      */
     public function update(User $user, OrganizationUnit $organizationUnit): bool
     {
-        return $user->hasRole('super_admin');
+        return $user->hasRole(['super_admin', 'admin_pusat']);
     }
 
     /**
@@ -45,6 +45,6 @@ class OrganizationUnitPolicy
      */
     public function delete(User $user, OrganizationUnit $organizationUnit): bool
     {
-        return $user->hasRole('super_admin');
+        return $user->hasRole(['super_admin', 'admin_pusat']);
     }
 }
