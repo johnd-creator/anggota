@@ -60,7 +60,7 @@ class MutationController extends Controller
 
         $user = $request->user();
         $unitId = $user->currentUnitId();
-        $membersQuery = Member::select('id', 'full_name', 'nra', 'organization_unit_id')
+        $membersQuery = Member::select('id', 'full_name', 'kta_number', 'organization_unit_id')
             ->where('status', 'aktif');
 
         // Apply member scope
@@ -127,7 +127,7 @@ class MutationController extends Controller
             'payload' => ['member_id' => $member->id],
         ]);
 
-        return redirect()->route('mutations.index')->with('success', 'Pengajuan mutasi dikirim');
+        return redirect()->route('admin.mutations.index')->with('success', 'Pengajuan mutasi dikirim');
     }
 
     public function show(MutationRequest $mutation)
@@ -162,7 +162,7 @@ class MutationController extends Controller
         $member->nra = $gen['nra'];
         $member->kta_number = $ktaGen['kta'];  // ← Tambah KTA number
         // join_year TIDAK di-update (tetap menggunakan nilai yang sudah ada)
-        $member->sequence_number = $gen['sequence'];
+        $member->sequence_number = $ktaGen['sequence'];
         $member->save();
 
         ActivityLog::create([

@@ -184,7 +184,7 @@ class MemberController extends Controller
             ...$validated,
             'nra' => $gen['nra'],
             'join_year' => $joinYear,
-            'sequence_number' => $gen['sequence'],
+            'sequence_number' => $kta['sequence'],
             'kta_number' => $kta['kta'],
         ]);
 

@@ -69,7 +69,7 @@
               <div class="text-center sm:text-left">
                 <h1 class="text-2xl font-bold text-gray-900 tracking-tight">{{ $toTitleCase(member.full_name) }}</h1>
                 <div class="mt-1 flex flex-wrap justify-center sm:justify-start items-center gap-3 text-sm text-gray-600">
-                  <span class="font-medium">{{ member.nra || member.kta_number || '-' }}</span>
+                  <span class="font-medium">{{ member.kta_number || '-' }}</span>
                   <span class="h-1.5 w-1.5 rounded-full bg-gray-300"></span>
                   <span
                     class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
@@ -253,7 +253,7 @@
             <div class="mb-4">
               <h3 class="text-lg font-semibold text-gray-900">Ubah Status Member</h3>
               <p class="text-sm text-gray-500 mt-1">
-                {{ $toTitleCase(member.full_name) }} - {{ member.nra || member.kta_number }}
+                {{ $toTitleCase(member.full_name) }} - {{ member.kta_number || '-' }}
               </p>
             </div>
 

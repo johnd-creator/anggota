@@ -43,7 +43,7 @@
               <div>
                 <h2 class="text-2xl font-bold text-gray-900">{{ $toTitleCase(member?.full_name) }}</h2>
                 <div class="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-1 text-sm text-gray-500">
-                  <span class="font-medium text-gray-700">{{ member?.nra || member?.kta_number || '-' }}</span>
+                  <span class="font-medium text-gray-700">{{ member?.kta_number || '-' }}</span>
                   <span
                     class="px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide border"
                     :class="statusBadgeClass(member?.status)"

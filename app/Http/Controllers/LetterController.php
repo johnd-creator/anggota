@@ -975,31 +975,31 @@ class LetterController extends Controller
             $membersQuery->where('organization_unit_id', $unitId);
         }
 
-        // Global users can search by email, non-global only by name/nra
+        // Global users can search by email, non-global only by name/KTA.
         if ($isGlobal) {
             $membersQuery->where(function ($q) use ($query) {
                 $q->where('full_name', 'like', "%{$query}%")
                     ->orWhere('email', 'like', "%{$query}%")
-                    ->orWhere('nra', 'like', "%{$query}%");
+                    ->orWhere('kta_number', 'like', "%{$query}%");
             });
         } else {
             $membersQuery->where(function ($q) use ($query) {
                 $q->where('full_name', 'like', "%{$query}%")
-                    ->orWhere('nra', 'like', "%{$query}%");
+                    ->orWhere('kta_number', 'like', "%{$query}%");
             });
         }
 
         // Select only needed fields - no email for non-global
         $selectFields = $isGlobal
-            ? ['id', 'full_name', 'email', 'nra']
-            : ['id', 'full_name', 'nra'];
+            ? ['id', 'full_name', 'email', 'kta_number']
+            : ['id', 'full_name', 'kta_number'];
 
         $members = $membersQuery->limit(20)->get($selectFields);
 
         return response()->json($members->map(function ($m) use ($isGlobal) {
             $label = $isGlobal
-                ? "{$m->full_name} ({$m->nra}) - {$m->email}"
-                : "{$m->full_name} ({$m->nra})";
+                ? "{$m->full_name} ({$m->kta_number}) - {$m->email}"
+                : "{$m->full_name} ({$m->kta_number})";
 
             return [
                 'id' => $m->id,

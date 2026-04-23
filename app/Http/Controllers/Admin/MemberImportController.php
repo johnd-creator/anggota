@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Member;
+use App\Services\KtaGenerator;
 use App\Services\MemberImportService;
 use App\Services\NraGenerator;
 use Illuminate\Database\QueryException;
@@ -548,12 +549,14 @@ class MemberImportController extends Controller
 
             if ($isNew) {
                 $gen = NraGenerator::generate($unitId, $joinYear);
+                $kta = KtaGenerator::generate($unitId, $joinYear);
                 $nraVal = $gen['nra'];
 
                 $member = new Member;
                 $member->nra = $nraVal;
                 $member->join_year = $joinYear;
-                $member->sequence_number = $gen['sequence'];
+                $member->sequence_number = $kta['sequence'];
+                $member->kta_number = $kta['kta'];
             }
 
             $member->full_name = $fullName;

@@ -63,7 +63,7 @@
                 />
               </td>
               <td class="px-5 py-3">
-                <Badge variant="brand">{{ m.kta_number || m.nra }}</Badge>
+                <Badge variant="brand">{{ m.kta_number || '-' }}</Badge>
               </td>
               <td class="px-5 py-3">
                 <div class="font-medium text-neutral-900">{{ $toTitleCase(m.full_name) }}</div>

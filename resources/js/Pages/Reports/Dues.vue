@@ -23,7 +23,7 @@
               <InputField 
                 label="Pencarian" 
                 v-model="form.q" 
-                placeholder="Cari Nama Anggota / NIK / NRA" 
+                placeholder="Cari Nama Anggota / NIK / KTA" 
               />
             </div>
 

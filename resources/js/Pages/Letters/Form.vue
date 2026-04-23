@@ -128,7 +128,7 @@ Telp. (021) 5290-1234"
                 v-model="memberSearch" 
                 @input="searchMember"
                 type="text" 
-                placeholder="Ketik nama, email, atau NRA..."
+                placeholder="Ketik nama, email, atau KTA..."
                 class="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-primary-500"
               />
               <div v-if="memberResults.length > 0" class="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-md shadow-lg max-h-48 overflow-y-auto">

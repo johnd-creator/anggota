@@ -90,7 +90,7 @@
                  <div class="barcode h-8 w-full opacity-80"></div>
                  <div class="absolute inset-0 flex items-center justify-center">
                     <span class="bg-white/90 px-2 text-[10px] font-mono tracking-[0.2em] text-neutral-900 font-bold shadow-sm rounded">
-                      {{ member?.kta_number || member?.nra }}
+                      {{ member?.kta_number || '' }}
                     </span>
                  </div>
               </div>

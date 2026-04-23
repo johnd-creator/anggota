@@ -142,7 +142,6 @@ class ReportsExportController extends Controller
                 'phone',
                 'status',
                 'organization_unit_id',
-                'nra',
                 'kta_number',
                 'nip',
                 'union_position_id',
@@ -173,7 +172,6 @@ class ReportsExportController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('full_name', 'LIKE', $search)
                     ->orWhere('kta_number', 'LIKE', $search)
-                    ->orWhere('nra', 'LIKE', $search)
                     ->orWhere('employee_id', 'LIKE', $search);
             });
         }
@@ -201,7 +199,6 @@ class ReportsExportController extends Controller
             'ID',
             'Nama',
             'KTA',
-            'NRA',
             'Status',
             'Unit',
             'Jabatan Serikat',
@@ -224,7 +221,6 @@ class ReportsExportController extends Controller
                         $m->id,
                         $m->full_name,
                         $m->kta_number,
-                        $m->nra,
                         $m->status,
                         $m->unit?->name,
                         $m->unionPosition?->name,
@@ -763,7 +759,7 @@ class ReportsExportController extends Controller
         $unitId = ExportScopeHelper::getEffectiveUnitId($user, $requestedUnitId);
         $maskPii = ExportScopeHelper::shouldMaskPii($user);
 
-        $query = Member::query()->select(['id', 'full_name', 'email', 'phone', 'status', 'organization_unit_id', 'nra', 'kta_number', 'nip', 'union_position_id', 'join_date'])->with(['unit', 'unionPosition']);
+        $query = Member::query()->select(['id', 'full_name', 'email', 'phone', 'status', 'organization_unit_id', 'kta_number', 'nip', 'union_position_id', 'join_date'])->with(['unit', 'unionPosition']);
         if ($unitId)
             $query->where('organization_unit_id', $unitId);
         $rowCount = (clone $query)->count();
@@ -772,14 +768,14 @@ class ReportsExportController extends Controller
         ExportScopeHelper::auditExport($user, 'members', $unitId, $rowCount);
         return response()->streamDownload(function () use ($query, $user, $unitId, $maskPii) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['ID', 'Nama', 'Email', 'Telepon', 'Status', 'Unit', 'NRA', 'KTA', 'NIP', 'Jabatan Serikat', 'Join Date']);
+            fputcsv($out, ['ID', 'Nama', 'Email', 'Telepon', 'Status', 'Unit', 'KTA', 'NIP', 'Jabatan Serikat', 'Join Date']);
             $count = 0;
             $query->orderBy('id')->chunk(500, function ($rows) use (&$out, &$count, $maskPii) {
                 foreach ($rows as $m) {
                     $email = $maskPii ? ExportScopeHelper::maskPii($m->email, 'email') : $m->email;
                     $phone = $maskPii ? ExportScopeHelper::maskPii($m->phone, 'phone') : $m->phone;
                     $nip = $maskPii ? ExportScopeHelper::maskPii($m->nip, 'nip') : $m->nip;
-                    fputcsv($out, [$m->id, $m->full_name, $email, $phone, $m->status, $m->unit?->name, $m->nra, $m->kta_number, $nip, optional($m->unionPosition)->name, $m->join_date]);
+                    fputcsv($out, [$m->id, $m->full_name, $email, $phone, $m->status, $m->unit?->name, $m->kta_number, $nip, optional($m->unionPosition)->name, $m->join_date]);
                     $count++;
                 }
             });

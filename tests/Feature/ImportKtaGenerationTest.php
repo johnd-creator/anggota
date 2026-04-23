@@ -18,12 +18,13 @@ class ImportKtaGenerationTest extends TestCase
     public function test_import_generates_kta_when_missing()
     {
         // 1. Setup Data
+        OrganizationUnit::factory()->create(['code' => '099']);
         $unit = OrganizationUnit::factory()->create(['code' => '010']);
         $admin = User::factory()->create(['organization_unit_id' => $unit->id]);
 
         // 2. Prepare Import File (Without KTA column)
         // Header: full_name, email, organization_unit_id, status
-        $csvContent = "full_name,email,organization_unit_id,status,join_date\nTest Import Member,test.import@example.com,{$unit->id},aktif,2024-01-01";
+        $csvContent = "full_name,email,organization_unit_id,status,join_date\nTest Import Member,test.import@gmail.com,{$unit->id},aktif,2024-01-01";
         $file = UploadedFile::fake()->createWithContent('members.csv', $csvContent);
 
         // 3. Execute Import
@@ -36,13 +37,13 @@ class ImportKtaGenerationTest extends TestCase
         // 4. Assertions
         $this->assertEquals(1, $result['created_count']);
 
-        $member = Member::where('email', 'test.import@example.com')->first();
+        $member = Member::where('email', 'test.import@gmail.com')->first();
         $this->assertNotNull($member);
 
         // Assert KTA is generated and follows format
         $this->assertNotNull($member->kta_number, 'KTA number should be generated');
         $this->assertStringContainsString('SPPIPS', $member->kta_number);
-        $this->assertStringStartsWith((string) $unit->id, $member->kta_number);
+        $this->assertStringStartsWith($unit->code, $member->kta_number);
 
         // Assert NRA is also present (it was already working, just ensuring no regression)
         $this->assertNotNull($member->nra);
@@ -65,7 +66,7 @@ class ImportKtaGenerationTest extends TestCase
         // 2. Prepare Import File 
         // - Alphanumeric NIP: "123ABC"
         // - Missing organization_unit_id (should infer from admin)
-        $csvContent = "full_name,email,nip,status,join_date\nAlpha NIP User,alpha.nip@example.com,123ABC456,aktif,2024-02-01";
+        $csvContent = "full_name,email,nip,status,join_date\nAlpha NIP User,alpha.nip@gmail.com,123ABC456,aktif,2024-02-01";
         $file = UploadedFile::fake()->createWithContent('members_alpha.csv', $csvContent);
 
         // 3. Execute Import
@@ -83,7 +84,7 @@ class ImportKtaGenerationTest extends TestCase
         // 4. Assertions
         $this->assertEquals(1, $result['created_count']);
 
-        $member = Member::where('email', 'alpha.nip@example.com')->first();
+        $member = Member::where('email', 'alpha.nip@gmail.com')->first();
         $this->assertNotNull($member);
         $this->assertEquals('123ABC456', $member->nip);
         $this->assertEquals($unit->id, $member->organization_unit_id);

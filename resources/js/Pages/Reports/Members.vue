@@ -28,7 +28,7 @@
               <InputField 
                 label="Pencarian" 
                 v-model="form.q" 
-                placeholder="Nama / KTA / NRA / Employee ID" 
+                placeholder="Nama / KTA / Employee ID" 
               />
             </div>
 

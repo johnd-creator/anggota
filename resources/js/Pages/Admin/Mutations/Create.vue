@@ -107,7 +107,7 @@ const { toTitleCase } = useTextFormat();
 const units = page.props.units || [];
 const members = page.props.members || [];
 const unitOptions = units.map(u => ({ label: u.name, value: u.id }));
-const memberOptions = members.map(m => ({ label: `${m.nra || '-'} – ${toTitleCase(m.full_name)}`, value: m.id }));
+const memberOptions = members.map(m => ({ label: `${m.kta_number || '-'} - ${toTitleCase(m.full_name)}`, value: m.id }));
 
 const memberQuery = ref('');
 const filteredMemberOptions = computed(() => {

@@ -1002,43 +1002,19 @@ class MemberImportService
 
                 return ['action' => 'updated', 'member' => $existing];
             } else {
-                // If NRA is missing, generate it (and a sequence number) from the unit and join year.
                 $sequenceNumber = null;
                 if (!$nra) {
                     $gen = \App\Services\NraGenerator::generate($effectiveUnitId, $joinYear);
                     $nra = $gen['nra'];
-                    $sequenceNumber = $gen['sequence'];
-                }
-                if ($sequenceNumber === null) {
-                    $sequenceNumber = (int) (Member::where('organization_unit_id', $effectiveUnitId)
-                        ->where('join_year', $joinYear)
-                        ->max('sequence_number') ?? 0) + 1;
                 }
 
-                // FIX: Generate KTA number if missing (KTA format: 010-SPPIPS-24001 vs NRA: 010-24-001)
-                // This ensures consistency with manual/google login creation
                 if (!$ktaNumber) {
                     $ktaGen = \App\Services\KtaGenerator::generate($effectiveUnitId, $joinYear);
                     $ktaNumber = $ktaGen['kta'];
-                    // Note: KtaGenerator also generates a sequence, but we already have one from NraGenerator or fallback.
-                    // Ideally both should use the same sequence, but for now we prioritize having a KTA valid format.
-                    // If sequence is critical for KTA to match NRA exactly, we should use the same sequence.
-                    // KtaGenerator uses lockForUpdate, so it's safe.
-                    // Let's use the KTA's sequence for consistency if we just generated it.
-                    if (isset($ktaGen['sequence'])) {
-                        $sequenceNumber = $ktaGen['sequence'];
-                        // Re-generate NRA to match KTA sequence if needed, OR just update the sequence used.
-                        // Ideally NRA and KTA share the same sequence number.
-                        // Let's preserve the NRA prefix but update sequence to match KTA if possible.
-                        // However, NRA format is simpler. Let's just trust KTA generator's sequence
-                        // and implicitely update NRA if we hadn't already fixed it?
-                        // Actually, let's keep it simple: Use generated KTA.
-                        // If we didn't have NRA, regenerate NRA with new sequence?
-                        if (!$nra) {
-                            $yearTwoDigit = (int) substr((string) $joinYear, -2);
-                            $nra = sprintf('%03d-%02d-%03d', $effectiveUnitId, $yearTwoDigit, $sequenceNumber);
-                        }
-                    }
+                    $sequenceNumber = $ktaGen['sequence'];
+                } else {
+                    $sequenceNumber = (int) (Member::where('organization_unit_id', $effectiveUnitId)
+                        ->max('sequence_number') ?? 0) + 1;
                 }
 
                 // Some environments enforce NOT NULL for email; generate a placeholder if missing.
