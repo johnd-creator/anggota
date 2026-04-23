@@ -133,15 +133,29 @@ class LoginController extends Controller
         }
 
         // Find or Create User
-        $user = User::updateOrCreate(
-            ['email' => $email],
-            [
-                'name' => $googleUser->getName(),
+        try {
+            $user = User::updateOrCreate(
+                ['email' => $email],
+                [
+                    'name' => $googleUser->getName(),
+                    'google_id' => $googleUser->getId(),
+                    'avatar' => $this->sanitizeAvatarUrl($googleUser->getAvatar()),
+                    'password' => bcrypt(Str::random(16)), // Random password
+                ]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Google login user upsert failed', [
+                'request_id' => $request->headers->get('X-Request-Id'),
+                'email' => $email,
+                'provider' => 'google',
                 'google_id' => $googleUser->getId(),
-                'avatar' => $googleUser->getAvatar(),
-                'password' => bcrypt(Str::random(16)), // Random password
-            ]
-        );
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect('/login')->withErrors([
+                'email' => 'Login Google gagal saat sinkronisasi akun. Silakan coba lagi.',
+            ]);
+        }
 
         // Assign Role if not already assigned (or update? PRD says "fallback auto-assign Reguler for user baru")
         // If user exists, we might want to keep their role, or update it based on domain?
@@ -414,5 +428,20 @@ class LoginController extends Controller
         }
 
         return redirect()->route('dashboard');
+    }
+
+    private function sanitizeAvatarUrl(mixed $avatar): ?string
+    {
+        if (! is_string($avatar)) {
+            return null;
+        }
+
+        $avatar = trim($avatar);
+        if ($avatar === '') {
+            return null;
+        }
+
+        // Keep an upper bound to avoid pathological payload sizes.
+        return mb_substr($avatar, 0, 4096);
     }
 }

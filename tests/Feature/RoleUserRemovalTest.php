@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Role;
 use App\Models\User;
+use Inertia\Testing\AssertableInertia as Assert;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -86,5 +87,30 @@ class RoleUserRemovalTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
+    }
+
+    public function test_role_show_includes_organization_in_user_table_data()
+    {
+        $unit = \App\Models\OrganizationUnit::factory()->create([
+            'name' => 'DPK Test',
+            'code' => '011',
+        ]);
+
+        User::factory()->create([
+            'name' => 'Budi Test',
+            'email' => 'budi.role@example.com',
+            'role_id' => $this->roleBendahara->id,
+            'organization_unit_id' => $unit->id,
+        ]);
+
+        $response = $this->actingAs($this->superAdmin)
+            ->get(route('admin.roles.show', $this->roleBendahara->id));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Roles/Show')
+            ->where('users.data.0.organization.name', 'DPK Test')
+            ->where('users.data.0.organization.code', '011')
+        );
     }
 }

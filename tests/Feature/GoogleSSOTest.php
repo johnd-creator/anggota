@@ -45,7 +45,7 @@ class GoogleSSOTest extends TestCase
         $provider = Mockery::mock(\Laravel\Socialite\Contracts\Provider::class);
         $abstractUser = Mockery::mock(\Laravel\Socialite\Contracts\User::class);
         $abstractUser->shouldReceive('getId')->andReturn('gid-002');
-        $abstractUser->shouldReceive('getEmail')->andReturn('john@superadmin.com');
+        $abstractUser->shouldReceive('getEmail')->andReturn('john@waspro.com');
         $abstractUser->shouldReceive('getName')->andReturn('John Admin');
         $abstractUser->shouldReceive('getAvatar')->andReturn('http://example.com/avatar2.jpg');
         $provider->shouldReceive('user')->andReturn($abstractUser);
@@ -55,7 +55,7 @@ class GoogleSSOTest extends TestCase
         $response->assertStatus(302);
         $response->assertRedirect(route('dashboard'));
 
-        $user = User::where('email', 'john@superadmin.com')->first();
+        $user = User::where('email', 'john@waspro.com')->first();
         $this->assertNotNull($user);
         $this->assertEquals(Role::where('name', 'super_admin')->first()->id, $user->role_id);
     }
@@ -129,5 +129,48 @@ class GoogleSSOTest extends TestCase
         $pendingMember = \App\Models\PendingMember::where('user_id', $user->id)->first();
         $this->assertNotNull($pendingMember);
         $this->assertEquals('pending', $pendingMember->status);
+    }
+
+    public function test_google_sso_accepts_long_avatar_url_without_500(): void
+    {
+        $provider = Mockery::mock(\Laravel\Socialite\Contracts\Provider::class);
+        $abstractUser = Mockery::mock(\Laravel\Socialite\Contracts\User::class);
+        $abstractUser->shouldReceive('getId')->andReturn('gid-long-avatar');
+        $abstractUser->shouldReceive('getEmail')->andReturn('longavatar@gmail.com');
+        $abstractUser->shouldReceive('getName')->andReturn('Long Avatar');
+        $abstractUser->shouldReceive('getAvatar')->andReturn('https://example.com/avatar?' . str_repeat('a', 5000));
+        $provider->shouldReceive('user')->andReturn($abstractUser);
+        Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
+
+        $response = $this->get('/auth/google/callback');
+        $response->assertStatus(302);
+        $response->assertRedirect(route('itworks'));
+
+        $user = User::where('email', 'longavatar@gmail.com')->first();
+        $this->assertNotNull($user);
+        $this->assertNotNull($user->avatar);
+        $this->assertLessThanOrEqual(4096, strlen($user->avatar));
+    }
+
+    public function test_google_sso_handles_user_upsert_failure_gracefully(): void
+    {
+        User::factory()->create([
+            'email' => 'existing-dup@gmail.com',
+            'google_id' => 'gid-dup',
+        ]);
+
+        $provider = Mockery::mock(\Laravel\Socialite\Contracts\Provider::class);
+        $abstractUser = Mockery::mock(\Laravel\Socialite\Contracts\User::class);
+        $abstractUser->shouldReceive('getId')->andReturn('gid-dup');
+        $abstractUser->shouldReceive('getEmail')->andReturn('new-dup@gmail.com');
+        $abstractUser->shouldReceive('getName')->andReturn('New Dup');
+        $abstractUser->shouldReceive('getAvatar')->andReturn('http://example.com/avatar-dup.jpg');
+        $provider->shouldReceive('user')->andReturn($abstractUser);
+        Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
+
+        $response = $this->get('/auth/google/callback');
+        $response->assertStatus(302);
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors('email');
     }
 }

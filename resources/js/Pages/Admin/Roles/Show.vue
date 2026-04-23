@@ -41,6 +41,7 @@
             <tr>
               <th class="px-4 py-2 text-left text-xs text-neutral-500">Nama</th>
               <th class="px-4 py-2 text-left text-xs text-neutral-500">Email</th>
+              <th class="px-4 py-2 text-left text-xs text-neutral-500">Organisasi</th>
               <th class="px-4 py-2 text-right text-xs text-neutral-500">Aksi</th>
             </tr>
           </thead>
@@ -48,6 +49,7 @@
             <tr v-for="u in users.data" :key="u.id">
               <td class="px-4 py-2 text-sm">{{ u.name }}</td>
               <td class="px-4 py-2 text-sm">{{ u.email }}</td>
+              <td class="px-4 py-2 text-sm">{{ organizationLabel(u) }}</td>
               <td class="px-4 py-2 text-sm text-right">
                 <button @click="confirmRemove(u)" class="text-status-error hover:text-red-800" title="Hapus dari role">
                   <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -137,5 +139,12 @@ function doRemove() {
       removing.value = false;
     },
   });
+}
+
+function organizationLabel(user) {
+  const organization = user?.organization;
+  if (!organization) return '-';
+
+  return organization.code ? `${organization.name} (${organization.code})` : organization.name;
 }
 </script>

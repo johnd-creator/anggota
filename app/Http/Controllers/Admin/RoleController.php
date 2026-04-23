@@ -39,7 +39,25 @@ class RoleController extends Controller
     public function show(Role $role)
     {
         $role->loadCount('users');
-        $users = User::where('role_id', $role->id)->select('id', 'name', 'email')->paginate(10)->withQueryString();
+        $users = User::with(['organizationUnit:id,name,code', 'linkedMember.unit:id,name,code'])
+            ->where('role_id', $role->id)
+            ->select('id', 'name', 'email', 'organization_unit_id', 'member_id')
+            ->paginate(10)
+            ->withQueryString()
+            ->through(function (User $user): array {
+                $organization = $user->organizationUnit ?? $user->linkedMember?->unit;
+
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'organization' => $organization ? [
+                        'id' => $organization->id,
+                        'name' => $organization->name,
+                        'code' => $organization->code,
+                    ] : null,
+                ];
+            });
         $units = \App\Models\OrganizationUnit::select('id', 'name', 'code')->orderBy('name')->get();
 
         return Inertia::render('Admin/Roles/Show', ['role' => $role, 'users' => $users, 'units' => $units]);
