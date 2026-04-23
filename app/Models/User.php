@@ -156,6 +156,25 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the organization unit used for member-facing context.
+     *
+     * Central roles can have a DPP organization_unit_id for operational access,
+     * but member pages should follow the unit from the linked member profile.
+     */
+    public function memberContextUnitId(): ?int
+    {
+        if ($this->linkedMember?->organization_unit_id) {
+            return (int) $this->linkedMember->organization_unit_id;
+        }
+
+        if ($this->member?->organization_unit_id) {
+            return (int) $this->member->organization_unit_id;
+        }
+
+        return $this->currentUnitId();
+    }
+
+    /**
      * Get the member linked to this user via member_id.
      */
     public function linkedMember()

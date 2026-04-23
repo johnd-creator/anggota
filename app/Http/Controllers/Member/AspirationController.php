@@ -23,22 +23,17 @@ class AspirationController extends Controller
         $user = $request->user();
         $member = $user->member;
 
-        // Use currentUnitId() for consistent unit resolution
-        $unitId = $user->currentUnitId();
-
-        // Global admins (super_admin, admin_pusat) might not have unit, show all?
-        // But this is "Member View". Maybe show all if global admin?
-        // User request: "ke 3 role ini seharusnya dapat menyampaikan".
-        // Let's assume for global admins in "member view" they see everything or just their assigned unit?
-        // Given it's "Aspirasi Unit", let's defaults to their unit if exists, else all?
-        // Let's stick to unit-based for now. If global admin has no unit, they see everything?
+        // Member-facing pages should follow the linked member's unit when available.
+        // Central roles may carry a DPP operational unit, but that should not override
+        // the unit where their member profile belongs.
+        $unitId = $user->memberContextUnitId();
 
         $query = Aspiration::with(['category', 'member:id,full_name', 'tags', 'user:id,name']) // Eager load user too
             ->notMerged();
 
         if ($unitId) {
             $query->byUnit($unitId);
-        } else if (!$user->canViewGlobalScope()) {
+        } elseif (!$user->canViewGlobalScope()) {
             // If no unit and not global, return empty or redirect
             return redirect()->route('dashboard')->with('error', 'Unit tidak ditemukan');
         }
@@ -120,10 +115,8 @@ class AspirationController extends Controller
             if (!$user->hasRole(['super_admin', 'admin_pusat', 'admin_unit', 'pengurus_pusat'])) {
                 return back()->withErrors(['member' => 'Profil anggota tidak ditemukan']);
             }
-            // For admin_pusat/super_admin, they might not have a unit. If so, require unit selection or default?
-            // User requirement: "ke 3 role ini seharusnya dapat menyampaikan".
-            // Use currentUnitId() which handles both organization_unit_id and member->organization_unit_id
-            $unitId = $user->currentUnitId();
+            // Member-facing context should use the linked member's origin unit first.
+            $unitId = $user->memberContextUnitId();
             if (!$unitId && !$user->canViewGlobalScope()) {
                 return back()->withErrors(['unit' => 'Unit organisasi tidak ditemukan']);
             }
@@ -132,7 +125,7 @@ class AspirationController extends Controller
                 return back()->withErrors(['unit' => 'Pilih unit terlebih dahulu untuk membuat aspirasi']);
             }
         } else {
-            $unitId = $user->currentUnitId();
+            $unitId = $user->memberContextUnitId();
         }
 
         $aspiration = DB::transaction(function () use ($validated, $member, $user, $unitId) {

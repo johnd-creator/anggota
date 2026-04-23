@@ -152,8 +152,8 @@ class SearchService
 
         if ($roleName === 'anggota') {
             $query->where('member_id', $user->member_id);
-        } elseif (in_array($roleName, ['admin_unit', 'bendahara', 'bendahara_pusat', 'pengurus_pusat'])) {
-            $unitId = $user->currentUnitId();
+        } elseif (in_array($roleName, ['admin_unit', 'bendahara', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat'])) {
+            $unitId = $user->memberContextUnitId();
             if ($unitId) {
                 $query->where('organization_unit_id', $unitId);
             }

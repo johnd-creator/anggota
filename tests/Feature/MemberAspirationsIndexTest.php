@@ -61,5 +61,59 @@ class MemberAspirationsIndexTest extends TestCase
                 ->where('aspirations.data.0.is_own', false)
         );
     }
-}
 
+    public function test_admin_pusat_uses_linked_member_unit_on_member_aspirations_index(): void
+    {
+        $dpp = OrganizationUnit::factory()->create([
+            'name' => 'DPP',
+            'is_pusat' => true,
+        ]);
+        $unit = OrganizationUnit::factory()->create(['name' => 'Unit Asal']);
+        $otherUnit = OrganizationUnit::factory()->create(['name' => 'Unit Lain']);
+
+        $adminPusat = User::factory()->create([
+            'role_id' => Role::where('name', 'admin_pusat')->value('id'),
+            'organization_unit_id' => $dpp->id,
+        ]);
+
+        $member = Member::factory()->create([
+            'organization_unit_id' => $unit->id,
+            'status' => 'aktif',
+        ]);
+        $adminPusat->update(['member_id' => $member->id]);
+
+        $category = AspirationCategory::create(['name' => 'Kategori Pusat']);
+
+        Aspiration::create([
+            'title' => 'Aspirasi Unit Asal',
+            'body' => 'Isi aspirasi unit asal',
+            'member_id' => $member->id,
+            'organization_unit_id' => $unit->id,
+            'category_id' => $category->id,
+            'status' => 'new',
+            'support_count' => 0,
+            'user_id' => $adminPusat->id,
+        ]);
+
+        Aspiration::create([
+            'title' => 'Aspirasi Unit Lain',
+            'body' => 'Isi aspirasi unit lain',
+            'member_id' => $member->id,
+            'organization_unit_id' => $otherUnit->id,
+            'category_id' => $category->id,
+            'status' => 'new',
+            'support_count' => 0,
+            'user_id' => $adminPusat->id,
+        ]);
+
+        $response = $this->actingAs($adminPusat)->get(route('member.aspirations.index'));
+
+        $response->assertOk();
+        $response->assertInertia(
+            fn(Assert $page) => $page
+                ->component('Member/Aspirations/Index')
+                ->has('aspirations.data', 1)
+                ->where('aspirations.data.0.title', 'Aspirasi Unit Asal')
+        );
+    }
+}
