@@ -74,7 +74,7 @@
           <div v-show="expandedSections.letters" class="ml-6 space-y-1">
             <Link href="/letters/inbox" :class="subMenuItemClass('/letters/inbox')">Kotak Masuk</Link>
             <Link v-if="isSuperAdmin || isAdminUnit || isAdminPusat || isPengurus || isTreasurer" href="/letters/outbox" :class="subMenuItemClass('/letters/outbox')">Surat Keluar</Link>
-            <Link v-if="isSuperAdmin || canApproveLetters || isTreasurer" href="/letters/approvals" :class="subMenuItemClass('/letters/approvals')">Perlu Persetujuan</Link>
+            <Link v-if="isSuperAdmin || canApproveLetters || isTreasurer || isAdminPusat" href="/letters/approvals" :class="subMenuItemClass('/letters/approvals')">Perlu Persetujuan</Link>
           </div>
         </template>
 

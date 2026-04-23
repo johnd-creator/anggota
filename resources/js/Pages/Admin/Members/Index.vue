@@ -29,10 +29,10 @@
     <CardContainer padding="sm">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
         <InputField v-model="search" placeholder="Cari nama/nip/email" />
-        <SelectField v-if="$page.props.auth.user.role?.name==='super_admin'" v-model="selectedUnit" :options="unitOptions" placeholder="Unit" />
+        <SelectField v-if="canFilterByUnit" v-model="selectedUnit" :options="unitOptions" placeholder="Unit" />
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <Chip v-if="$page.props.auth.user.role?.name==='super_admin'" v-for="u in filters.units" :key="u" removable active @toggle="removeUnit(u)">{{ unitLabel(u) }}</Chip>
+        <Chip v-if="canFilterByUnit" v-for="u in filters.units" :key="u" removable active @toggle="removeUnit(u)">{{ unitLabel(u) }}</Chip>
         <Chip v-else-if="$page.props.auth.user.role?.name==='admin_unit' && $page.props.auth.user.organization_unit_id" active>Unit: {{ unitLabel($page.props.auth.user.organization_unit_id) }}</Chip>
       </div>
     </CardContainer>
@@ -131,6 +131,7 @@
   const members = computed(() => page.props.members);
   const units = page.props.units || [];
   const unitOptions = units.map(u => ({ label: u.name, value: u.id }));
+  const canFilterByUnit = computed(() => ['super_admin', 'admin_pusat'].includes(page.props.auth.user.role?.name));
   const isPengurus = computed(() => ['pengurus', 'pengurus_pusat'].includes(page.props.auth.user.role?.name));
 
 const initialFilters = page.props.filters || {};

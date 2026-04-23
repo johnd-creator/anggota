@@ -426,8 +426,15 @@ const tembusanList = computed(() => {
     .map(line => line.replace(/^\s*(?:\d+\s*[\)\.\-]|[-•])\s*/u, ''))
 })
 
+const signerLabel = (type) => {
+  if (type === 'ketua' && props.letter?.from_unit?.is_pusat) return 'Ketua Umum'
+  if (type === 'ketua') return 'Ketua'
+  if (type === 'sekretaris') return 'Sekretaris'
+  return type || '-'
+}
+
 const signerTitle = computed(() => {
-  return props.letter.signer_type === 'ketua' ? 'Ketua' : 'Sekretaris'
+  return signerLabel(props.letter.signer_type)
 })
 
 const signerName = computed(() => {
@@ -438,7 +445,7 @@ const signerName = computed(() => {
 })
 
 const primarySignerTitle = computed(() => {
-  return props.letter.signer_type === 'ketua' ? 'Ketua' : 'Sekretaris'
+  return signerLabel(props.letter.signer_type)
 })
 
 const primarySignerName = computed(() => {

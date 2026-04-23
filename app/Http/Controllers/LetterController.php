@@ -19,6 +19,7 @@ use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class LetterController extends Controller
@@ -119,14 +120,20 @@ class LetterController extends Controller
     {
         $user = $request->user();
         $unitId = $user->currentUnitId();
+        $isMonitoringOnly = $user->hasRole('admin_pusat');
 
         $query = Letter::with([
             'category:id,name,code',
             'creator:id,name',
-            'fromUnit:id,name,code',
+            'fromUnit:id,name,code,is_pusat',
         ])->needsApproval();
 
-        if (! $user->hasGlobalAccess()) {
+        if ($isMonitoringOnly) {
+            $query->where('creator_user_id', $user->id);
+            if ($unitId) {
+                $query->where('from_unit_id', $unitId);
+            }
+        } elseif (! $user->hasGlobalAccess()) {
             // Get user's signer type capabilities
             $positionName = $user->getUnionPositionName();
             $signerType = $positionName ? strtolower($positionName) : null;
@@ -186,7 +193,12 @@ class LetterController extends Controller
 
         // SLA stats
         $baseQuery = Letter::needsApproval();
-        if (! $user->hasGlobalAccess() && $unitId) {
+        if ($isMonitoringOnly) {
+            $baseQuery->where('creator_user_id', $user->id);
+            if ($unitId) {
+                $baseQuery->where('from_unit_id', $unitId);
+            }
+        } elseif (! $user->hasGlobalAccess() && $unitId) {
             $baseQuery->where('from_unit_id', $unitId);
         }
         $overdueCount = (clone $baseQuery)->where('sla_due_at', '<', now())->count();
@@ -195,6 +207,8 @@ class LetterController extends Controller
             'letters' => $letters,
             'categories' => $categories,
             'filters' => $request->only(['search', 'category_id', 'sla_status']),
+            'monitoringOnly' => $isMonitoringOnly,
+            'canTakeApprovalAction' => ! $isMonitoringOnly,
             'stats' => [
                 'pending' => (clone $baseQuery)->count(),
                 'overdue' => $overdueCount,
@@ -314,6 +328,7 @@ class LetterController extends Controller
     {
         $validated = $this->validateLetter($request);
         $user = $request->user();
+        $validated = $this->normalizeLetterPayloadForCreator($validated, $user);
         $submitAfterSave = $request->boolean('submit_after_save');
 
         // Determine from_unit_id based on role
@@ -378,7 +393,7 @@ class LetterController extends Controller
     {
         $this->authorize('view', $letter);
 
-        $letter->load(['category', 'creator', 'fromUnit', 'toUnit', 'toMember', 'approvedBy', 'rejectedBy', 'revisions.actor']);
+        $letter->load(['category', 'creator', 'fromUnit:id,name,code,is_pusat', 'toUnit', 'toMember', 'approvedBy', 'rejectedBy', 'revisions.actor']);
 
         $user = request()->user();
         $canApprove = $user->can('approve', $letter);
@@ -419,7 +434,7 @@ class LetterController extends Controller
     {
         $this->authorize('view', $letter);
 
-        $letter->load(['category', 'creator', 'fromUnit', 'toUnit', 'toMember', 'approvedBy', 'approvedSecondaryBy', 'rejectedBy', 'revisions.actor', 'attachments']);
+        $letter->load(['category', 'creator', 'fromUnit:id,name,code,is_pusat', 'toUnit', 'toMember', 'approvedBy', 'approvedSecondaryBy', 'rejectedBy', 'revisions.actor', 'attachments']);
 
         // Mark as read for recipients
         $user = request()->user();
@@ -613,7 +628,7 @@ class LetterController extends Controller
         // Mark as read when downloading PDF
         $this->markAsReadIfRecipient($letter, request()->user());
 
-        $letter->load(['category', 'creator', 'fromUnit', 'toUnit', 'toMember', 'approvedBy', 'approvedSecondaryBy']);
+        $letter->load(['category', 'creator', 'fromUnit:id,name,code,is_pusat', 'toUnit', 'toMember', 'approvedBy', 'approvedSecondaryBy']);
 
         // Ensure verification token exists
         if (! $letter->verification_token) {
@@ -740,6 +755,7 @@ class LetterController extends Controller
         $this->authorize('update', $letter);
 
         $validated = $this->validateLetter($request, $letter);
+        $validated = $this->normalizeLetterPayloadForCreator($validated, $request->user(), $letter);
 
         $letter->update([
             'letter_category_id' => $validated['letter_category_id'],
@@ -1211,5 +1227,23 @@ class LetterController extends Controller
             'confidentiality.required' => 'Sifat surat wajib dipilih.',
             'urgency.required' => 'Urgensi wajib dipilih.',
         ]);
+    }
+
+    /**
+     * Normalize letter payload for creator-specific rules.
+     */
+    protected function normalizeLetterPayloadForCreator(array $validated, User $user, ?Letter $letter = null): array
+    {
+        if ($user->hasRole('admin_pusat')) {
+            if (! $letter && ($validated['to_type'] ?? null) === 'admin_pusat') {
+                throw ValidationException::withMessages([
+                    'to_type' => 'Tujuan Admin Pusat tidak tersedia untuk surat yang dibuat oleh Admin Pusat.',
+                ]);
+            }
+
+            $validated['signer_type'] = 'ketua';
+        }
+
+        return $validated;
     }
 }

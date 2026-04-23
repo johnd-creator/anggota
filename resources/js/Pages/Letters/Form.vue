@@ -29,11 +29,13 @@
           <!-- Signer Type -->
           <div>
             <label class="block text-sm font-medium text-neutral-700">Penandatangan Utama <span class="text-red-500">*</span></label>
-            <select v-model="form.signer_type" class="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-primary-500">
+            <select v-if="!isAdminPusatCreator" v-model="form.signer_type" class="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-primary-500">
               <option value="">Pilih Penandatangan</option>
-              <option value="ketua">Ketua</option>
-              <option value="sekretaris">Sekretaris</option>
+              <option v-for="option in signerTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
+            <div v-else class="mt-1 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+              Ketua Umum
+            </div>
             <p v-if="form.errors.signer_type" class="text-xs text-status-error mt-1">{{ form.errors.signer_type }}</p>
           </div>
 
@@ -53,10 +55,7 @@
             <label class="block text-sm font-medium text-neutral-700">Tujuan <span class="text-red-500">*</span></label>
             <select v-model="form.to_type" class="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-primary-500">
               <option value="">Pilih Tujuan</option>
-              <option value="unit">Unit</option>
-              <option value="member">Anggota</option>
-              <option value="admin_pusat">Admin Pusat</option>
-              <option value="eksternal">Eksternal (Pihak Luar)</option>
+              <option v-for="option in recipientOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
             <p v-if="form.errors.to_type" class="text-xs text-status-error mt-1">{{ form.errors.to_type }}</p>
           </div>
@@ -275,7 +274,7 @@ Telp. (021) 5290-1234"
 
 <script setup>
 import { ref, watch, computed, defineAsyncComponent } from 'vue'
-import { router, useForm } from '@inertiajs/vue3'
+import { router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
 import InputField from '@/Components/UI/InputField.vue'
@@ -290,10 +289,12 @@ const props = defineProps({
   categories: Array, 
   units: Array 
 })
+const page = usePage()
+const isAdminPusatCreator = computed(() => (page.props.auth?.user?.role?.name || '') === 'admin_pusat')
 
 const form = useForm({
   letter_category_id: props.letter?.letter_category_id || '',
-  signer_type: props.letter?.signer_type || '',
+  signer_type: isAdminPusatCreator.value ? 'ketua' : (props.letter?.signer_type || ''),
   signer_type_secondary: props.letter?.signer_type_secondary || '',
   to_type: props.letter?.to_type || '',
   to_unit_id: props.letter?.to_unit_id || '',
@@ -322,6 +323,32 @@ const selectedCategoryHasTemplate = computed(() => {
   if (!form.letter_category_id) return false
   const cat = props.categories.find(c => c.id === form.letter_category_id)
   return cat && (cat.template_subject || cat.template_body)
+})
+
+const signerTypeOptions = computed(() => {
+  if (isAdminPusatCreator.value) {
+    return [{ value: 'ketua', label: 'Ketua Umum' }]
+  }
+
+  return [
+    { value: 'ketua', label: 'Ketua' },
+    { value: 'sekretaris', label: 'Sekretaris' },
+  ]
+})
+
+const recipientOptions = computed(() => {
+  const options = [
+    { value: 'unit', label: 'Unit' },
+    { value: 'member', label: 'Anggota' },
+    { value: 'admin_pusat', label: 'Admin Pusat' },
+    { value: 'eksternal', label: 'Eksternal (Pihak Luar)' },
+  ]
+
+  if (isAdminPusatCreator.value && !props.letter?.id) {
+    return options.filter(option => option.value !== 'admin_pusat')
+  }
+
+  return options
 })
 
 // Apply template from backend

@@ -93,7 +93,7 @@ class CentralRoleDppContextTest extends TestCase
         }
     }
 
-    public function test_admin_pusat_creates_letters_from_dpp_even_when_member_origin_is_dpd(): void
+    public function test_admin_pusat_forces_ketua_approval_and_dpp_context_on_create(): void
     {
         $adminPusat = $this->assignCentralRole('admin_pusat');
 
@@ -101,7 +101,8 @@ class CentralRoleDppContextTest extends TestCase
             'letter_category_id' => LetterCategory::query()->firstOrFail()->id,
             'subject' => 'Surat DPP',
             'body' => 'Isi surat DPP',
-            'to_type' => 'admin_pusat',
+            'to_type' => 'unit',
+            'to_unit_id' => $this->dpd->id,
             'urgency' => 'biasa',
             'confidentiality' => 'biasa',
             'signer_type' => 'sekretaris',
@@ -113,6 +114,54 @@ class CentralRoleDppContextTest extends TestCase
         $letter = Letter::query()->latest('id')->firstOrFail();
         $this->assertSame($adminPusat->id, $letter->creator_user_id);
         $this->assertSame($this->dpp->id, $letter->from_unit_id);
+        $this->assertSame('ketua', $letter->signer_type);
+    }
+
+    public function test_admin_pusat_cannot_create_letter_with_admin_pusat_destination(): void
+    {
+        $adminPusat = $this->assignCentralRole('admin_pusat');
+
+        $response = $this->actingAs($adminPusat)->post('/letters', [
+            'letter_category_id' => LetterCategory::query()->firstOrFail()->id,
+            'subject' => 'Surat Tidak Valid',
+            'body' => 'Isi surat',
+            'to_type' => 'admin_pusat',
+            'urgency' => 'biasa',
+            'confidentiality' => 'biasa',
+            'signer_type' => 'ketua',
+        ]);
+
+        $response->assertSessionHasErrors(['to_type']);
+    }
+
+    public function test_admin_pusat_can_monitor_own_approval_queue_without_actions(): void
+    {
+        $adminPusat = $this->assignCentralRole('admin_pusat');
+
+        Letter::create([
+            'letter_category_id' => LetterCategory::query()->firstOrFail()->id,
+            'subject' => 'Surat Monitoring Pusat',
+            'body' => 'Isi',
+            'from_unit_id' => $this->dpp->id,
+            'to_type' => 'unit',
+            'to_unit_id' => $this->dpd->id,
+            'urgency' => 'biasa',
+            'confidentiality' => 'biasa',
+            'status' => 'submitted',
+            'signer_type' => 'ketua',
+            'creator_user_id' => $adminPusat->id,
+            'submitted_at' => now(),
+        ]);
+
+        $response = $this->actingAs($adminPusat)->get('/letters/approvals');
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Letters/Approvals')
+            ->where('monitoringOnly', true)
+            ->where('canTakeApprovalAction', false)
+            ->where('letters.data.0.subject', 'Surat Monitoring Pusat')
+        );
     }
 
     public function test_central_inbox_uses_pusat_recipient_scope_not_member_origin_unit(): void

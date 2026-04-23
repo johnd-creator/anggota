@@ -203,6 +203,12 @@ class DashboardController extends Controller
         $approvals = 0;
         if ($roleName === 'super_admin') {
             $approvals = Letter::needsApproval()->count();
+        } elseif ($roleName === 'admin_pusat') {
+            $unitId = $user->currentUnitId();
+            $approvals = Letter::needsApproval()
+                ->where('creator_user_id', $user->id)
+                ->when($unitId, fn ($q) => $q->where('from_unit_id', $unitId))
+                ->count();
         } else {
             $positionName = strtolower((string) $user->getUnionPositionName());
             $unitId = $user->currentUnitId();

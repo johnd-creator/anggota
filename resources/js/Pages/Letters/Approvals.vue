@@ -4,8 +4,14 @@
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 class="text-lg font-semibold text-neutral-900">Perlu Persetujuan</h2>
-          <p class="text-sm text-neutral-500">Surat yang menunggu persetujuan Anda.</p>
+          <p class="text-sm text-neutral-500">
+            {{ monitoringOnly ? 'Surat pusat yang Anda buat untuk dimonitor.' : 'Surat yang menunggu persetujuan Anda.' }}
+          </p>
         </div>
+      </div>
+
+      <div v-if="monitoringOnly" class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        Mode monitoring aktif. Anda dapat melihat antrian surat pusat, tetapi tidak dapat melakukan approve/revise/reject dari halaman ini.
       </div>
 
       <!-- Stats -->
@@ -66,7 +72,7 @@
                 </td>
                 <td class="px-6 py-4 text-sm font-medium text-neutral-900">{{ letter.subject }}</td>
                 <td class="px-6 py-4 text-sm text-neutral-600">{{ letter.from_unit?.name || 'Pusat' }}</td>
-                <td class="px-6 py-4 text-sm text-neutral-600 capitalize">{{ letter.signer_type }}</td>
+                <td class="px-6 py-4 text-sm text-neutral-600">{{ signerLabel(letter) }}</td>
                 <td class="px-6 py-4 text-sm text-neutral-600">{{ formatDate(letter.submitted_at) }}</td>
                 <td class="px-6 py-4 text-sm">
                   <span v-if="letter.sla_due_at" :class="[
@@ -85,24 +91,26 @@
                       title="Detail"
                       @click="router.visit(`/letters/${letter.id}`)"
                     />
-                    <ActionIconButton
-                      action="approve"
-                      aria-label="Setujui surat"
-                      title="Setujui"
-                      @click="approveModal(letter)"
-                    />
-                    <ActionIconButton
-                      action="revise"
-                      aria-label="Minta revisi surat"
-                      title="Minta Revisi"
-                      @click="revisionModal(letter)"
-                    />
-                    <ActionIconButton
-                      action="reject"
-                      aria-label="Tolak surat"
-                      title="Tolak"
-                      @click="rejectModal(letter)"
-                    />
+                    <template v-if="canTakeApprovalAction">
+                      <ActionIconButton
+                        action="approve"
+                        aria-label="Setujui surat"
+                        title="Setujui"
+                        @click="approveModal(letter)"
+                      />
+                      <ActionIconButton
+                        action="revise"
+                        aria-label="Minta revisi surat"
+                        title="Minta Revisi"
+                        @click="revisionModal(letter)"
+                      />
+                      <ActionIconButton
+                        action="reject"
+                        aria-label="Tolak surat"
+                        title="Tolak"
+                        @click="rejectModal(letter)"
+                      />
+                    </template>
                   </div>
                 </td>
               </tr>
@@ -139,30 +147,32 @@
                   size="md"
                   @click="router.visit(`/letters/${letter.id}`)"
                 />
-                <ActionIconButton
-                  action="approve"
-                  aria-label="Setujui surat"
-                  title="Setujui"
-                  label="Setujui"
-                  size="md"
-                  @click="approveModal(letter)"
-                />
-                <ActionIconButton
-                  action="revise"
-                  aria-label="Minta revisi surat"
-                  title="Minta Revisi"
-                  label="Revisi"
-                  size="md"
-                  @click="revisionModal(letter)"
-                />
-                <ActionIconButton
-                  action="reject"
-                  aria-label="Tolak surat"
-                  title="Tolak"
-                  label="Tolak"
-                  size="md"
-                  @click="rejectModal(letter)"
-                />
+                <template v-if="canTakeApprovalAction">
+                  <ActionIconButton
+                    action="approve"
+                    aria-label="Setujui surat"
+                    title="Setujui"
+                    label="Setujui"
+                    size="md"
+                    @click="approveModal(letter)"
+                  />
+                  <ActionIconButton
+                    action="revise"
+                    aria-label="Minta revisi surat"
+                    title="Minta Revisi"
+                    label="Revisi"
+                    size="md"
+                    @click="revisionModal(letter)"
+                  />
+                  <ActionIconButton
+                    action="reject"
+                    aria-label="Tolak surat"
+                    title="Tolak"
+                    label="Tolak"
+                    size="md"
+                    @click="rejectModal(letter)"
+                  />
+                </template>
             </template>
         </DataCard>
         <div v-if="letters.data.length === 0" class="text-center py-8 text-neutral-500">
@@ -245,6 +255,8 @@ const props = defineProps({
   categories: Array,
   filters: Object,
   stats: Object,
+  monitoringOnly: Boolean,
+  canTakeApprovalAction: Boolean,
 })
 
 const search = ref(props.filters?.search || '')
@@ -266,6 +278,22 @@ watch([search, categoryId, slaStatus], ([s, cat, sla]) => {
 function formatDate(dateStr) {
   if (!dateStr) return '-'
   return new Date(dateStr).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function signerLabel(letter) {
+  if (letter?.signer_type === 'ketua' && letter?.from_unit?.is_pusat) {
+    return 'Ketua Umum'
+  }
+
+  if (letter?.signer_type === 'ketua') {
+    return 'Ketua'
+  }
+
+  if (letter?.signer_type === 'sekretaris') {
+    return 'Sekretaris'
+  }
+
+  return letter?.signer_type ? letter.signer_type : '-'
 }
 
 function isOverdue(letter) {

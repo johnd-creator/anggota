@@ -42,6 +42,27 @@ test('super_admin can filter by unit and export', function(){
     $respExport->assertStatus(200);
 });
 
+test('admin_pusat can filter members by unit on the index page', function(){
+    Artisan::call('migrate', ['--force' => true]);
+    $unitA = OrganizationUnit::create(['code' => '011', 'name' => 'Unit AP', 'address' => 'Alamat AP']);
+    $unitB = OrganizationUnit::create(['code' => '021', 'name' => 'Unit BP', 'address' => 'Alamat BP']);
+
+    $roleAdminPusat = Role::firstOrCreate(['name' => 'admin_pusat'], ['label' => 'Admin Pusat']);
+    $adminPusat = User::factory()->create(['role_id' => $roleAdminPusat->id, 'organization_unit_id' => $unitA->id]);
+
+    Member::create(['full_name' => 'Pusat A1','email' => 'pa1@example.com','status' => 'aktif','organization_unit_id' => $unitA->id,'nra' => '011-2025-001','join_date' => now(),'join_year' => now()->year,'sequence_number' => 1]);
+    Member::create(['full_name' => 'Pusat B1','email' => 'pb1@example.com','status' => 'aktif','organization_unit_id' => $unitB->id,'nra' => '021-2025-001','join_date' => now(),'join_year' => now()->year,'sequence_number' => 1]);
+
+    $respIndex = test()->actingAs($adminPusat)->get('/admin/members?units[]=' . $unitA->id);
+    $respIndex->assertStatus(200);
+    $respIndex->assertSee('Pusat A1');
+    $respIndex->assertDontSee('Pusat B1');
+    $respIndex->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+        ->component('Admin/Members/Index')
+        ->has('units', 2)
+    );
+});
+
 test('admin_unit export is limited to their unit', function(){
     Artisan::call('migrate', ['--force' => true]);
     $unitA = OrganizationUnit::create(['code' => '012', 'name' => 'Unit UA', 'address' => 'Alamat UA']);

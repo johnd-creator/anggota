@@ -604,6 +604,7 @@ const formatShortCurrency = (value) => {
 const showUnitMembersCard = computed(() => ['admin_unit', 'bendahara', 'anggota', 'pengurus', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat'].includes(roleName.value));
 const showApprovalsCard = computed(() => {
     if (roleName.value === 'super_admin') return true;
+    if (roleName.value === 'admin_pusat') return true;
     return pg.auth?.user?.union_position && ['ketua', 'sekretaris'].includes((pg.auth?.user?.union_position?.name || '').toLowerCase());
 });
 const showDuesCard = computed(() => {

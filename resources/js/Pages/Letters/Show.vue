@@ -61,7 +61,7 @@
           </div>
           <div>
             <p class="text-xs text-neutral-500 uppercase tracking-wider">Penandatangan</p>
-            <p class="text-sm text-neutral-900 capitalize">{{ letter.signer_type }}</p>
+            <p class="text-sm text-neutral-900">{{ signerLabel(letter.signer_type) }}</p>
           </div>
           <div>
             <p class="text-xs text-neutral-500 uppercase tracking-wider">Sifat Surat</p>
@@ -224,6 +224,13 @@ const canSubmit = computed(() => canEdit.value)
 function formatDate(dateStr) {
   if (!dateStr) return '-'
   return new Date(dateStr).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function signerLabel(type) {
+  if (type === 'ketua' && props.letter?.from_unit?.is_pusat) return 'Ketua Umum'
+  if (type === 'ketua') return 'Ketua'
+  if (type === 'sekretaris') return 'Sekretaris'
+  return type || '-'
 }
 
 function getRecipient() {
