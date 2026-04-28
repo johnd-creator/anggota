@@ -502,5 +502,6 @@ Route::post('/feedback', function (\Illuminate\Http\Request $request) {
 Route::prefix('api/reports')->middleware(['api_token', 'throttle:60,1'])->group(function () {
     Route::get('growth', [\App\Http\Controllers\ReportController::class, 'apiGrowth']);
     Route::get('mutations', [\App\Http\Controllers\ReportController::class, 'apiMutations']);
+    Route::get('documents', [\App\Http\Controllers\ReportController::class, 'apiDocuments']);
 
 });

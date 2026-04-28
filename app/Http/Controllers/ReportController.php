@@ -137,6 +137,31 @@ class ReportController extends Controller
         return response()->json(['dist' => $dist]);
     }
 
+    public function apiDocuments(Request $request)
+    {
+        $unitId = $request->query('unit_id');
+        if (!$unitId)
+            return response()->json(['error' => 'unit_id required'], 400);
+        $unitId = (int) $unitId;
+
+        $items = \App\Models\Member::query()
+            ->withCount('documents')
+            ->where('organization_unit_id', $unitId)
+            ->latest()
+            ->limit(100)
+            ->get(['id', 'full_name', 'status', 'organization_unit_id', 'photo_path'])
+            ->map(fn($member) => [
+                'id' => $member->id,
+                'full_name' => $member->full_name,
+                'status' => $member->status,
+                'organization_unit_id' => $member->organization_unit_id,
+                'has_documents' => $member->documents_count > 0,
+                'has_photo' => (bool) $member->photo_path,
+            ]);
+
+        return response()->json(['items' => $items]);
+    }
+
 
 
     public function members(Request $request)
