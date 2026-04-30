@@ -1,6 +1,14 @@
 # Mobile API v1
 
+Production base URL: `https://anggota.plnipservices.or.id/api/mobile/v1`
+
 Base path: `/api/mobile/v1`
+
+For Flutter development against production, set the API client base URL to:
+
+```dart
+const mobileApiBaseUrl = 'https://anggota.plnipservices.or.id/api/mobile/v1';
+```
 
 Flutter clients should send:
 
@@ -11,9 +19,38 @@ Authorization: Bearer <access_token>
 
 Store `access_token` in secure storage on the device. Do not use the legacy `X-API-Token` endpoints from the public Android app.
 
+Example production request:
+
+```bash
+curl -X GET 'https://anggota.plnipservices.or.id/api/mobile/v1/me' \
+  -H 'Accept: application/json' \
+  -H 'Authorization: Bearer <access_token>'
+```
+
+Example Flutter/Dio setup:
+
+```dart
+final dio = Dio(BaseOptions(
+  baseUrl: 'https://anggota.plnipservices.or.id/api/mobile/v1',
+  headers: {'Accept': 'application/json'},
+));
+
+dio.interceptors.add(InterceptorsWrapper(
+  onRequest: (options, handler) async {
+    final token = await secureStorage.read(key: 'access_token');
+    if (token != null && token.isNotEmpty) {
+      options.headers['Authorization'] = 'Bearer $token';
+    }
+    handler.next(options);
+  },
+));
+```
+
 ## Auth
 
 ### `POST /auth/login`
+
+Production URL: `https://anggota.plnipservices.or.id/api/mobile/v1/auth/login`
 
 Request:
 
@@ -47,9 +84,13 @@ Response:
 
 Revokes the current bearer token.
 
+Production URL: `https://anggota.plnipservices.or.id/api/mobile/v1/auth/logout`
+
 ### `GET /me`
 
 Returns the authenticated user, role, unit context, and linked member summary.
+
+Production URL: `https://anggota.plnipservices.or.id/api/mobile/v1/me`
 
 ## Utility
 
@@ -114,17 +155,35 @@ Returns the authenticated member's card payload, including KTA/NRA, status, unit
 
 If `qr_token` or `valid_until` is empty, the API issues them automatically when the member has a KTA and the member unit can issue KTA.
 
+Production URL: `https://anggota.plnipservices.or.id/api/mobile/v1/member/card`
+
 ### `GET /member/card/qr`
 
 Returns the authenticated member card QR image as `image/png` or `image/svg+xml`.
+
+Production URL: `https://anggota.plnipservices.or.id/api/mobile/v1/member/card/qr`
 
 ### `GET /member/card/pdf`
 
 Downloads the authenticated member's KTA Digital as an A6 PDF. Flutter should call this endpoint with the same bearer token and save the binary response locally.
 
+Production URL: `https://anggota.plnipservices.or.id/api/mobile/v1/member/card/pdf`
+
+Flutter/Dio download example:
+
+```dart
+await dio.download(
+  '/member/card/pdf',
+  savePath,
+  options: Options(responseType: ResponseType.bytes),
+);
+```
+
 ### `GET /member/card/verify/{token}`
 
 Public JSON verification endpoint for QR scan. Returns only safe card verification fields: member name, unit, status, validity date, and scan timestamp.
+
+Production URL: `https://anggota.plnipservices.or.id/api/mobile/v1/member/card/verify/{token}`
 
 ### `POST /member/data/export-request`
 

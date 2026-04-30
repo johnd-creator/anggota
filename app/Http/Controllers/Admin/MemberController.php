@@ -234,7 +234,7 @@ class MemberController extends Controller
     {
         Gate::authorize('view', $member);
 
-        $member->load(['unit', 'documents', 'statusLogs', 'unionPosition']);
+        $member->load(['unit', 'documents', 'statusLogs', 'unionPosition', 'user']);
         ActivityLog::create([
             'actor_id' => Auth::id(),
             'action' => 'member_viewed',
@@ -245,6 +245,7 @@ class MemberController extends Controller
 
         return Inertia::render('Admin/Members/Show', [
             'member' => $member,
+            'can_reset_password' => request()->user()->can('resetPassword', $member),
         ]);
     }
 

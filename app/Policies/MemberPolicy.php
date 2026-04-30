@@ -80,6 +80,23 @@ class MemberPolicy
         return false;
     }
 
+    public function resetPassword(User $user, Member $member): bool
+    {
+        if (! $member->user_id) {
+            return false;
+        }
+
+        if ($user->hasRole(['super_admin', 'admin_pusat'])) {
+            return true;
+        }
+
+        if ($user->hasRole('admin_unit')) {
+            return $user->currentUnitId() === $member->organization_unit_id;
+        }
+
+        return false;
+    }
+
     public function delete(User $user, Member $member): bool
     {
         // Super admin can delete all

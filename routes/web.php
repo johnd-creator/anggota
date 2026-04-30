@@ -192,6 +192,15 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('admin')->name('admin.')->middleware('role:super_admin,admin_unit,admin_pusat,pengurus,pengurus_pusat')->group(function () {
         Route::resource('units', \App\Http\Controllers\Admin\OrganizationUnitController::class);
 
+        Route::get('members/{member}/reset-password', [\App\Http\Controllers\Admin\MemberPasswordResetController::class, 'edit'])
+            ->whereNumber('member')
+            ->middleware('role:super_admin,admin_pusat,admin_unit')
+            ->name('members.reset_password.edit');
+        Route::post('members/{member}/reset-password', [\App\Http\Controllers\Admin\MemberPasswordResetController::class, 'update'])
+            ->whereNumber('member')
+            ->middleware(['role:super_admin,admin_pusat,admin_unit', 'throttle:10,1'])
+            ->name('members.reset_password.update');
+
         Route::resource('members', \App\Http\Controllers\Admin\MemberController::class)
             ->whereNumber('member');
         Route::get('users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'show'])
