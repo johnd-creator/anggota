@@ -165,6 +165,33 @@ class AdminMemberPasswordResetTest extends TestCase
         $this->assertTrue(Hash::check('pusat-secret-password', $targetUser->fresh()->password));
     }
 
+    public function test_self_reset_changes_password_and_revokes_recorded_other_sessions(): void
+    {
+        [$unit, $member, $targetUser] = $this->linkedMember([
+            'role_id' => Role::where('name', 'super_admin')->first()->id,
+        ]);
+
+        $this->actingAs($targetUser);
+        DB::table('sessions')->insert([
+            [
+                'id' => 'other-admin-session',
+                'user_id' => $targetUser->id,
+                'ip_address' => '127.0.0.2',
+                'user_agent' => 'Other',
+                'payload' => 'payload',
+                'last_activity' => now()->timestamp,
+            ],
+        ]);
+
+        $this->post(route('admin.members.reset_password.update', $member), [
+            'password' => 'self-secret-password',
+            'password_confirmation' => 'self-secret-password',
+        ])->assertRedirect(route('admin.members.show', $member));
+
+        $this->assertTrue(Hash::check('self-secret-password', $targetUser->fresh()->password));
+        $this->assertDatabaseMissing('sessions', ['id' => 'other-admin-session']);
+    }
+
     public function test_other_roles_cannot_reset_member_password(): void
     {
         [, $member, $targetUser] = $this->linkedMember();

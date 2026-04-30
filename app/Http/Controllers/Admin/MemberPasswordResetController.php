@@ -68,8 +68,13 @@ class MemberPasswordResetController extends Controller
                 'password' => Hash::make($data['password']),
             ])->save();
 
-            DB::table('sessions')->where('user_id', $targetUser->id)->delete();
-            $targetUser->tokens()->delete();
+            $sessionsQuery = DB::table('sessions')->where('user_id', $targetUser->id);
+            if ($request->user()->id === $targetUser->id) {
+                $sessionsQuery->where('id', '!=', $request->session()->getId());
+            }
+
+            $revokedSessionCount = $sessionsQuery->delete();
+            $revokedTokenCount = $targetUser->tokens()->delete();
 
             $payload = [
                 'via' => 'admin_member_master',
@@ -77,8 +82,8 @@ class MemberPasswordResetController extends Controller
                 'target_member_id' => $member->id,
                 'target_member_kta' => $member->kta_number,
                 'organization_unit_id' => $member->organization_unit_id,
-                'sessions_revoked' => true,
-                'tokens_revoked' => true,
+                'sessions_revoked' => $revokedSessionCount,
+                'tokens_revoked' => $revokedTokenCount,
                 'has_google_sso' => (bool) $targetUser->google_id,
                 'has_microsoft_sso' => (bool) $targetUser->microsoft_id,
             ];

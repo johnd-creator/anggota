@@ -234,7 +234,7 @@ class MemberController extends Controller
     {
         Gate::authorize('view', $member);
 
-        $member->load(['unit', 'documents', 'statusLogs', 'unionPosition', 'user']);
+        $member->load(['unit', 'documents', 'statusLogs', 'unionPosition']);
         ActivityLog::create([
             'actor_id' => Auth::id(),
             'action' => 'member_viewed',
