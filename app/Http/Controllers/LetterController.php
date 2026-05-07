@@ -119,8 +119,10 @@ class LetterController extends Controller
     public function approvals(Request $request)
     {
         $user = $request->user();
-        $unitId = $user->currentUnitId();
-        $isMonitoringOnly = $user->hasRole('admin_pusat');
+        $unitId = $user->isPusatRole()
+            ? $user->managedOrganization?->id
+            : $user->currentUnitId();
+        $isMonitoringOnly = $user->hasRole('admin_pusat') && ! $this->isPusatKetuaUmum($user);
 
         $query = Letter::with([
             'category:id,name,code',
@@ -145,7 +147,9 @@ class LetterController extends Controller
                 ->toArray();
 
             $allowedTypes = $delegatedTypes;
-            if ($signerType && in_array($signerType, ['ketua', 'sekretaris', 'bendahara'], true)) {
+            if ($signerType === 'ketua umum') {
+                $allowedTypes[] = 'ketua';
+            } elseif ($signerType && in_array($signerType, ['ketua', 'sekretaris', 'bendahara'], true)) {
                 $allowedTypes[] = $signerType;
             }
             $allowedTypes = array_unique($allowedTypes);
@@ -1032,7 +1036,9 @@ class LetterController extends Controller
         try {
             $letter->load('fromUnit');
 
-            $positionName = ucfirst($letter->signer_type); // 'Ketua' or 'Sekretaris'
+            $positionName = $letter->fromUnit?->is_pusat && strtolower($letter->signer_type) === 'ketua'
+                ? 'Ketua Umum'
+                : ucfirst($letter->signer_type); // 'Ketua' or 'Sekretaris'
 
             $approvers = User::whereHas('linkedMember.unionPosition', function ($q) use ($positionName) {
                 $q->whereRaw('LOWER(name) = ?', [strtolower($positionName)]);
@@ -1245,5 +1251,10 @@ class LetterController extends Controller
         }
 
         return $validated;
+    }
+
+    protected function isPusatKetuaUmum(User $user): bool
+    {
+        return $user->isPusatRole() && strtolower((string) $user->getUnionPositionName()) === 'ketua umum';
     }
 }

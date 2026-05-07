@@ -169,26 +169,30 @@ class LetterPolicy
         }
 
         // User must be in the same unit as the letter's from_unit
-        $userUnitId = $user->currentUnitId();
+        $userUnitId = $user->isPusatRole()
+            ? $user->managedOrganization?->id
+            : $user->currentUnitId();
         if ($userUnitId === null || $userUnitId !== $letterUnitId) {
             return false;
         }
 
+        $isPusatLetter = $letter->fromUnit?->is_pusat ?? false;
+
         // Determine which approval slot is pending
         if (! $letter->requiresSecondaryApproval()) {
             // Single approval flow - check primary signer_type
-            return $this->userCanApproveSignerType($user, $letter->signer_type, $letterUnitId);
+            return $this->userCanApproveSignerType($user, $letter->signer_type, $letterUnitId, $isPusatLetter);
         }
 
         // Dual approval flow
         if (! $letter->isPrimaryApproved()) {
             // Primary slot pending - check primary signer_type
-            return $this->userCanApproveSignerType($user, $letter->signer_type, $letterUnitId);
+            return $this->userCanApproveSignerType($user, $letter->signer_type, $letterUnitId, $isPusatLetter);
         }
 
         if (! $letter->isSecondaryApproved()) {
             // Secondary slot pending - check secondary signer_type
-            return $this->userCanApproveSignerType($user, $letter->signer_type_secondary, $letterUnitId);
+            return $this->userCanApproveSignerType($user, $letter->signer_type_secondary, $letterUnitId, $isPusatLetter);
         }
 
         // Both slots already approved
@@ -198,7 +202,7 @@ class LetterPolicy
     /**
      * Check if user can approve a specific signer type.
      */
-    protected function userCanApproveSignerType(User $user, ?string $signerType, int $unitId): bool
+    protected function userCanApproveSignerType(User $user, ?string $signerType, int $unitId, bool $isPusatLetter = false): bool
     {
         if (! $signerType) {
             return false;
@@ -209,8 +213,14 @@ class LetterPolicy
             return true;
         }
 
-        // Check 2: Fallback to union position matching signer_type
-        if ($user->canApproveSignerType($signerType)) {
+        // Check 2: Fallback to union position matching signer_type.
+        // DPP/Pusat letters display signer_type "ketua", but the required
+        // officer position is Ketua Umum.
+        $requiredPosition = $isPusatLetter && strtolower($signerType) === 'ketua'
+            ? 'ketua umum'
+            : $signerType;
+
+        if ($user->canApproveSignerType($requiredPosition)) {
             return true;
         }
 

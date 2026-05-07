@@ -321,6 +321,104 @@ class LetterApprovalTest extends TestCase
         );
     }
 
+    public function test_pusat_letter_requires_ketua_umum_position_for_ketua_signer()
+    {
+        $roleAdminPusat = Role::create(['name' => 'admin_pusat', 'label' => 'Admin Pusat']);
+        $rolePengurusPusat = Role::create(['name' => 'pengurus_pusat', 'label' => 'Pengurus Pusat']);
+        $positionKetuaUmum = UnionPosition::create(['name' => 'Ketua Umum', 'code' => 'KETUM']);
+
+        $pusat = OrganizationUnit::factory()->create([
+            'code' => 'PST',
+            'name' => 'DPP',
+            'is_pusat' => true,
+        ]);
+
+        $creator = User::factory()->create([
+            'role_id' => $roleAdminPusat->id,
+        ]);
+
+        $memberKetuaUmum = Member::factory()->create([
+            'organization_unit_id' => $pusat->id,
+            'union_position_id' => $positionKetuaUmum->id,
+        ]);
+        $ketuaUmum = User::factory()->create([
+            'role_id' => $rolePengurusPusat->id,
+            'member_id' => $memberKetuaUmum->id,
+        ]);
+
+        $letter = Letter::create([
+            'creator_user_id' => $creator->id,
+            'from_unit_id' => $pusat->id,
+            'letter_category_id' => $this->category->id,
+            'signer_type' => 'ketua',
+            'to_type' => 'unit',
+            'to_unit_id' => $this->unit->id,
+            'subject' => 'Pusat Letter',
+            'body' => 'Test body',
+            'status' => 'submitted',
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($this->ketua)
+            ->post(route('letters.approve', $letter->id))
+            ->assertStatus(403);
+
+        $this->actingAs($ketuaUmum)
+            ->post(route('letters.approve', $letter->id))
+            ->assertRedirect(route('letters.approvals'));
+
+        $letter->refresh();
+        $this->assertEquals('approved', $letter->status);
+        $this->assertEquals($ketuaUmum->id, $letter->approved_by_user_id);
+    }
+
+    public function test_admin_pusat_with_ketua_umum_position_sees_pusat_letters_in_approval_queue()
+    {
+        $roleAdminPusat = Role::create(['name' => 'admin_pusat', 'label' => 'Admin Pusat']);
+        $positionKetuaUmum = UnionPosition::create(['name' => 'Ketua Umum', 'code' => 'KETUM']);
+
+        $pusat = OrganizationUnit::factory()->create([
+            'code' => 'PST',
+            'name' => 'DPP',
+            'is_pusat' => true,
+        ]);
+
+        $memberKetuaUmum = Member::factory()->create([
+            'organization_unit_id' => $pusat->id,
+            'union_position_id' => $positionKetuaUmum->id,
+        ]);
+        $ketuaUmumAdminPusat = User::factory()->create([
+            'role_id' => $roleAdminPusat->id,
+            'member_id' => $memberKetuaUmum->id,
+        ]);
+
+        $letter = Letter::create([
+            'creator_user_id' => $this->adminUnit->id,
+            'from_unit_id' => $pusat->id,
+            'letter_category_id' => $this->category->id,
+            'signer_type' => 'ketua',
+            'to_type' => 'unit',
+            'to_unit_id' => $this->unit->id,
+            'subject' => 'Pusat Queue Letter',
+            'body' => 'Test body',
+            'status' => 'submitted',
+            'submitted_at' => now(),
+        ]);
+
+        $response = $this->actingAs($ketuaUmumAdminPusat)
+            ->get(route('letters.approvals'));
+
+        $response->assertStatus(200);
+        $response->assertInertia(
+            fn($page) => $page
+                ->component('Letters/Approvals')
+                ->where('monitoringOnly', false)
+                ->where('canTakeApprovalAction', true)
+                ->has('letters.data', 1)
+                ->where('letters.data.0.id', $letter->id)
+        );
+    }
+
     public function test_user_without_position_cannot_access_approvals_page()
     {
         $this->createSubmittedLetter('ketua');
