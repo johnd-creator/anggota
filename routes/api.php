@@ -172,6 +172,8 @@ Route::prefix('mobile/v1')->name('api.mobile.')->group(function () {
         Route::patch('/finance/dues/mass-update', [\App\Http\Controllers\Api\Mobile\FinanceController::class, 'duesMassUpdate'])->name('finance.dues.mass_update');
         Route::get('/finance/dues/dashboard', [\App\Http\Controllers\Api\Mobile\FinanceController::class, 'duesSummary'])->name('finance.dues.dashboard');
         Route::patch('/finance/dues/{dues}', [\App\Http\Controllers\Api\Mobile\FinanceController::class, 'duesUpdate'])->name('finance.dues.update');
+        Route::get('/finance/dashboard', [\App\Http\Controllers\Api\Mobile\FinanceController::class, 'dashboard'])->name('finance.dashboard');
+        Route::get('/finance/units', [\App\Http\Controllers\Api\Mobile\FinanceController::class, 'units'])->name('finance.units');
 
         Route::get('/reports/growth', [\App\Http\Controllers\Api\Mobile\ReportController::class, 'growth'])->name('reports.growth');
         Route::get('/reports/mutations', [\App\Http\Controllers\Api\Mobile\ReportController::class, 'mutations'])->name('reports.mutations');

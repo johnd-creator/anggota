@@ -18,7 +18,11 @@ class FinanceLedgerPolicy
             return true;
         }
 
-        if ($user->hasRole(['admin_unit', 'bendahara', 'pengurus', 'admin_pusat', 'bendahara_pusat', 'pengurus_pusat'])) {
+        if ($user->hasRole('bendahara')) {
+            return $user->canAccessFinanceUnit($ledger->organization_unit_id);
+        }
+
+        if ($user->hasRole(['admin_unit', 'pengurus'])) {
             $unitId = $user->currentUnitId();
 
             return $unitId !== null && $unitId === $ledger->organization_unit_id;
@@ -38,15 +42,16 @@ class FinanceLedgerPolicy
             return true;
         }
 
-        if ($user->hasRole(['bendahara', 'admin_pusat', 'bendahara_pusat'])) {
-            // Bendahara cannot edit approved/rejected ledgers when workflow is enabled
+        if ($user->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+            return (int) $ledger->created_by === (int) $user->id;
+        }
+
+        if ($user->hasRole('bendahara')) {
             if (FinanceLedger::workflowEnabled() && in_array($ledger->status, ['approved', 'rejected'])) {
                 return false;
             }
-            $unitId = $user->currentUnitId();
 
-            return $unitId !== null
-                && $unitId === $ledger->organization_unit_id
+            return $user->canAccessFinanceUnit($ledger->organization_unit_id)
                 && (int) $ledger->created_by === (int) $user->id;
         }
 
@@ -59,15 +64,16 @@ class FinanceLedgerPolicy
             return true;
         }
 
-        if ($user->hasRole(['bendahara', 'admin_pusat', 'bendahara_pusat'])) {
-            // Bendahara cannot delete approved/rejected ledgers when workflow is enabled
+        if ($user->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+            return (int) $ledger->created_by === (int) $user->id;
+        }
+
+        if ($user->hasRole('bendahara')) {
             if (FinanceLedger::workflowEnabled() && in_array($ledger->status, ['approved', 'rejected'])) {
                 return false;
             }
-            $unitId = $user->currentUnitId();
 
-            return $unitId !== null
-                && $unitId === $ledger->organization_unit_id
+            return $user->canAccessFinanceUnit($ledger->organization_unit_id)
                 && (int) $ledger->created_by === (int) $user->id;
         }
 

@@ -25,8 +25,13 @@ class FinanceController extends Controller
         Gate::authorize('viewAny', FinanceCategory::class);
         $query = FinanceCategory::query()->with('organizationUnit:id,name,code')->orderBy('name');
         if (! $request->user()->canViewGlobalScope()) {
-            $unitId = $request->user()->currentUnitId();
-            $query->where(fn ($q) => $q->whereNull('organization_unit_id')->orWhere('organization_unit_id', $unitId));
+            if ($request->user()->hasRole('bendahara')) {
+                $accessibleIds = $request->user()->accessibleFinanceUnitIds();
+                $query->where(fn ($q) => $q->whereNull('organization_unit_id')->orWhereIn('organization_unit_id', $accessibleIds));
+            } else {
+                $unitId = $request->user()->currentUnitId();
+                $query->where(fn ($q) => $q->whereNull('organization_unit_id')->orWhere('organization_unit_id', $unitId));
+            }
         }
         if ($type = $request->query('type')) {
             $query->where('type', $type);
@@ -131,8 +136,98 @@ class FinanceController extends Controller
     public function ledgerExport(Request $request): JsonResponse
     {
         Gate::authorize('viewAny', FinanceLedger::class);
+        $filters = $request->validate([
+            'type' => ['nullable', 'string', Rule::in(['income', 'expense'])],
+            'status' => ['nullable', 'string', Rule::in(['draft', 'submitted', 'approved', 'rejected'])],
+            'finance_category_id' => ['nullable', 'exists:finance_categories,id'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
 
-        return response()->json(['status' => 'queued', 'filters' => $request->only(['type', 'status', 'finance_category_id', 'from', 'to'])], 202);
+        return response()->json([
+            'status' => 'queued',
+            'filters' => $filters,
+            'export_id' => uniqid('fin_'),
+        ], 202);
+    }
+
+    public function dashboard(Request $request): JsonResponse
+    {
+        Gate::authorize('viewAny', FinanceLedger::class);
+        $user = $request->user();
+
+        $baseQuery = FinanceLedger::query();
+        $this->applyFinanceDashboardScope($baseQuery, $user);
+
+        $monthStart = now()->startOfMonth();
+
+        $balance = (float) (clone $baseQuery)->where('type', 'income')->sum('amount')
+                 - (float) (clone $baseQuery)->where('type', 'expense')->sum('amount');
+
+        $incomeThisMonth = (float) (clone $baseQuery)
+            ->where('type', 'income')
+            ->whereDate('date', '>=', $monthStart)
+            ->sum('amount');
+
+        $expenseThisMonth = (float) (clone $baseQuery)
+            ->where('type', 'expense')
+            ->whereDate('date', '>=', $monthStart)
+            ->sum('amount');
+
+        $pendingQuery = FinanceLedger::query()->where('status', 'submitted');
+        $this->applyFinanceDashboardScope($pendingQuery, $user);
+        $pendingCount = $user->hasRole(['admin_unit', 'admin_pusat'])
+            ? $pendingQuery->count()
+            : 0;
+
+        $recentQuery = FinanceLedger::with(['category:id,name', 'organizationUnit:id,name,code'])
+            ->latest('date');
+        $this->applyFinanceDashboardScope($recentQuery, $user);
+        $recentTransactions = FinanceResource::collection($recentQuery->limit(5)->get());
+
+        return response()->json([
+            'summary' => [
+                'balance' => $balance,
+                'income_this_month' => $incomeThisMonth,
+                'expense_this_month' => $expenseThisMonth,
+                'pending_count' => $pendingCount,
+            ],
+            'recent_transactions' => $recentTransactions,
+            'user_role' => [
+                'role' => $user->role->name,
+                'unit_id' => $user->currentUnitId(),
+                'can_view_global' => $user->canViewGlobalScope(),
+            ],
+        ]);
+    }
+
+    public function units(Request $request): JsonResponse
+    {
+        Gate::authorize('viewAny', FinanceLedger::class);
+        $user = $request->user();
+
+        if ($user->canViewGlobalScope()) {
+            $units = \App\Models\OrganizationUnit::select('id', 'name', 'code', 'is_pusat')
+                ->orderBy('is_pusat', 'desc')
+                ->orderBy('name')
+                ->get();
+        } elseif ($user->hasRole('bendahara')) {
+            $accessibleIds = $user->accessibleFinanceUnitIds();
+            $units = \App\Models\OrganizationUnit::select('id', 'name', 'code', 'is_pusat')
+                ->whereIn('id', $accessibleIds)
+                ->orderBy('is_pusat', 'desc')
+                ->get();
+        } else {
+            $units = \App\Models\OrganizationUnit::select('id', 'name', 'code', 'is_pusat')
+                ->where('id', $user->currentUnitId())
+                ->get();
+        }
+
+        return response()->json([
+            'units' => $units,
+            'accessible_count' => $units->count(),
+            'role' => $user->role->name,
+        ]);
     }
 
     public function dues(Request $request): JsonResponse
@@ -140,9 +235,7 @@ class FinanceController extends Controller
         $this->authorizeDuesAdmin($request);
         Gate::authorize('viewAny', DuesPayment::class);
         $query = DuesPayment::with(['member:id,full_name,kta_number,organization_unit_id', 'organizationUnit:id,name,code'])->latest('period');
-        if (! $request->user()->canViewGlobalScope()) {
-            $query->where('organization_unit_id', $request->user()->currentUnitId());
-        }
+        $this->applyDuesUnitScope($query, $request->user());
         foreach (['period', 'status', 'member_id'] as $filter) {
             if ($request->filled($filter)) {
                 $query->where($filter, $request->query($filter));
@@ -199,9 +292,7 @@ class FinanceController extends Controller
         $this->authorizeDuesAdmin($request);
         Gate::authorize('viewAny', DuesPayment::class);
         $query = DuesPayment::query();
-        if (! $request->user()->canViewGlobalScope()) {
-            $query->where('organization_unit_id', $request->user()->currentUnitId());
-        }
+        $this->applyDuesUnitScope($query, $request->user());
         if ($period = $request->query('period')) {
             $query->where('period', $period);
         }
@@ -265,5 +356,35 @@ class FinanceController extends Controller
     private function authorizeDuesAdmin(Request $request): void
     {
         abort_unless($request->user()->hasRole(['super_admin', 'admin_pusat', 'bendahara', 'bendahara_pusat']), 403);
+    }
+
+    private function applyDuesUnitScope($query, $user): void
+    {
+        if ($user->canViewGlobalScope()) {
+            return;
+        }
+
+        if ($user->hasRole('bendahara')) {
+            $query->whereIn('organization_unit_id', $user->accessibleFinanceUnitIds());
+
+            return;
+        }
+
+        $query->where('organization_unit_id', $user->currentUnitId());
+    }
+
+    private function applyFinanceDashboardScope($query, $user): void
+    {
+        if ($user->canViewGlobalScope()) {
+            return;
+        }
+
+        if ($user->hasRole('bendahara')) {
+            $query->whereIn('organization_unit_id', $user->accessibleFinanceUnitIds());
+
+            return;
+        }
+
+        $query->where('organization_unit_id', $user->currentUnitId());
     }
 }

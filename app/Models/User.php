@@ -263,6 +263,48 @@ class User extends Authenticatable
     }
 
     /**
+     * Get list of unit IDs this user can access for finance module.
+     * Returns empty array for global roles (means all units).
+     */
+    public function accessibleFinanceUnitIds(): array
+    {
+        if ($this->canViewGlobalScope()) {
+            return [];
+        }
+
+        if ($this->hasRole('bendahara')) {
+            $unitId = $this->currentUnitId();
+            $pusatUnitId = \App\Models\OrganizationUnit::where('is_pusat', true)->value('id');
+
+            if ($unitId === null) {
+                return [];
+            }
+
+            return array_values(array_filter([$unitId, $pusatUnitId]));
+        }
+
+        $unitId = $this->currentUnitId();
+
+        return $unitId !== null ? [$unitId] : [];
+    }
+
+    /**
+     * Check if user can access specific unit for finance.
+     */
+    public function canAccessFinanceUnit(?int $unitId): bool
+    {
+        if ($unitId === null) {
+            return false;
+        }
+
+        if ($this->canViewGlobalScope()) {
+            return true;
+        }
+
+        return in_array($unitId, $this->accessibleFinanceUnitIds(), true);
+    }
+
+    /**
      * Check if user can manage/edit specific organization's data.
      */
     public function canManageOrganization(OrganizationUnit $org): bool

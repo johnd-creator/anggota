@@ -6,7 +6,12 @@
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 class="text-lg font-semibold text-neutral-900">Kelola Transaksi</h2>
-          <p class="text-sm text-neutral-500">Catat pemasukan dan pengeluaran unit Anda.</p>
+          <p class="text-sm text-neutral-500">
+            Catat pemasukan dan pengeluaran unit Anda.
+            <span v-if="unitId && units.length" class="ml-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+              Unit: {{ units.find(u => u.id === parseInt(unitId))?.name || unitId }}
+            </span>
+          </p>
         </div>
         <div class="flex flex-wrap gap-3">
           <CtaButton v-if="$page.props.auth.user.role?.name!=='pengurus'" href="/finance/ledgers/create">
@@ -47,7 +52,7 @@
       </CardContainer>
 
       <CardContainer padding="sm">
-        <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+        <div class="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
           <InputField v-model="search" placeholder="Cari deskripsi..." />
           <div>
             <label class="block text-xs text-neutral-600">Tipe</label>
@@ -74,6 +79,13 @@
               <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }} ({{ c.type==='income'?'Pemasukan':'Pengeluaran' }})</option>
             </select>
           </div>
+          <div v-if="availableUnits.length > 1">
+            <label class="block text-xs text-neutral-600">Unit</label>
+            <select v-model="unitId" class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700">
+              <option value="">Semua Unit</option>
+              <option v-for="u in availableUnits" :key="u.id" :value="u.id">{{ u.name }}<span v-if="u.is_pusat" class="text-neutral-400"> (Pusat)</span></option>
+            </select>
+          </div>
           <div>
             <label class="block text-xs text-neutral-600">Dari</label>
             <input type="date" v-model="dateStart" class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700" />
@@ -96,6 +108,7 @@
               <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Tanggal</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Kategori</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Unit</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Tipe</th>
                 <th class="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Nominal</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Status</th>
@@ -113,6 +126,7 @@
               >
                 <td class="px-6 py-4 text-sm text-neutral-700">{{ formatDate(l.date) }}</td>
                 <td class="px-6 py-4 text-sm text-neutral-700">{{ l.category ? l.category.name : '-' }}</td>
+                <td class="px-6 py-4 text-sm text-neutral-700">{{ l.organization_unit ? l.organization_unit.name : '-' }}</td>
                 <td class="px-6 py-4 text-sm" :class="l.type==='income' ? 'text-green-700' : 'text-status-error'">{{ l.type==='income' ? 'Pemasukan' : 'Pengeluaran' }}</td>
                 <td class="px-6 py-4 text-sm text-right font-semibold">{{ formatCurrency(l.amount) }}</td>
                 <td class="px-6 py-4">
@@ -153,7 +167,7 @@
                 </td>
               </tr>
               <tr v-if="ledgers.data.length === 0">
-                <td colspan="8" class="px-6 py-10 text-center text-neutral-500">Tidak ada transaksi.</td>
+                <td colspan="9" class="px-6 py-10 text-center text-neutral-500">Tidak ada transaksi.</td>
               </tr>
             </tbody>
           </table>
@@ -193,7 +207,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { router, Link, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
@@ -224,8 +238,14 @@ const search = ref(props.filters.search || '')
 const type = ref(props.filters.type || '')
 const status = ref(props.filters.status || '')
 const categoryId = ref(props.filters.category_id || '')
+const unitId = ref(props.filters.unit_id || '')
 const dateStart = ref(props.filters.date_start || '')
 const dateEnd = ref(props.filters.date_end || '')
+
+const availableUnits = computed(() => {
+  if (!props.units || props.units.length === 0) return []
+  return props.units
+})
 
 // Delete modal
 const showDelete = ref(false)
@@ -255,6 +275,7 @@ function applyFilters() {
     type: type.value,
     status: status.value,
     category_id: categoryId.value,
+    unit_id: unitId.value,
     date_start: dateStart.value,
     date_end: dateEnd.value,
   }, { preserveState: true, replace: true })
@@ -266,6 +287,7 @@ function exportCsv() {
     type: type.value || '',
     status: status.value || '',
     category_id: categoryId.value || '',
+    unit_id: unitId.value || '',
     date_start: dateStart.value || '',
     date_end: dateEnd.value || '',
   })

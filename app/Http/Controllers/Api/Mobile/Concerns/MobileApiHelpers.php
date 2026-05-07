@@ -32,6 +32,12 @@ trait MobileApiHelpers
             return $query;
         }
 
+        if ($user->hasRole('bendahara')) {
+            $accessibleIds = $user->accessibleFinanceUnitIds();
+
+            return $query->whereIn($column, $accessibleIds);
+        }
+
         $unitId = $user->currentUnitId();
 
         if (! $unitId) {

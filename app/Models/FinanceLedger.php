@@ -54,6 +54,56 @@ class FinanceLedger extends Model
         'submitted_at' => 'datetime',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::created(function ($ledger) {
+            ActivityLog::create([
+                'actor_id' => auth()->check() ? auth()->id() : null,
+                'action' => 'finance_ledger_created',
+                'subject_type' => self::class,
+                'subject_id' => $ledger->id,
+                'payload' => [
+                    'amount' => (float) $ledger->amount,
+                    'type' => $ledger->type,
+                    'category_id' => $ledger->finance_category_id,
+                    'unit_id' => $ledger->organization_unit_id,
+                    'status' => $ledger->status,
+                ],
+            ]);
+        });
+
+        static::updated(function ($ledger) {
+            if (auth()->check() && !empty($ledger->getDirty())) {
+                ActivityLog::create([
+                    'actor_id' => auth()->id(),
+                    'action' => 'finance_ledger_updated',
+                    'subject_type' => self::class,
+                    'subject_id' => $ledger->id,
+                    'payload' => [
+                        'changes' => $ledger->getDirty(),
+                        'unit_id' => $ledger->organization_unit_id,
+                    ],
+                ]);
+            }
+        });
+
+        static::deleted(function ($ledger) {
+            ActivityLog::create([
+                'actor_id' => auth()->check() ? auth()->id() : null,
+                'action' => 'finance_ledger_deleted',
+                'subject_type' => self::class,
+                'subject_id' => $ledger->id,
+                'payload' => [
+                    'amount' => (float) $ledger->amount,
+                    'type' => $ledger->type,
+                    'unit_id' => $ledger->organization_unit_id,
+                ],
+            ]);
+        });
+    }
+
     public function category()
     {
         return $this->belongsTo(FinanceCategory::class, 'finance_category_id');

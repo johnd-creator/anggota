@@ -24,7 +24,10 @@ class FinanceLedgerController extends Controller
         $user = Auth::user();
         $unitId = $user->currentUnitId();
         $isGlobal = $user->canViewGlobalScope();
+        $isBendahara = $user->hasRole('bendahara');
         $isAdminUnit = $user->hasRole('admin_unit');
+        $isAdminPusat = $user->hasRole('admin_pusat');
+        $isAdminLike = $isAdminUnit || $isAdminPusat;
         $workflowEnabled = FinanceLedger::workflowEnabled();
 
         $query = FinanceLedger::query()->with(['category', 'organizationUnit', 'creator', 'approvedBy']);
@@ -39,12 +42,23 @@ class FinanceLedgerController extends Controller
         $focusId = $request->query('focus');
 
         // Apply unit scope
-        if (!$isGlobal) {
-            $query->where('organization_unit_id', $unitId);
-        } else {
+        if ($isGlobal) {
             if ($unitParam) {
                 $query->where('organization_unit_id', (int) $unitParam);
             }
+        } elseif ($isBendahara) {
+            $accessibleIds = $user->accessibleFinanceUnitIds();
+            if ($unitParam) {
+                $requestedId = (int) $unitParam;
+                if (!in_array($requestedId, $accessibleIds, true)) {
+                    abort(403, 'Anda tidak memiliki akses ke unit tersebut.');
+                }
+                $query->where('organization_unit_id', $requestedId);
+            } else {
+                $query->whereIn('organization_unit_id', $accessibleIds);
+            }
+        } else {
+            $query->where('organization_unit_id', $unitId);
         }
 
         if ($dateStart)
@@ -69,7 +83,23 @@ class FinanceLedgerController extends Controller
 
         $ledgers = $query->orderByDesc('date')->orderByDesc('id')->paginate(10)->withQueryString();
 
-        $units = $isGlobal ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
+        // Units: role-based
+        if ($isGlobal) {
+            $units = OrganizationUnit::select('id', 'name', 'code', 'is_pusat')
+                ->orderBy('is_pusat', 'desc')
+                ->orderBy('name')
+                ->get();
+        } elseif ($isBendahara) {
+            $units = OrganizationUnit::select('id', 'name', 'code', 'is_pusat')
+                ->whereIn('id', $user->accessibleFinanceUnitIds())
+                ->orderBy('is_pusat', 'desc')
+                ->orderBy('name')
+                ->get();
+        } else {
+            $units = OrganizationUnit::select('id', 'name', 'code', 'is_pusat')
+                ->where('id', $unitId)
+                ->get();
+        }
         $categories = FinanceCategory::select('id', 'name', 'type', 'organization_unit_id')
             ->when(!$isGlobal, function ($q) use ($unitId) {
                 $q->where(function ($qq) use ($unitId) {
@@ -78,13 +108,9 @@ class FinanceLedgerController extends Controller
             })
             ->orderBy('name')->get();
 
-        // Saldo calculation - scoped to unit
+        // Saldo calculation - scoped to unit (same as main query)
         $saldoQuery = FinanceLedger::query();
-        if (!$isGlobal) {
-            $saldoQuery->where('organization_unit_id', $unitId);
-        } elseif ($unitParam) {
-            $saldoQuery->where('organization_unit_id', (int) $unitParam);
-        }
+        $this->applyFinanceUnitScope($saldoQuery, $user, $unitParam);
         if ($workflowEnabled) {
             $saldoQuery->where('status', 'approved');
         }
@@ -95,14 +121,10 @@ class FinanceLedgerController extends Controller
         ];
         $saldo['balance'] = $saldo['income'] - $saldo['expense'];
 
-        // Monthly summary - scoped to unit
+        // Monthly summary - scoped to unit (same as main query)
         $monthStart = now()->startOfMonth()->toDateString();
         $monthQuery = FinanceLedger::query();
-        if (!$isGlobal) {
-            $monthQuery->where('organization_unit_id', $unitId);
-        } elseif ($unitParam) {
-            $monthQuery->where('organization_unit_id', (int) $unitParam);
-        }
+        $this->applyFinanceUnitScope($monthQuery, $user, $unitParam);
         if ($workflowEnabled) {
             $monthQuery->where('status', 'approved');
         }
@@ -110,12 +132,12 @@ class FinanceLedgerController extends Controller
         $monthIncome = (float) (clone $monthQuery)->where('type', 'income')->whereDate('date', '>=', $monthStart)->sum('amount');
         $monthExpense = (float) (clone $monthQuery)->where('type', 'expense')->whereDate('date', '>=', $monthStart)->sum('amount');
 
-        // Count pending approvals for admin_unit - scoped to unit
+        // Count pending approvals for admin_unit/admin_pusat - scoped to unit
         $pendingCount = 0;
-        if ($isAdminUnit && $workflowEnabled && $unitId) {
-            $pendingCount = FinanceLedger::where('organization_unit_id', $unitId)
-                ->where('status', 'submitted')
-                ->count();
+        if ($isAdminLike && $workflowEnabled && $unitId) {
+            $pendingQuery = FinanceLedger::where('status', 'submitted');
+            $this->applyFinanceUnitScope($pendingQuery, $user, null);
+            $pendingCount = $pendingQuery->count();
         }
 
         return Inertia::render('Finance/Ledgers/Index', [
@@ -127,7 +149,7 @@ class FinanceLedgerController extends Controller
             'saldo' => $saldo,
             'workflowEnabled' => $workflowEnabled,
             'pendingCount' => $pendingCount,
-            'canApprove' => $isAdminUnit,
+            'canApprove' => $isAdminLike,
             'focusLedgerId' => $focusId,
         ]);
     }
@@ -419,12 +441,8 @@ class FinanceLedgerController extends Controller
         $search = $request->query('search');
         $unitParam = $request->query('unit_id');
 
-        // Apply unit scope
-        if ($effectiveUnitId) {
-            $query->where('organization_unit_id', $effectiveUnitId);
-        } elseif (!$isGlobal) {
-            $query->whereRaw('1=0');
-        }
+        // Apply unit scope using finance-specific logic
+        $this->applyFinanceUnitScope($query, $user, $unitParam);
 
         if ($dateStart)
             $query->whereDate('date', '>=', $dateStart);
@@ -464,5 +482,35 @@ class FinanceLedgerController extends Controller
             });
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * Apply finance-specific unit scope to a query.
+     * Enforces: bendahara sees own unit + pusat unit only.
+     */
+    private function applyFinanceUnitScope($query, $user, $unitParam = null): void
+    {
+        if ($user->canViewGlobalScope()) {
+            if ($unitParam) {
+                $query->where('organization_unit_id', (int) $unitParam);
+            }
+            return;
+        }
+
+        if ($user->hasRole('bendahara')) {
+            $accessibleIds = $user->accessibleFinanceUnitIds();
+            if ($unitParam) {
+                $requestedId = (int) $unitParam;
+                if (!in_array($requestedId, $accessibleIds, true)) {
+                    abort(403, 'Anda tidak memiliki akses ke unit tersebut.');
+                }
+                $query->where('organization_unit_id', $requestedId);
+            } else {
+                $query->whereIn('organization_unit_id', $accessibleIds);
+            }
+            return;
+        }
+
+        $query->where('organization_unit_id', $user->currentUnitId());
     }
 }

@@ -9,6 +9,7 @@ use App\Models\OrganizationUnit;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class FinanceUnitScopeTest extends TestCase
@@ -246,5 +247,222 @@ class FinanceUnitScopeTest extends TestCase
         ]);
 
         $this->assertTrue($superAdmin->can('updateForMember', [\App\Models\DuesPayment::class, $memberB]));
+    }
+
+    // ========================================
+    // Bendahara + Pusat unit visibility tests
+    // ========================================
+
+    public function test_bendahara_can_view_pusat_unit_ledger(): void
+    {
+        $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+        $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
+
+        $bendaharaA = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara')->first()->id,
+            'organization_unit_id' => $unitA->id,
+        ]);
+
+        $bendaharaPusat = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara_pusat')->first()->id,
+            'organization_unit_id' => $pusat->id,
+        ]);
+
+        $ledgerPusat = $this->createLedger($pusat->id, $bendaharaPusat->id);
+
+        $this->assertTrue($bendaharaA->can('view', $ledgerPusat));
+    }
+
+    public function test_bendahara_cannot_view_other_non_pusat_unit_ledger(): void
+    {
+        $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+        $unitB = OrganizationUnit::factory()->create(['name' => 'Unit B', 'is_pusat' => false]);
+        $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
+
+        $bendaharaA = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara')->first()->id,
+            'organization_unit_id' => $unitA->id,
+        ]);
+
+        $bendaharaB = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara')->first()->id,
+            'organization_unit_id' => $unitB->id,
+        ]);
+
+        $ledgerB = $this->createLedger($unitB->id, $bendaharaB->id);
+
+        // Bendahara A should NOT see Unit B ledger (Unit B is NOT pusat)
+        $this->assertFalse($bendaharaA->can('view', $ledgerB));
+    }
+
+    public function test_accessible_finance_unit_ids_returns_own_and_pusat_for_bendahara(): void
+    {
+        $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+        $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
+        $unitB = OrganizationUnit::factory()->create(['name' => 'Unit B', 'is_pusat' => false]);
+
+        $bendaharaA = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara')->first()->id,
+            'organization_unit_id' => $unitA->id,
+        ]);
+
+        $ids = $bendaharaA->accessibleFinanceUnitIds();
+
+        $this->assertCount(2, $ids);
+        $this->assertContains($unitA->id, $ids);
+        $this->assertContains($pusat->id, $ids);
+        $this->assertNotContains($unitB->id, $ids);
+    }
+
+    public function test_accessible_finance_unit_ids_returns_all_for_global_roles(): void
+    {
+        $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
+
+        $bendaharaPusat = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara_pusat')->first()->id,
+            'organization_unit_id' => $pusat->id,
+        ]);
+
+        $ids = $bendaharaPusat->accessibleFinanceUnitIds();
+
+        $this->assertEmpty($ids);
+    }
+
+    public function test_accessible_finance_unit_ids_returns_only_own_for_admin_unit(): void
+    {
+        $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+        $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
+
+        $adminUnitA = User::factory()->create([
+            'role_id' => Role::where('name', 'admin_unit')->first()->id,
+            'organization_unit_id' => $unitA->id,
+        ]);
+
+        $ids = $adminUnitA->accessibleFinanceUnitIds();
+
+        $this->assertCount(1, $ids);
+        $this->assertContains($unitA->id, $ids);
+        $this->assertNotContains($pusat->id, $ids);
+    }
+
+    public function test_can_access_finance_unit_for_bendahara(): void
+    {
+        $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+        $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
+        $unitB = OrganizationUnit::factory()->create(['name' => 'Unit B', 'is_pusat' => false]);
+
+        $bendaharaA = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara')->first()->id,
+            'organization_unit_id' => $unitA->id,
+        ]);
+
+        $this->assertTrue($bendaharaA->canAccessFinanceUnit($unitA->id));
+        $this->assertTrue($bendaharaA->canAccessFinanceUnit($pusat->id));
+        $this->assertFalse($bendaharaA->canAccessFinanceUnit($unitB->id));
+        $this->assertFalse($bendaharaA->canAccessFinanceUnit(null));
+    }
+
+    public function test_bendahara_index_returns_only_own_and_pusat_ledgers(): void
+    {
+        $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+        $unitB = OrganizationUnit::factory()->create(['name' => 'Unit B', 'is_pusat' => false]);
+        $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
+
+        $bendaharaA = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara')->first()->id,
+            'organization_unit_id' => $unitA->id,
+        ]);
+
+        $bendaharaB = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara')->first()->id,
+            'organization_unit_id' => $unitB->id,
+        ]);
+
+        $bendaharaPusat = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara_pusat')->first()->id,
+            'organization_unit_id' => $pusat->id,
+        ]);
+
+        $this->createLedger($unitA->id, $bendaharaA->id, ['description' => 'Ledger Unit A']);
+        $this->createLedger($unitB->id, $bendaharaB->id, ['description' => 'Ledger Unit B']);
+        $this->createLedger($pusat->id, $bendaharaPusat->id, ['description' => 'Ledger Pusat']);
+
+        $response = $this->actingAs($bendaharaA)->get('/finance/ledgers');
+
+        $response->assertStatus(200);
+        $ledgersData = $response->viewData('page')['props']['ledgers']['data'];
+        $this->assertCount(2, $ledgersData);
+        $descriptions = array_column($ledgersData, 'description');
+        $this->assertContains('Ledger Unit A', $descriptions);
+        $this->assertContains('Ledger Pusat', $descriptions);
+        $this->assertNotContains('Ledger Unit B', $descriptions);
+    }
+
+    public function test_bendahara_gets_403_when_accessing_other_unit_directly(): void
+    {
+        $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+        $unitB = OrganizationUnit::factory()->create(['name' => 'Unit B', 'is_pusat' => false]);
+        $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
+
+        $bendaharaA = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara')->first()->id,
+            'organization_unit_id' => $unitA->id,
+        ]);
+
+        $bendaharaB = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara')->first()->id,
+            'organization_unit_id' => $unitB->id,
+        ]);
+
+        $ledgerB = $this->createLedger($unitB->id, $bendaharaB->id, ['status' => 'draft']);
+
+        $response = $this->actingAs($bendaharaA)->get("/finance/ledgers/{$ledgerB->id}/edit");
+
+        $response->assertStatus(403);
+    }
+
+    public function test_bendahara_can_access_pusat_ledger_directly(): void
+    {
+        $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+        $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
+
+        $bendaharaA = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara')->first()->id,
+            'organization_unit_id' => $unitA->id,
+        ]);
+
+        $bendaharaPusat = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara_pusat')->first()->id,
+            'organization_unit_id' => $pusat->id,
+        ]);
+
+        $ledgerPusat = $this->createLedger($pusat->id, $bendaharaPusat->id, ['status' => 'draft']);
+
+        $this->assertTrue($bendaharaA->can('view', $ledgerPusat));
+    }
+
+    public function test_bendahara_pusat_can_view_all_units(): void
+    {
+        $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+        $unitB = OrganizationUnit::factory()->create(['name' => 'Unit B', 'is_pusat' => false]);
+        $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
+
+        $bendaharaPusat = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara_pusat')->first()->id,
+            'organization_unit_id' => $pusat->id,
+        ]);
+
+        $bendaharaA = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara')->first()->id,
+            'organization_unit_id' => $unitA->id,
+        ]);
+
+        $ledgerA = $this->createLedger($unitA->id, $bendaharaA->id);
+        $ledgerB = $this->createLedger($unitB->id, $bendaharaA->id);
+        $ledgerPusat = $this->createLedger($pusat->id, $bendaharaPusat->id);
+
+        $this->assertTrue($bendaharaPusat->can('view', $ledgerA));
+        $this->assertTrue($bendaharaPusat->can('view', $ledgerB));
+        $this->assertTrue($bendaharaPusat->can('view', $ledgerPusat));
     }
 }
