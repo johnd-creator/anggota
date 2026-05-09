@@ -15,7 +15,7 @@ Route::prefix('mobile/v1')->name('api.mobile.')->group(function () {
     Route::post('/auth/login', [\App\Http\Controllers\Api\Mobile\AuthController::class, 'login'])
         ->middleware('throttle:5,1')
         ->name('auth.login');
-    Route::post('/auth/google/token', [\App\Http\Controllers\Api\Mobile\PlatformController::class, 'googleToken'])
+    Route::post('/auth/google/token', [\App\Http\Controllers\Api\Mobile\AuthController::class, 'googleToken'])
         ->middleware('throttle:5,1')
         ->name('auth.google.token');
     Route::post('/auth/microsoft/token', [\App\Http\Controllers\Api\Mobile\PlatformController::class, 'microsoftToken'])

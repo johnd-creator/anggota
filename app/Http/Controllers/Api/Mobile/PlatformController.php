@@ -38,14 +38,6 @@ class PlatformController extends Controller
         return $this->ok();
     }
 
-    public function googleToken(): JsonResponse
-    {
-        return response()->json([
-            'message' => 'Mobile Google token exchange belum diaktifkan. Tambahkan verifier id_token server-side sebelum endpoint ini dipakai produksi.',
-            'provider' => 'google',
-        ], 501);
-    }
-
     public function microsoftToken(): JsonResponse
     {
         return response()->json([

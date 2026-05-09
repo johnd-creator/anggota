@@ -107,11 +107,7 @@ test('mobile devices can be registered and removed by owner only', function () {
     expect(MobileDevice::count())->toBe(0);
 });
 
-test('mobile oauth token exchange endpoints are explicit safe stubs', function () {
-    $this->postJson('/api/mobile/v1/auth/google/token', ['id_token' => 'dummy'])
-        ->assertStatus(501)
-        ->assertJsonPath('provider', 'google');
-
+test('mobile microsoft token exchange endpoint remains an explicit safe stub', function () {
     $this->postJson('/api/mobile/v1/auth/microsoft/token', ['id_token' => 'dummy'])
         ->assertStatus(501)
         ->assertJsonPath('provider', 'microsoft');

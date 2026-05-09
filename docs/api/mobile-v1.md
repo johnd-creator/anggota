@@ -1,5 +1,5 @@
 # Mobile API v1
-
+Development local path source : /var/www/html/anggota
 Production base URL: `https://anggota.plnipservices.or.id/api/mobile/v1`
 
 Base path: `/api/mobile/v1`
@@ -63,6 +63,45 @@ Request:
 ```
 
 Response:
+
+```json
+{
+  "access_token": "token-value",
+  "token_type": "Bearer",
+  "user": {
+    "id": 1,
+    "name": "Nama Anggota",
+    "email": "anggota@example.com",
+    "role": { "id": 4, "name": "anggota", "label": "Anggota" },
+    "current_unit_id": 1,
+    "member_context_unit_id": 1,
+    "member": {}
+  }
+}
+```
+
+### `POST /auth/google/token`
+
+Production URL: `https://anggota.plnipservices.or.id/api/mobile/v1/auth/google/token`
+
+Request:
+
+```json
+{
+  "id_token": "google-id-token",
+  "device_name": "android",
+  "server_auth_code": "optional-server-auth-code"
+}
+```
+
+Rules:
+
+- `id_token` wajib diverifikasi server-side terhadap signature Google, issuer, expiry, audience, dan `email_verified`.
+- `device_name` wajib diisi dan dipakai sebagai nama personal access token Sanctum.
+- `server_auth_code` opsional untuk kebutuhan lanjutan; belum diwajibkan untuk login bearer token v1.
+- Hanya user existing yang sudah terdaftar lokal dan diizinkan mengakses mobile app yang bisa login.
+
+Response sukses sama seperti `POST /auth/login`:
 
 ```json
 {
@@ -756,14 +795,16 @@ Deletes one device token owned by the authenticated user.
 
 ### `POST /auth/google/token` and `POST /auth/microsoft/token`
 
-These routes exist for mobile OAuth readiness and intentionally return `501` until a server-side `id_token` verifier is configured. Do not accept native provider tokens without signature/audience validation.
+`POST /auth/google/token` sudah aktif dengan verifikasi `id_token` server-side.
+
+`POST /auth/microsoft/token` masih berupa stub `501` sampai verifier Microsoft server-side tersedia. Jangan menerima token provider native tanpa validasi signature dan audience.
 
 ## Error Codes
 
 - `401`: missing, invalid, or revoked bearer token.
 - `403`: authenticated but not authorized by current role/policy.
 - `404`: owned resource or linked member profile not found.
-- `501`: endpoint contract exists but provider verifier/worker is not configured yet.
+- `501`: endpoint contract exists but provider verifier/worker is not configured yet, saat ini masih berlaku untuk Microsoft mobile token exchange.
 - `422`: validation error, wrong credentials, no actual profile changes, or missing unit context.
 - `429`: rate limit exceeded.
 
