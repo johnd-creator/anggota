@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class FinanceController extends Controller
@@ -96,11 +97,16 @@ class FinanceController extends Controller
         $request->user()->loadMissing('role');
         Gate::authorize('create', FinanceLedger::class);
         $data = $this->validatedLedger($request);
+        unset($data['attachment']);
         $unitId = $this->resolvedUnitId($request, $data['organization_unit_id'] ?? null);
         $this->ensureLedgerCategoryAllowed($request->user(), (int) $data['finance_category_id'], $unitId);
+        $attachmentPath = $request->hasFile('attachment')
+            ? $request->file('attachment')->store('finance/attachments', 'public')
+            : null;
 
         $ledger = FinanceLedger::create(array_merge($data, [
             'organization_unit_id' => $unitId,
+            'attachment_path' => $attachmentPath,
             'status' => FinanceLedger::defaultStatus(),
             'submitted_at' => now(),
             'created_by' => $request->user()->id,
@@ -114,8 +120,15 @@ class FinanceController extends Controller
         $request->user()->loadMissing('role');
         Gate::authorize('update', $ledger);
         $data = $this->validatedLedger($request, $ledger);
+        unset($data['attachment']);
         $data['organization_unit_id'] = $this->resolvedUnitId($request, $data['organization_unit_id'] ?? $ledger->organization_unit_id);
         $this->ensureLedgerCategoryAllowed($request->user(), (int) $data['finance_category_id'], (int) $data['organization_unit_id']);
+        if ($request->hasFile('attachment')) {
+            if ($ledger->attachment_path) {
+                Storage::disk('public')->delete($ledger->attachment_path);
+            }
+            $data['attachment_path'] = $request->file('attachment')->store('finance/attachments', 'public');
+        }
         $ledger->update($data);
 
         return $this->ok(['ledger' => new FinanceResource($ledger->fresh()->load(['category', 'organizationUnit', 'creator']))]);
@@ -351,6 +364,7 @@ class FinanceController extends Controller
             'amount' => ['required', 'numeric', 'min:0'],
             'date' => ['required', 'date'],
             'description' => ['nullable', 'string', 'max:1000'],
+            'attachment' => ['nullable', 'file', 'mimetypes:image/jpeg,image/png,application/pdf', 'max:5120'],
         ]);
     }
 
