@@ -22,6 +22,7 @@ class FinanceController extends Controller
 
     public function categories(Request $request): JsonResponse
     {
+        $request->user()->loadMissing('role');
         Gate::authorize('viewAny', FinanceCategory::class);
         $query = FinanceCategory::query()->with('organizationUnit:id,name,code')->orderBy('name');
         if (! $request->user()->canViewGlobalScope()) {
@@ -42,6 +43,7 @@ class FinanceController extends Controller
 
     public function categoryStore(Request $request): JsonResponse
     {
+        $request->user()->loadMissing('role');
         Gate::authorize('create', FinanceCategory::class);
         $category = FinanceCategory::create($this->validatedCategory($request) + ['created_by' => $request->user()->id]);
 
@@ -50,6 +52,7 @@ class FinanceController extends Controller
 
     public function categoryUpdate(Request $request, FinanceCategory $category): JsonResponse
     {
+        $request->user()->loadMissing('role');
         Gate::authorize('update', $category);
         $category->update($this->validatedCategory($request, $category));
 
@@ -58,6 +61,7 @@ class FinanceController extends Controller
 
     public function categoryDestroy(FinanceCategory $category): JsonResponse
     {
+        request()->user()->loadMissing('role');
         Gate::authorize('delete', $category);
         abort_if($category->ledgers()->exists(), 422, 'Kategori sudah dipakai ledger.');
         $category->delete();
@@ -67,6 +71,7 @@ class FinanceController extends Controller
 
     public function ledgers(Request $request): JsonResponse
     {
+        $request->user()->loadMissing('role');
         Gate::authorize('viewAny', FinanceLedger::class);
         $query = FinanceLedger::with(['category', 'organizationUnit:id,name,code', 'creator:id,name'])->latest('date');
         $this->scopeUnitQuery($query, $request->user());
@@ -84,6 +89,7 @@ class FinanceController extends Controller
 
     public function ledgerStore(Request $request): JsonResponse
     {
+        $request->user()->loadMissing('role');
         Gate::authorize('create', FinanceLedger::class);
         $data = $this->validatedLedger($request);
         $unitId = $this->resolvedUnitId($request, $data['organization_unit_id'] ?? null);
@@ -100,6 +106,7 @@ class FinanceController extends Controller
 
     public function ledgerUpdate(Request $request, FinanceLedger $ledger): JsonResponse
     {
+        $request->user()->loadMissing('role');
         Gate::authorize('update', $ledger);
         $data = $this->validatedLedger($request, $ledger);
         $data['organization_unit_id'] = $this->resolvedUnitId($request, $data['organization_unit_id'] ?? $ledger->organization_unit_id);
@@ -110,6 +117,7 @@ class FinanceController extends Controller
 
     public function ledgerDestroy(FinanceLedger $ledger): JsonResponse
     {
+        request()->user()->loadMissing('role');
         Gate::authorize('delete', $ledger);
         $ledger->delete();
 
@@ -118,6 +126,7 @@ class FinanceController extends Controller
 
     public function ledgerApprove(Request $request, FinanceLedger $ledger): JsonResponse
     {
+        $request->user()->loadMissing('role');
         Gate::authorize('approve', $ledger);
         $ledger->update(['status' => 'approved', 'approved_by' => $request->user()->id, 'approved_at' => now(), 'rejected_reason' => null]);
 
@@ -126,6 +135,7 @@ class FinanceController extends Controller
 
     public function ledgerReject(Request $request, FinanceLedger $ledger): JsonResponse
     {
+        $request->user()->loadMissing('role');
         Gate::authorize('reject', $ledger);
         $validated = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
         $ledger->update(['status' => 'rejected', 'approved_by' => $request->user()->id, 'approved_at' => null, 'rejected_reason' => $validated['reason']]);
@@ -135,6 +145,7 @@ class FinanceController extends Controller
 
     public function ledgerExport(Request $request): JsonResponse
     {
+        $request->user()->loadMissing('role');
         Gate::authorize('viewAny', FinanceLedger::class);
         $filters = $request->validate([
             'type' => ['nullable', 'string', Rule::in(['income', 'expense'])],
@@ -153,6 +164,7 @@ class FinanceController extends Controller
 
     public function dashboard(Request $request): JsonResponse
     {
+        $request->user()->loadMissing('role');
         Gate::authorize('viewAny', FinanceLedger::class);
         $user = $request->user();
 
@@ -203,6 +215,7 @@ class FinanceController extends Controller
 
     public function units(Request $request): JsonResponse
     {
+        $request->user()->loadMissing('role');
         Gate::authorize('viewAny', FinanceLedger::class);
         $user = $request->user();
 
@@ -232,6 +245,7 @@ class FinanceController extends Controller
 
     public function dues(Request $request): JsonResponse
     {
+        $request->user()->loadMissing('role');
         $this->authorizeDuesAdmin($request);
         Gate::authorize('viewAny', DuesPayment::class);
         $query = DuesPayment::with(['member:id,full_name,kta_number,organization_unit_id', 'organizationUnit:id,name,code'])->latest('period');
@@ -250,6 +264,7 @@ class FinanceController extends Controller
 
     public function duesUpdate(Request $request, DuesPayment $dues): JsonResponse
     {
+        $request->user()->loadMissing('role');
         Gate::authorize('update', $dues);
         $dues->update($this->validatedDues($request) + ['recorded_by' => $request->user()->id]);
 
@@ -258,6 +273,7 @@ class FinanceController extends Controller
 
     public function duesMassUpdate(Request $request): JsonResponse
     {
+        $request->user()->loadMissing('role');
         $this->authorizeDuesAdmin($request);
         $data = $request->validate([
             'items' => ['required', 'array', 'max:200'],
@@ -289,6 +305,7 @@ class FinanceController extends Controller
 
     public function duesSummary(Request $request): JsonResponse
     {
+        $request->user()->loadMissing('role');
         $this->authorizeDuesAdmin($request);
         Gate::authorize('viewAny', DuesPayment::class);
         $query = DuesPayment::query();
