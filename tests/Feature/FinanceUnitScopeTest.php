@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\FinanceCategory;
 use App\Models\FinanceLedger;
+use App\Models\DuesPayment;
 use App\Models\Member;
 use App\Models\OrganizationUnit;
 use App\Models\Role;
@@ -464,5 +465,68 @@ class FinanceUnitScopeTest extends TestCase
         $this->assertTrue($bendaharaPusat->can('view', $ledgerA));
         $this->assertTrue($bendaharaPusat->can('view', $ledgerB));
         $this->assertTrue($bendaharaPusat->can('view', $ledgerPusat));
+    }
+
+    public function test_bendahara_pusat_finance_access_is_read_only(): void
+    {
+        $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+        $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
+
+        $bendaharaPusat = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara_pusat')->first()->id,
+            'organization_unit_id' => $pusat->id,
+        ]);
+
+        $ledger = $this->createLedger($unitA->id, $bendaharaPusat->id, ['status' => 'draft']);
+        $category = FinanceCategory::firstOrCreate(
+            ['name' => 'Pusat Category', 'organization_unit_id' => $pusat->id],
+            ['type' => 'income', 'is_active' => true, 'sort_order' => 1, 'created_by' => $bendaharaPusat->id]
+        );
+        $dues = DuesPayment::create([
+            'member_id' => Member::factory()->create(['organization_unit_id' => $pusat->id])->id,
+            'organization_unit_id' => $pusat->id,
+            'period' => now()->format('Y-m'),
+            'status' => 'paid',
+            'amount' => 100000,
+            'paid_at' => now(),
+            'recorded_by' => $bendaharaPusat->id,
+        ]);
+
+        $this->assertTrue($bendaharaPusat->can('view', $ledger));
+        $this->assertFalse($bendaharaPusat->can('create', FinanceLedger::class));
+        $this->assertFalse($bendaharaPusat->can('update', $ledger));
+        $this->assertFalse($bendaharaPusat->can('delete', $ledger));
+        $this->assertFalse($bendaharaPusat->can('approve', $ledger));
+        $this->assertFalse($bendaharaPusat->can('create', FinanceCategory::class));
+        $this->assertFalse($bendaharaPusat->can('update', $category));
+        $this->assertFalse($bendaharaPusat->can('update', $dues));
+    }
+
+    public function test_bendahara_can_read_but_not_update_pusat_finance(): void
+    {
+        $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+        $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
+
+        $bendaharaA = User::factory()->create([
+            'role_id' => Role::where('name', 'bendahara')->first()->id,
+            'organization_unit_id' => $unitA->id,
+        ]);
+
+        $ledgerPusat = $this->createLedger($pusat->id, $bendaharaA->id, ['status' => 'draft']);
+        $duesPusat = DuesPayment::create([
+            'member_id' => Member::factory()->create(['organization_unit_id' => $pusat->id])->id,
+            'organization_unit_id' => $pusat->id,
+            'period' => now()->format('Y-m'),
+            'status' => 'paid',
+            'amount' => 100000,
+            'paid_at' => now(),
+            'recorded_by' => $bendaharaA->id,
+        ]);
+
+        $this->assertTrue($bendaharaA->can('view', $ledgerPusat));
+        $this->assertFalse($bendaharaA->can('update', $ledgerPusat));
+        $this->assertFalse($bendaharaA->can('delete', $ledgerPusat));
+        $this->assertTrue($bendaharaA->can('view', $duesPusat));
+        $this->assertFalse($bendaharaA->can('update', $duesPusat));
     }
 }

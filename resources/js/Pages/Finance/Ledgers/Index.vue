@@ -14,7 +14,7 @@
           </p>
         </div>
         <div class="flex flex-wrap gap-3">
-          <CtaButton v-if="$page.props.auth.user.role?.name!=='pengurus'" href="/finance/ledgers/create">
+          <CtaButton v-if="canCreateLedger" href="/finance/ledgers/create">
             <template #icon>
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             </template>
@@ -230,6 +230,7 @@ const props = defineProps({
   pendingCount: { type: Number, default: 0 },
   canApprove: { type: Boolean, default: false },
   focusLedgerId: { type: Number, default: null },
+  currentUnitId: { type: Number, default: null },
 })
 
 const page = usePage()
@@ -246,6 +247,8 @@ const availableUnits = computed(() => {
   if (!props.units || props.units.length === 0) return []
   return props.units
 })
+const roleName = computed(() => page.props.auth.user.role?.name || '')
+const canCreateLedger = computed(() => !['pengurus', 'pengurus_pusat', 'bendahara_pusat'].includes(roleName.value))
 
 // Delete modal
 const showDelete = ref(false)
@@ -317,8 +320,8 @@ function statusLabel(s) {
 function canEdit(ledger) {
   // For simplicity, show edit/delete if status is draft or submitted
   // Backend policy will enforce the actual permission
-  // pengurus role cannot edit/delete (read-only)
-  if (['pengurus', 'pengurus_pusat'].includes(page.props.auth.user.role?.name)) return false
+  if (['pengurus', 'pengurus_pusat', 'bendahara_pusat'].includes(roleName.value)) return false
+  if (roleName.value === 'bendahara' && Number(ledger.organization_unit_id) !== Number(props.currentUnitId)) return false
   if (!props.workflowEnabled) return true
   return ['draft', 'submitted'].includes(ledger.status)
 }

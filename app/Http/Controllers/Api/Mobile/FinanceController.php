@@ -45,7 +45,9 @@ class FinanceController extends Controller
     {
         $request->user()->loadMissing('role');
         Gate::authorize('create', FinanceCategory::class);
-        $category = FinanceCategory::create($this->validatedCategory($request) + ['created_by' => $request->user()->id]);
+        $data = $this->validatedCategory($request);
+        $data['organization_unit_id'] = $this->resolvedCategoryUnitId($request, $data['organization_unit_id'] ?? null);
+        $category = FinanceCategory::create($data + ['created_by' => $request->user()->id]);
 
         return response()->json(['status' => 'ok', 'category' => $category], 201);
     }
@@ -54,7 +56,9 @@ class FinanceController extends Controller
     {
         $request->user()->loadMissing('role');
         Gate::authorize('update', $category);
-        $category->update($this->validatedCategory($request, $category));
+        $data = $this->validatedCategory($request, $category);
+        $data['organization_unit_id'] = $this->resolvedCategoryUnitId($request, $data['organization_unit_id'] ?? $category->organization_unit_id);
+        $category->update($data);
 
         return $this->ok(['category' => $category->fresh()]);
     }
@@ -74,7 +78,7 @@ class FinanceController extends Controller
         $request->user()->loadMissing('role');
         Gate::authorize('viewAny', FinanceLedger::class);
         $query = FinanceLedger::with(['category', 'organizationUnit:id,name,code', 'creator:id,name'])->latest('date');
-        $this->scopeUnitQuery($query, $request->user());
+        $this->applyFinanceUnitFilter($query, $request->user(), $request->query('unit_id'));
         foreach (['type', 'status', 'finance_category_id'] as $filter) {
             if ($request->filled($filter)) {
                 $query->where($filter, $request->query($filter));
@@ -93,13 +97,14 @@ class FinanceController extends Controller
         Gate::authorize('create', FinanceLedger::class);
         $data = $this->validatedLedger($request);
         $unitId = $this->resolvedUnitId($request, $data['organization_unit_id'] ?? null);
+        $this->ensureLedgerCategoryAllowed($request->user(), (int) $data['finance_category_id'], $unitId);
 
-        $ledger = FinanceLedger::create($data + [
+        $ledger = FinanceLedger::create(array_merge($data, [
             'organization_unit_id' => $unitId,
             'status' => FinanceLedger::defaultStatus(),
             'submitted_at' => now(),
             'created_by' => $request->user()->id,
-        ]);
+        ]));
 
         return response()->json(['status' => 'ok', 'ledger' => new FinanceResource($ledger->load(['category', 'organizationUnit', 'creator']))], 201);
     }
@@ -110,6 +115,7 @@ class FinanceController extends Controller
         Gate::authorize('update', $ledger);
         $data = $this->validatedLedger($request, $ledger);
         $data['organization_unit_id'] = $this->resolvedUnitId($request, $data['organization_unit_id'] ?? $ledger->organization_unit_id);
+        $this->ensureLedgerCategoryAllowed($request->user(), (int) $data['finance_category_id'], (int) $data['organization_unit_id']);
         $ledger->update($data);
 
         return $this->ok(['ledger' => new FinanceResource($ledger->fresh()->load(['category', 'organizationUnit', 'creator']))]);
@@ -249,7 +255,7 @@ class FinanceController extends Controller
         $this->authorizeDuesAdmin($request);
         Gate::authorize('viewAny', DuesPayment::class);
         $query = DuesPayment::with(['member:id,full_name,kta_number,organization_unit_id', 'organizationUnit:id,name,code'])->latest('period');
-        $this->applyDuesUnitScope($query, $request->user());
+        $this->applyDuesUnitScope($query, $request->user(), $request->query('unit_id'));
         foreach (['period', 'status', 'member_id'] as $filter) {
             if ($request->filled($filter)) {
                 $query->where($filter, $request->query($filter));
@@ -309,7 +315,7 @@ class FinanceController extends Controller
         $this->authorizeDuesAdmin($request);
         Gate::authorize('viewAny', DuesPayment::class);
         $query = DuesPayment::query();
-        $this->applyDuesUnitScope($query, $request->user());
+        $this->applyDuesUnitScope($query, $request->user(), $request->query('unit_id'));
         if ($period = $request->query('period')) {
             $query->where('period', $period);
         }
@@ -360,7 +366,7 @@ class FinanceController extends Controller
 
     private function resolvedUnitId(Request $request, ?int $requestedUnitId): int
     {
-        if ($request->user()->canViewGlobalScope()) {
+        if ($request->user()->hasGlobalAccess()) {
             $unitId = $requestedUnitId ?: (int) $request->user()->currentUnitId();
             abort_if($unitId <= 0, 422, 'organization_unit_id wajib untuk transaksi global.');
 
@@ -375,19 +381,80 @@ class FinanceController extends Controller
         abort_unless($request->user()->hasRole(['super_admin', 'admin_pusat', 'bendahara', 'bendahara_pusat']), 403);
     }
 
-    private function applyDuesUnitScope($query, $user): void
+    private function applyDuesUnitScope($query, $user, ?string $unitParam = null): void
     {
         if ($user->canViewGlobalScope()) {
+            if ($unitParam) {
+                $query->where('organization_unit_id', (int) $unitParam);
+            }
             return;
         }
 
         if ($user->hasRole('bendahara')) {
-            $query->whereIn('organization_unit_id', $user->accessibleFinanceUnitIds());
+            $accessibleIds = $user->accessibleFinanceUnitIds();
+            if ($unitParam) {
+                abort_unless(in_array((int) $unitParam, $accessibleIds, true), 403, 'Anda tidak memiliki akses ke unit tersebut.');
+                $query->where('organization_unit_id', (int) $unitParam);
+            } else {
+                $query->whereIn('organization_unit_id', $accessibleIds);
+            }
 
             return;
         }
 
         $query->where('organization_unit_id', $user->currentUnitId());
+    }
+
+    private function applyFinanceUnitFilter($query, $user, ?string $unitParam = null): void
+    {
+        if ($user->canViewGlobalScope()) {
+            if ($unitParam) {
+                $query->where('organization_unit_id', (int) $unitParam);
+            }
+
+            return;
+        }
+
+        if ($user->hasRole('bendahara')) {
+            $accessibleIds = $user->accessibleFinanceUnitIds();
+            if ($unitParam) {
+                abort_unless(in_array((int) $unitParam, $accessibleIds, true), 403, 'Anda tidak memiliki akses ke unit tersebut.');
+                $query->where('organization_unit_id', (int) $unitParam);
+            } else {
+                $query->whereIn('organization_unit_id', $accessibleIds);
+            }
+
+            return;
+        }
+
+        $query->where('organization_unit_id', $user->currentUnitId());
+    }
+
+    private function resolvedCategoryUnitId(Request $request, ?int $requestedUnitId): ?int
+    {
+        if ($request->user()->hasGlobalAccess()) {
+            return $requestedUnitId;
+        }
+
+        $unitId = $request->user()->currentUnitId();
+        abort_if(! $unitId, 422, 'User tidak memiliki unit organisasi.');
+
+        return $unitId;
+    }
+
+    private function ensureLedgerCategoryAllowed($user, int $categoryId, int $unitId): void
+    {
+        $category = FinanceCategory::findOrFail($categoryId);
+
+        if ($user->hasGlobalAccess()) {
+            return;
+        }
+
+        abort_if(
+            $category->organization_unit_id !== null && (int) $category->organization_unit_id !== $unitId,
+            422,
+            'Kategori tidak valid untuk unit.'
+        );
     }
 
     private function applyFinanceDashboardScope($query, $user): void

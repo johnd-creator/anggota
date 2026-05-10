@@ -58,7 +58,7 @@
       </CardContainer>
 
       <!-- Quick Action Card -->
-      <CardContainer padding="sm">
+      <CardContainer v-if="canManageAnyVisibleDues" padding="sm">
         <div class="space-y-3">
           <div class="text-sm font-semibold text-neutral-700">Aksi Cepat - Batch Payment</div>
           
@@ -128,7 +128,7 @@
             <tbody class="bg-white divide-y divide-neutral-200">
               <tr v-for="m in members.data" :key="m.id" class="hover:bg-neutral-50" :class="{ 'bg-brand-primary-50': selectedMemberIds.includes(m.id) }">
                 <td class="px-4 py-4">
-                  <input type="checkbox" :value="m.id" v-model="selectedMemberIds" :disabled="m.dues_status === 'paid'" class="rounded border-neutral-300 text-brand-primary-600 focus:ring-brand-primary-500 disabled:opacity-50" />
+                  <input type="checkbox" :value="m.id" v-model="selectedMemberIds" :disabled="m.dues_status === 'paid' || !canManageMember(m)" class="rounded border-neutral-300 text-brand-primary-600 focus:ring-brand-primary-500 disabled:opacity-50" />
                 </td>
                 <td class="px-6 py-4 text-sm text-neutral-700">{{ $toTitleCase(m.full_name) }}</td>
                 <td class="px-6 py-4 text-sm text-neutral-700">{{ m.kta_number || '-' }}</td>
@@ -141,11 +141,11 @@
                 <td class="px-6 py-4 text-sm text-neutral-700">{{ m.paid_at ? formatDate(m.paid_at) : '-' }}</td>
                 <td class="px-6 py-4 text-sm text-neutral-700 max-w-xs truncate" :title="m.notes">{{ m.notes || '-' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button v-if="m.dues_status !== 'paid'" @click="openPayModal(m)" class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700">
+                  <button v-if="m.dues_status !== 'paid' && canManageMember(m)" @click="openPayModal(m)" class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700">
                     <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                     Sudah Bayar
                   </button>
-                  <button v-else @click="confirmRevert(m)" class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-neutral-700 bg-neutral-200 rounded hover:bg-neutral-300">
+                  <button v-else-if="canManageMember(m)" @click="confirmRevert(m)" class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-neutral-700 bg-neutral-200 rounded hover:bg-neutral-300">
                     <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     Belum Bayar
                   </button>
@@ -224,7 +224,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { router, Link } from '@inertiajs/vue3'
+import { router, Link, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CardContainer from '@/Components/UI/CardContainer.vue'
 	import ModalBase from '@/Components/UI/ModalBase.vue'
@@ -239,16 +239,22 @@ const props = defineProps({
   units: Array,
   canSelectUnit: { type: Boolean, default: false },
   recurringCategories: { type: Array, default: () => [] },
+  currentUnitId: { type: Number, default: null },
 })
+const page = usePage()
 
 const period = ref(props.filters.period || new Date().toISOString().slice(0, 7))
 const search = ref(props.filters.search || '')
 const status = ref(props.filters.status || '')
 const unitId = ref(props.filters.unit_id || '')
+const roleName = computed(() => page.props?.auth?.user?.role?.name || '')
 
 const paidPercentage = computed(() => {
   if (props.summary.total === 0) return 0
   return (props.summary.paid / props.summary.total) * 100
+})
+const canManageAnyVisibleDues = computed(() => {
+  return props.members.data.some((member) => canManageMember(member))
 })
 
 // Multi-select state
@@ -256,7 +262,7 @@ const selectedMemberIds = ref([])
 
 // Computed for select all checkbox
 const unpaidMembersOnPage = computed(() => {
-  return props.members.data.filter((m) => m.dues_status !== 'paid')
+  return props.members.data.filter((m) => m.dues_status !== 'paid' && canManageMember(m))
 })
 
 const isAllOnPageSelected = computed(() => {
@@ -283,6 +289,12 @@ function selectAllUnpaid() {
 
 function clearSelection() {
   selectedMemberIds.value = []
+}
+
+function canManageMember(member) {
+  if (roleName.value === 'super_admin') return true
+  if (roleName.value === 'bendahara_pusat') return false
+  return Number(member.organization_unit_id) === Number(props.currentUnitId)
 }
 
 // Pay modal state

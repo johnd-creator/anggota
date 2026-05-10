@@ -448,13 +448,13 @@ All endpoints are role/policy gated and non-global users are scoped to their act
 
 | Role | Can Access Units | Notes |
 |------|------------------|-------|
-| `bendahara` | Own unit + Pusat unit only | Cannot see other units |
-| `bendahara_pusat` | All units | Can filter by unit |
+| `bendahara` | Own unit + Pusat unit only | Full finance write access only for own unit; Pusat is read-only |
+| `bendahara_pusat` | All units | Read-only; can filter by unit |
 | `admin_pusat`, `pengurus_pusat` | All units | Read-only access |
 | `admin_unit`, `pengurus` | Own unit only | Read-only access |
 | `super_admin` | All units | Full access |
 
-**Security Constraint:** `bendahara` role is **strictly limited** to own unit + pusat unit. Access to other units will return `403 Forbidden`.
+**Security Constraint:** `bendahara` is strictly limited to own unit + Pusat unit visibility, and any write action outside own unit returns `403 Forbidden`. `bendahara_pusat` visibility is global but all finance write endpoints return `403 Forbidden`.
 
 ### `GET /finance/dashboard`
 
@@ -649,9 +649,9 @@ Creates a new finance ledger entry.
 ```
 
 **Rules:**
-- `organization_unit_id` is required for global roles
-- Non-global roles can only create for their own unit
-- `bendahara` can create for own unit or pusat unit
+- `organization_unit_id` is required for `super_admin`
+- `bendahara` can create only for their own unit
+- `bendahara_pusat` cannot create ledgers; this role is read-only across all units
 - If `FINANCE_WORKFLOW_ENABLED` is true, status defaults to `submitted`, otherwise `approved`
 
 ### `PUT /finance/ledgers/{id}`
@@ -662,8 +662,9 @@ Updates an existing finance ledger.
 
 **Rules:**
 - Can only edit ledgers in `draft` or `submitted` status (when workflow enabled)
-- `bendahara` can only edit own created ledgers
-- Global roles can edit any ledger
+- `bendahara` can only edit own-created ledgers in their own unit
+- `bendahara_pusat` cannot edit ledgers
+- `super_admin` can edit any ledger
 
 ### `DELETE /finance/ledgers/{id}`
 
@@ -718,8 +719,8 @@ Flutter should poll `GET /reports/export/status/{id}` to check when export is re
 ### Dues Management
 
 - `GET /finance/dues` - List dues payments (scoped)
-- `PATCH /finance/dues/{id}` - Update single dues payment
-- `PATCH /finance/dues/mass-update` - Bulk update dues payments
+- `PATCH /finance/dues/{id}` - Update single dues payment (own unit for `bendahara`; forbidden for `bendahara_pusat`)
+- `PATCH /finance/dues/mass-update` - Bulk update dues payments (own unit for `bendahara`; forbidden for `bendahara_pusat`)
 - `GET /finance/dues/dashboard` - Dues summary and statistics
 
 **Mass Update Request:**

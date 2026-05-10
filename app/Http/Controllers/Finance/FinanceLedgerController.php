@@ -151,6 +151,7 @@ class FinanceLedgerController extends Controller
             'pendingCount' => $pendingCount,
             'canApprove' => $isAdminLike,
             'focusLedgerId' => $focusId,
+            'currentUnitId' => $unitId,
         ]);
     }
 

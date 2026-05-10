@@ -34,7 +34,11 @@ class DuesPaymentPolicy
         }
 
         // Bendahara/pengurus can view dues in their unit
-        if ($user->hasRole(['bendahara', 'pengurus', 'pengurus_pusat'])) {
+        if ($user->hasRole('bendahara')) {
+            return $user->canAccessFinanceUnit($duesPayment->organization_unit_id);
+        }
+
+        if ($user->hasRole(['pengurus', 'pengurus_pusat'])) {
             $unitId = $user->currentUnitId();
 
             return $unitId !== null && $unitId === $duesPayment->organization_unit_id;
@@ -48,7 +52,7 @@ class DuesPaymentPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_pusat', 'bendahara', 'bendahara_pusat']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'bendahara']);
     }
 
     /**
@@ -61,8 +65,12 @@ class DuesPaymentPolicy
             return true;
         }
 
-        // admin_pusat & bendahara_pusat: can only edit DPP transactions
-        if ($user->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+        if ($user->hasRole('bendahara_pusat')) {
+            return false;
+        }
+
+        // admin_pusat can only edit DPP transactions
+        if ($user->hasRole('admin_pusat')) {
             $dppOrg = $user->managedOrganization;
 
             return $dppOrg && $dppOrg->is_pusat && $duesPayment->organization_unit_id === $dppOrg->id;
@@ -88,8 +96,12 @@ class DuesPaymentPolicy
             return true;
         }
 
-        // admin_pusat & bendahara_pusat: can only update DPP
-        if ($user->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+        if ($user->hasRole('bendahara_pusat')) {
+            return false;
+        }
+
+        // admin_pusat can only update DPP
+        if ($user->hasRole('admin_pusat')) {
             $dppOrg = $user->managedOrganization;
 
             return $dppOrg && $dppOrg->is_pusat && $unitId === $dppOrg->id;
@@ -113,8 +125,12 @@ class DuesPaymentPolicy
             return true;
         }
 
-        // admin_pusat & bendahara_pusat: can only update DPP members (should not exist)
-        if ($user->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+        if ($user->hasRole('bendahara_pusat')) {
+            return false;
+        }
+
+        // admin_pusat can only update DPP members (should not exist)
+        if ($user->hasRole('admin_pusat')) {
             $dppOrg = $user->managedOrganization;
 
             return $dppOrg && $dppOrg->is_pusat && $member->organization_unit_id === $dppOrg->id;

@@ -33,7 +33,7 @@ class FinanceLedgerPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_pusat', 'bendahara', 'bendahara_pusat']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'bendahara']);
     }
 
     public function update(User $user, FinanceLedger $ledger): bool
@@ -42,7 +42,11 @@ class FinanceLedgerPolicy
             return true;
         }
 
-        if ($user->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+        if ($user->hasRole('bendahara_pusat')) {
+            return false;
+        }
+
+        if ($user->hasRole('admin_pusat')) {
             return (int) $ledger->created_by === (int) $user->id;
         }
 
@@ -51,7 +55,7 @@ class FinanceLedgerPolicy
                 return false;
             }
 
-            return $user->canAccessFinanceUnit($ledger->organization_unit_id)
+            return (int) $user->currentUnitId() === (int) $ledger->organization_unit_id
                 && (int) $ledger->created_by === (int) $user->id;
         }
 
@@ -64,7 +68,11 @@ class FinanceLedgerPolicy
             return true;
         }
 
-        if ($user->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+        if ($user->hasRole('bendahara_pusat')) {
+            return false;
+        }
+
+        if ($user->hasRole('admin_pusat')) {
             return (int) $ledger->created_by === (int) $user->id;
         }
 
@@ -73,7 +81,7 @@ class FinanceLedgerPolicy
                 return false;
             }
 
-            return $user->canAccessFinanceUnit($ledger->organization_unit_id)
+            return (int) $user->currentUnitId() === (int) $ledger->organization_unit_id
                 && (int) $ledger->created_by === (int) $user->id;
         }
 

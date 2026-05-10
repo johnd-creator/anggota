@@ -34,10 +34,18 @@ class FinanceDuesController extends Controller
 
         // Determine unit scope
         if ($user->canViewGlobalScope()) {
-            // Super admin and admin_pusat can view all or filter by unit
+            // Central/global roles can view all or filter by unit.
             $unitScope = $unitId ? [(int) $unitId] : null;
+        } elseif ($user->hasRole('bendahara')) {
+            $accessibleIds = $user->accessibleFinanceUnitIds();
+            if ($unitId) {
+                abort_unless(in_array((int) $unitId, $accessibleIds, true), 403, 'Anda tidak memiliki akses ke unit tersebut.');
+                $unitScope = [(int) $unitId];
+            } else {
+                $unitScope = $accessibleIds;
+            }
         } else {
-            // Bendahara/admin_unit can only see their unit
+            // Other unit roles can only see their unit.
             $unitScope = [$user->currentUnitId()];
         }
 
@@ -122,10 +130,19 @@ class FinanceDuesController extends Controller
 
         $paidCount = $paidCount->count();
 
-        // Get units for super_admin filter
+        // Get units for users with more than one finance view scope.
         $units = [];
-        if ($user->hasRole('super_admin')) {
-            $units = OrganizationUnit::select('id', 'name', 'code')->orderBy('name')->get();
+        if ($user->canViewGlobalScope()) {
+            $units = OrganizationUnit::select('id', 'name', 'code', 'is_pusat')
+                ->orderBy('is_pusat', 'desc')
+                ->orderBy('name')
+                ->get();
+        } elseif ($user->hasRole('bendahara')) {
+            $units = OrganizationUnit::select('id', 'name', 'code', 'is_pusat')
+                ->whereIn('id', $user->accessibleFinanceUnitIds())
+                ->orderBy('is_pusat', 'desc')
+                ->orderBy('name')
+                ->get();
         }
 
         // Get recurring categories for quick action
@@ -152,8 +169,9 @@ class FinanceDuesController extends Controller
                 'unpaid' => $totalMembers - $paidCount,
             ],
             'units' => $units,
-            'canSelectUnit' => $user->canViewGlobalScope(),
+            'canSelectUnit' => $user->canViewGlobalScope() || $user->hasRole('bendahara'),
             'recurringCategories' => $recurringCategories,
+            'currentUnitId' => $user->currentUnitId(),
         ]);
     }
 

@@ -75,7 +75,19 @@ class ReportController extends Controller
         abort_unless($request->user()->hasRole(['super_admin', 'admin_pusat', 'bendahara', 'bendahara_pusat']), 403);
         Gate::authorize('viewAny', DuesPayment::class);
         $query = DuesPayment::query();
-        if (! $request->user()->canViewGlobalScope()) {
+        if ($request->user()->canViewGlobalScope()) {
+            if ($unitId = $request->query('unit_id')) {
+                $query->where('organization_unit_id', (int) $unitId);
+            }
+        } elseif ($request->user()->hasRole('bendahara')) {
+            $accessibleIds = $request->user()->accessibleFinanceUnitIds();
+            if ($unitId = $request->query('unit_id')) {
+                abort_unless(in_array((int) $unitId, $accessibleIds, true), 403, 'Anda tidak memiliki akses ke unit tersebut.');
+                $query->where('organization_unit_id', (int) $unitId);
+            } else {
+                $query->whereIn('organization_unit_id', $accessibleIds);
+            }
+        } else {
             $query->where('organization_unit_id', $request->user()->currentUnitId());
         }
 

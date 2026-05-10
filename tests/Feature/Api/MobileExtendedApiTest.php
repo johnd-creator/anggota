@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\FinanceCategory;
 use App\Models\FinanceLedger;
+use App\Models\DuesPayment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -181,6 +182,105 @@ test('mobile finance units returns all for bendahara_pusat', function () {
         ->getJson('/api/mobile/v1/finance/units')
         ->assertOk()
         ->assertJsonPath('accessible_count', 3);
+});
+
+test('mobile bendahara_pusat can read all ledgers but cannot write finance data', function () {
+    $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+    $unitB = OrganizationUnit::factory()->create(['name' => 'Unit B', 'is_pusat' => false]);
+    $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
+    $bendaharaPusat = mobileExtendedUser('bendahara_pusat', $pusat);
+    $category = FinanceCategory::create(['name' => 'Iuran', 'type' => 'income', 'created_by' => $bendaharaPusat->id]);
+
+    $ledgerA = FinanceLedger::create([
+        'organization_unit_id' => $unitA->id,
+        'finance_category_id' => $category->id,
+        'type' => 'income',
+        'amount' => 100000,
+        'date' => now(),
+        'status' => 'submitted',
+        'created_by' => $bendaharaPusat->id,
+    ]);
+    FinanceLedger::create([
+        'organization_unit_id' => $unitB->id,
+        'finance_category_id' => $category->id,
+        'type' => 'expense',
+        'amount' => 50000,
+        'date' => now(),
+        'status' => 'submitted',
+        'created_by' => $bendaharaPusat->id,
+    ]);
+
+    $headers = ['Authorization' => 'Bearer '.mobileExtendedToken($bendaharaPusat)];
+
+    $this->getJson('/api/mobile/v1/finance/ledgers', $headers)
+        ->assertOk()
+        ->assertJsonCount(2, 'ledgers');
+
+    $payload = [
+        'organization_unit_id' => $unitA->id,
+        'finance_category_id' => $category->id,
+        'type' => 'income',
+        'amount' => 120000,
+        'date' => now()->toDateString(),
+        'description' => 'Should be forbidden',
+    ];
+
+    $this->postJson('/api/mobile/v1/finance/ledgers', $payload, $headers)->assertForbidden();
+    $this->putJson('/api/mobile/v1/finance/ledgers/'.$ledgerA->id, $payload, $headers)->assertForbidden();
+    $this->deleteJson('/api/mobile/v1/finance/ledgers/'.$ledgerA->id, [], $headers)->assertForbidden();
+    $this->postJson('/api/mobile/v1/finance/ledgers/'.$ledgerA->id.'/approve', [], $headers)->assertForbidden();
+    $this->postJson('/api/mobile/v1/finance/categories', [
+        'name' => 'Forbidden category',
+        'type' => 'income',
+    ], $headers)->assertForbidden();
+});
+
+test('mobile bendahara can read pusat ledgers and dues but cannot write pusat data', function () {
+    $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+    $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
+    $bendahara = mobileExtendedUser('bendahara', $unitA);
+    $category = FinanceCategory::create(['name' => 'Iuran', 'type' => 'income', 'created_by' => $bendahara->id]);
+    $ledgerPusat = FinanceLedger::create([
+        'organization_unit_id' => $pusat->id,
+        'finance_category_id' => $category->id,
+        'type' => 'income',
+        'amount' => 100000,
+        'date' => now(),
+        'status' => 'draft',
+        'created_by' => $bendahara->id,
+    ]);
+    $memberPusat = Member::factory()->create(['organization_unit_id' => $pusat->id]);
+    $duesPusat = DuesPayment::create([
+        'member_id' => $memberPusat->id,
+        'organization_unit_id' => $pusat->id,
+        'period' => now()->format('Y-m'),
+        'status' => 'paid',
+        'amount' => 100000,
+        'paid_at' => now(),
+        'recorded_by' => $bendahara->id,
+    ]);
+
+    $headers = ['Authorization' => 'Bearer '.mobileExtendedToken($bendahara)];
+
+    $this->getJson('/api/mobile/v1/finance/ledgers?unit_id='.$pusat->id, $headers)
+        ->assertOk()
+        ->assertJsonFragment(['id' => $ledgerPusat->id]);
+    $this->getJson('/api/mobile/v1/finance/dues?unit_id='.$pusat->id, $headers)
+        ->assertOk()
+        ->assertJsonFragment(['period' => $duesPusat->period]);
+
+    $this->putJson('/api/mobile/v1/finance/ledgers/'.$ledgerPusat->id, [
+        'organization_unit_id' => $pusat->id,
+        'finance_category_id' => $category->id,
+        'type' => 'income',
+        'amount' => 120000,
+        'date' => now()->toDateString(),
+    ], $headers)->assertForbidden();
+    $this->patchJson('/api/mobile/v1/finance/dues/'.$duesPusat->id, [
+        'status' => 'paid',
+        'amount' => 120000,
+        'paid_at' => now()->toDateString(),
+    ], $headers)->assertForbidden();
 });
 
 test('activity log is created on finance ledger creation', function () {

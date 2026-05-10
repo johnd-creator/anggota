@@ -7,7 +7,7 @@
           <p class="text-sm text-neutral-500">Atur kategori pemasukan dan pengeluaran untuk unit Anda.</p>
         </div>
         <div class="flex flex-wrap gap-3">
-          <CtaButton v-if="!['pengurus', 'pengurus_pusat'].includes($page.props.auth.user.role?.name)" href="/finance/categories/create">
+          <CtaButton v-if="canCreateCategory" href="/finance/categories/create">
             <template #icon>
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             </template>
@@ -68,12 +68,12 @@
                 <td class="px-6 py-4 text-sm text-neutral-700">{{ c.creator ? c.creator.name : '-' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div class="flex justify-end space-x-2">
-                    <IconButton variant="ghost" aria-label="Edit" @click="router.visit(`/finance/categories/${c.id}/edit`)">
+                    <IconButton v-if="canManageCategory(c)" variant="ghost" aria-label="Edit" @click="router.visit(`/finance/categories/${c.id}/edit`)">
                       <svg class="w-5 h-5 text-brand-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </IconButton>
-                    <IconButton v-if="!c.is_system" variant="ghost" aria-label="Delete" @click="confirmDelete(c)">
+                    <IconButton v-if="!c.is_system && canManageCategory(c)" variant="ghost" aria-label="Delete" @click="confirmDelete(c)">
                       <svg class="w-5 h-5 text-status-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
@@ -120,7 +120,7 @@ import InputField from '@/Components/UI/InputField.vue'
     import SelectField from '@/Components/UI/SelectField.vue'
 	import Pagination from '@/Components/UI/Pagination.vue'
 
-const props = defineProps({ categories: Object, filters: Object, units: Array })
+const props = defineProps({ categories: Object, filters: Object, units: Array, currentUnitId: Number })
 const page = usePage()
 const search = ref(props.filters.search || '')
 const type = ref(props.filters.type || '')
@@ -129,6 +129,8 @@ const showDelete = ref(false)
 const toDelete = ref(null)
 const deleting = ref(false)
 const isSuperAdmin = computed(() => (page.props?.auth?.user?.role?.name || '') === 'super_admin')
+const roleName = computed(() => page.props?.auth?.user?.role?.name || '')
+const canCreateCategory = computed(() => !['pengurus', 'pengurus_pusat', 'bendahara_pusat'].includes(roleName.value))
 
 watch([search, type, unitId], ([s, t, u]) => {
   router.get('/finance/categories', { search: s, type: t, unit_id: u }, { preserveState: true, replace: true })
@@ -136,4 +138,9 @@ watch([search, type, unitId], ([s, t, u]) => {
 
 function confirmDelete(c){ toDelete.value = c; showDelete.value = true }
 function doDelete(){ if(!toDelete.value) return; deleting.value = true; router.delete(`/finance/categories/${toDelete.value.id}`, { onSuccess(){ showDelete.value=false; toDelete.value=null }, onFinish(){ deleting.value=false } }) }
+function canManageCategory(c){
+  if (['pengurus', 'pengurus_pusat', 'bendahara_pusat'].includes(roleName.value)) return false
+  if (roleName.value === 'bendahara') return Number(c.organization_unit_id) === Number(props.currentUnitId)
+  return true
+}
 </script>

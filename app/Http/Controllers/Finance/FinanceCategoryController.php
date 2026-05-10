@@ -60,6 +60,7 @@ class FinanceCategoryController extends Controller
             'categories' => $categories,
             'filters' => $request->only(['type', 'search', 'unit_id']),
             'units' => $units,
+            'currentUnitId' => $unitId,
         ]);
     }
 
