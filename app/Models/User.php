@@ -61,16 +61,35 @@ class User extends Authenticatable
 
     public function canAccessRole($roleName)
     {
-        return $this->role && $this->role->name === $roleName;
+        return $this->hasRole($roleName);
     }
 
     public function hasRole($roles): bool
     {
-        if (is_array($roles)) {
-            return $this->role && in_array($this->role->name, $roles);
+        if (! $this->role) {
+            return false;
         }
 
-        return $this->role && $this->role->name === $roles;
+        $currentRole = self::normalizeRoleName($this->role->name);
+
+        if (is_array($roles)) {
+            $normalizedRoles = array_map([self::class, 'normalizeRoleName'], $roles);
+
+            return in_array($currentRole, $normalizedRoles, true);
+        }
+
+        return $currentRole === self::normalizeRoleName($roles);
+    }
+
+    private static function normalizeRoleName(?string $role): string
+    {
+        $normalized = strtolower(trim((string) $role));
+        $normalized = str_replace(['-', ' '], '_', $normalized);
+
+        return match ($normalized) {
+            'superadmin' => 'super_admin',
+            default => $normalized,
+        };
     }
 
     public function notificationPreference()
