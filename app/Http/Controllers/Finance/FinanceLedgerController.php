@@ -185,6 +185,7 @@ class FinanceLedgerController extends Controller
         $user = Auth::user();
         $isGlobal = $user->hasGlobalAccess();
         $unitId = $isGlobal ? (int) $request->input('organization_unit_id') : $user->currentUnitId();
+        abort_unless($user->canManageFinanceUnit($unitId), 403, 'Anda tidak memiliki akses kelola unit tersebut.');
         $workflowEnabled = FinanceLedger::workflowEnabled();
 
         $validated = $request->validate([
@@ -270,6 +271,7 @@ class FinanceLedgerController extends Controller
         $user = Auth::user();
         $isGlobal = $user->hasGlobalAccess();
         $unitId = $isGlobal ? (int) $request->input('organization_unit_id') : $user->currentUnitId();
+        abort_unless($user->canManageFinanceUnit($unitId), 403, 'Anda tidak memiliki akses kelola unit tersebut.');
 
         $validated = $request->validate([
             'date' => ['required', 'date'],

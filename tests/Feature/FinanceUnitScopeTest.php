@@ -49,6 +49,21 @@ class FinanceUnitScopeTest extends TestCase
     // Policy tests
     // ========================================
 
+    public function test_superadmin_role_alias_has_global_finance_access(): void
+    {
+        $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+        $unitB = OrganizationUnit::factory()->create(['name' => 'Unit B', 'is_pusat' => false]);
+        $role = Role::create(['name' => 'superadmin', 'label' => 'Super Admin']);
+        $superAdmin = User::factory()->create(['role_id' => $role->id]);
+        $ledgerB = $this->createLedger($unitB->id, $superAdmin->id);
+
+        $this->assertTrue($superAdmin->hasRole('super_admin'));
+        $this->assertTrue($superAdmin->canViewGlobalScope());
+        $this->assertTrue($superAdmin->canManageFinanceUnit($unitA->id));
+        $this->assertTrue($superAdmin->can('view', $ledgerB));
+        $this->assertTrue($superAdmin->can('update', $ledgerB));
+    }
+
     public function test_bendahara_cannot_view_ledger_from_other_unit(): void
     {
         $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A']);
@@ -467,7 +482,7 @@ class FinanceUnitScopeTest extends TestCase
         $this->assertTrue($bendaharaPusat->can('view', $ledgerPusat));
     }
 
-    public function test_bendahara_pusat_finance_access_is_read_only(): void
+    public function test_bendahara_pusat_can_manage_pusat_and_only_read_units(): void
     {
         $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
         $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
@@ -477,12 +492,17 @@ class FinanceUnitScopeTest extends TestCase
             'organization_unit_id' => $pusat->id,
         ]);
 
-        $ledger = $this->createLedger($unitA->id, $bendaharaPusat->id, ['status' => 'draft']);
-        $category = FinanceCategory::firstOrCreate(
+        $unitLedger = $this->createLedger($unitA->id, $bendaharaPusat->id, ['status' => 'draft']);
+        $pusatLedger = $this->createLedger($pusat->id, $bendaharaPusat->id, ['status' => 'draft']);
+        $categoryPusat = FinanceCategory::firstOrCreate(
             ['name' => 'Pusat Category', 'organization_unit_id' => $pusat->id],
             ['type' => 'income', 'is_active' => true, 'sort_order' => 1, 'created_by' => $bendaharaPusat->id]
         );
-        $dues = DuesPayment::create([
+        $categoryUnit = FinanceCategory::firstOrCreate(
+            ['name' => 'Unit Category', 'organization_unit_id' => $unitA->id],
+            ['type' => 'income', 'is_active' => true, 'sort_order' => 1, 'created_by' => $bendaharaPusat->id]
+        );
+        $duesPusat = DuesPayment::create([
             'member_id' => Member::factory()->create(['organization_unit_id' => $pusat->id])->id,
             'organization_unit_id' => $pusat->id,
             'period' => now()->format('Y-m'),
@@ -491,15 +511,28 @@ class FinanceUnitScopeTest extends TestCase
             'paid_at' => now(),
             'recorded_by' => $bendaharaPusat->id,
         ]);
+        $duesUnit = DuesPayment::create([
+            'member_id' => Member::factory()->create(['organization_unit_id' => $unitA->id])->id,
+            'organization_unit_id' => $unitA->id,
+            'period' => now()->format('Y-m'),
+            'status' => 'paid',
+            'amount' => 100000,
+            'paid_at' => now(),
+            'recorded_by' => $bendaharaPusat->id,
+        ]);
 
-        $this->assertTrue($bendaharaPusat->can('view', $ledger));
-        $this->assertFalse($bendaharaPusat->can('create', FinanceLedger::class));
-        $this->assertFalse($bendaharaPusat->can('update', $ledger));
-        $this->assertFalse($bendaharaPusat->can('delete', $ledger));
-        $this->assertFalse($bendaharaPusat->can('approve', $ledger));
-        $this->assertFalse($bendaharaPusat->can('create', FinanceCategory::class));
-        $this->assertFalse($bendaharaPusat->can('update', $category));
-        $this->assertFalse($bendaharaPusat->can('update', $dues));
+        $this->assertTrue($bendaharaPusat->can('view', $unitLedger));
+        $this->assertTrue($bendaharaPusat->can('view', $pusatLedger));
+        $this->assertTrue($bendaharaPusat->can('create', FinanceLedger::class));
+        $this->assertFalse($bendaharaPusat->can('update', $unitLedger));
+        $this->assertFalse($bendaharaPusat->can('delete', $unitLedger));
+        $this->assertTrue($bendaharaPusat->can('update', $pusatLedger));
+        $this->assertTrue($bendaharaPusat->can('delete', $pusatLedger));
+        $this->assertTrue($bendaharaPusat->can('create', FinanceCategory::class));
+        $this->assertTrue($bendaharaPusat->can('update', $categoryPusat));
+        $this->assertFalse($bendaharaPusat->can('update', $categoryUnit));
+        $this->assertTrue($bendaharaPusat->can('update', $duesPusat));
+        $this->assertFalse($bendaharaPusat->can('update', $duesUnit));
     }
 
     public function test_bendahara_can_read_but_not_update_pusat_finance(): void

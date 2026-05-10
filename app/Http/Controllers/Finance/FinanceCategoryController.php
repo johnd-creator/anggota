@@ -96,6 +96,7 @@ class FinanceCategoryController extends Controller
         if (!$isGlobal && !$unitId) {
             return back()->withErrors(['organization_unit_id' => 'Anda tidak memiliki unit organisasi.']);
         }
+        abort_if($unitId !== null && ! $user->canManageFinanceUnit($unitId), 403, 'Anda tidak memiliki akses kelola unit tersebut.');
 
         $validated = $request->validate([
             'name' => [
@@ -166,6 +167,7 @@ class FinanceCategoryController extends Controller
         if (!$isGlobal && !$unitId) {
             return back()->withErrors(['organization_unit_id' => 'Anda tidak memiliki unit organisasi.']);
         }
+        abort_if($unitId !== null && ! $user->canManageFinanceUnit($unitId), 403, 'Anda tidak memiliki akses kelola unit tersebut.');
 
         $validated = $request->validate([
             'name' => [

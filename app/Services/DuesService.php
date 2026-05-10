@@ -43,16 +43,17 @@ class DuesService
             return $result;
         }
 
-        // Determine unit scope
-        $isSuperAdmin = $user->hasRole('super_admin');
-        $userUnitId = $user->organization_unit_id;
-
         // Get valid members (active, within unit scope)
         $membersQuery = Member::whereIn('id', $memberIds)
             ->where('status', 'aktif');
 
-        if (!$isSuperAdmin && $userUnitId) {
-            $membersQuery->where('organization_unit_id', $userUnitId);
+        if (! $user->hasGlobalAccess()) {
+            $unitId = $user->currentUnitId();
+            if (! $unitId || ! $user->canManageFinanceUnit($unitId)) {
+                return $result;
+            }
+
+            $membersQuery->where('organization_unit_id', $unitId);
         }
 
         $validMembers = $membersQuery->get();
@@ -155,8 +156,7 @@ class DuesService
         }
 
         // Check unit access
-        $isSuperAdmin = $user->hasRole('super_admin');
-        if (!$isSuperAdmin && (int) $user->organization_unit_id !== (int) $member->organization_unit_id) {
+        if (! $user->canManageFinanceUnit($member->organization_unit_id)) {
             return false;
         }
 

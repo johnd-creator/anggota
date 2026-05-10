@@ -30,12 +30,12 @@ class RoleMiddleware
         }
 
         $allowedRoles = $this->expandAllowedRoles($roles);
-        if (in_array($request->user()->role->name, $allowedRoles, true)) {
+        if (in_array($this->normalizeRoleName($request->user()->role->name), $allowedRoles, true)) {
             return $next($request);
         }
 
         // Fallback for Reguler users trying to access restricted pages
-        if ($request->user()->role->name === 'reguler') {
+        if ($this->normalizeRoleName($request->user()->role->name) === 'reguler') {
             return redirect()->route('itworks');
         }
 
@@ -57,6 +57,17 @@ class RoleMiddleware
                 $expanded[] = $implied;
             }
         }
-        return array_values(array_unique($expanded));
+        return array_values(array_unique(array_map([$this, 'normalizeRoleName'], $expanded)));
+    }
+
+    private function normalizeRoleName(?string $role): string
+    {
+        $normalized = strtolower(trim((string) $role));
+        $normalized = str_replace(['-', ' '], '_', $normalized);
+
+        return match ($normalized) {
+            'superadmin' => 'super_admin',
+            default => $normalized,
+        };
     }
 }

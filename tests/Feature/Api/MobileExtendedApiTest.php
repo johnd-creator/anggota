@@ -184,7 +184,7 @@ test('mobile finance units returns all for bendahara_pusat', function () {
         ->assertJsonPath('accessible_count', 3);
 });
 
-test('mobile bendahara_pusat can read all ledgers but cannot write finance data', function () {
+test('mobile bendahara_pusat can read all ledgers and manage pusat finance only', function () {
     $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
     $unitB = OrganizationUnit::factory()->create(['name' => 'Unit B', 'is_pusat' => false]);
     $pusat = OrganizationUnit::factory()->create(['name' => 'DPP Pusat', 'is_pusat' => true]);
@@ -216,7 +216,7 @@ test('mobile bendahara_pusat can read all ledgers but cannot write finance data'
         ->assertOk()
         ->assertJsonCount(2, 'ledgers');
 
-    $payload = [
+    $nonPusatPayload = [
         'organization_unit_id' => $unitA->id,
         'finance_category_id' => $category->id,
         'type' => 'income',
@@ -225,14 +225,40 @@ test('mobile bendahara_pusat can read all ledgers but cannot write finance data'
         'description' => 'Should be forbidden',
     ];
 
-    $this->postJson('/api/mobile/v1/finance/ledgers', $payload, $headers)->assertForbidden();
-    $this->putJson('/api/mobile/v1/finance/ledgers/'.$ledgerA->id, $payload, $headers)->assertForbidden();
+    $this->postJson('/api/mobile/v1/finance/ledgers', $nonPusatPayload, $headers)->assertForbidden();
+    $this->putJson('/api/mobile/v1/finance/ledgers/'.$ledgerA->id, $nonPusatPayload, $headers)->assertForbidden();
     $this->deleteJson('/api/mobile/v1/finance/ledgers/'.$ledgerA->id, [], $headers)->assertForbidden();
     $this->postJson('/api/mobile/v1/finance/ledgers/'.$ledgerA->id.'/approve', [], $headers)->assertForbidden();
-    $this->postJson('/api/mobile/v1/finance/categories', [
-        'name' => 'Forbidden category',
+
+    $pusatCategoryId = $this->postJson('/api/mobile/v1/finance/categories', [
+        'name' => 'Pusat category',
         'type' => 'income',
-    ], $headers)->assertForbidden();
+    ], $headers)
+        ->assertCreated()
+        ->assertJsonPath('category.organization_unit_id', $pusat->id)
+        ->json('category.id');
+
+    $pusatLedgerId = $this->postJson('/api/mobile/v1/finance/ledgers', [
+        'organization_unit_id' => $pusat->id,
+        'finance_category_id' => $pusatCategoryId,
+        'type' => 'income',
+        'amount' => 120000,
+        'date' => now()->toDateString(),
+        'description' => 'Pusat income',
+    ], $headers)
+        ->assertCreated()
+        ->json('ledger.id');
+
+    $this->putJson('/api/mobile/v1/finance/ledgers/'.$pusatLedgerId, [
+        'organization_unit_id' => $pusat->id,
+        'finance_category_id' => $pusatCategoryId,
+        'type' => 'income',
+        'amount' => 125000,
+        'date' => now()->toDateString(),
+        'description' => 'Updated pusat income',
+    ], $headers)->assertOk();
+
+    $this->deleteJson('/api/mobile/v1/finance/ledgers/'.$pusatLedgerId, [], $headers)->assertOk();
 });
 
 test('mobile bendahara can read pusat ledgers and dues but cannot write pusat data', function () {

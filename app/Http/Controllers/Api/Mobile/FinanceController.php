@@ -373,7 +373,11 @@ class FinanceController extends Controller
             return $unitId;
         }
 
-        return (int) $request->user()->currentUnitId();
+        $unitId = (int) $request->user()->currentUnitId();
+        abort_if($requestedUnitId !== null && (int) $requestedUnitId !== $unitId, 403, 'Anda tidak memiliki akses kelola unit tersebut.');
+        abort_unless($unitId > 0 && $request->user()->canManageFinanceUnit($unitId), 403, 'Anda tidak memiliki akses kelola unit tersebut.');
+
+        return $unitId;
     }
 
     private function authorizeDuesAdmin(Request $request): void
@@ -437,7 +441,8 @@ class FinanceController extends Controller
         }
 
         $unitId = $request->user()->currentUnitId();
-        abort_if(! $unitId, 422, 'User tidak memiliki unit organisasi.');
+        abort_if($requestedUnitId !== null && (int) $requestedUnitId !== (int) $unitId, 403, 'Anda tidak memiliki akses kelola unit tersebut.');
+        abort_unless($unitId && $request->user()->canManageFinanceUnit($unitId), 403, 'Anda tidak memiliki akses kelola unit tersebut.');
 
         return $unitId;
     }
@@ -449,6 +454,8 @@ class FinanceController extends Controller
         if ($user->hasGlobalAccess()) {
             return;
         }
+
+        abort_unless($user->canManageFinanceUnit($unitId), 403, 'Anda tidak memiliki akses kelola unit tersebut.');
 
         abort_if(
             $category->organization_unit_id !== null && (int) $category->organization_unit_id !== $unitId,

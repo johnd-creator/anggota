@@ -46,7 +46,7 @@ class FinanceCategoryPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_pusat', 'bendahara']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'bendahara', 'bendahara_pusat']);
     }
 
     public function update(User $user, FinanceCategory $category): bool
@@ -55,18 +55,13 @@ class FinanceCategoryPolicy
             return true;
         }
 
-        if ($user->hasRole('bendahara_pusat')) {
-            return false;
-        }
-
-        if ($user->hasRole(['bendahara', 'admin_pusat'])) {
+        if ($user->hasRole(['bendahara', 'admin_pusat', 'bendahara_pusat'])) {
             // Cannot update global categories
             if ($category->organization_unit_id === null) {
                 return false;
             }
-            $unitId = $user->currentUnitId();
 
-            return $unitId !== null && $unitId === $category->organization_unit_id;
+            return $user->canManageFinanceUnit($category->organization_unit_id);
         }
 
         return false;

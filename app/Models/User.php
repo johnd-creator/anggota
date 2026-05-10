@@ -324,6 +324,33 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if user can manage/create/update finance records in a unit.
+     * Read-wide central roles are intentionally limited to DPP/Pusat writes.
+     */
+    public function canManageFinanceUnit(?int $unitId): bool
+    {
+        if ($unitId === null) {
+            return false;
+        }
+
+        if ($this->hasGlobalAccess()) {
+            return true;
+        }
+
+        if ($this->hasRole(['admin_pusat', 'bendahara_pusat'])) {
+            return \App\Models\OrganizationUnit::whereKey($unitId)
+                ->where('is_pusat', true)
+                ->exists();
+        }
+
+        if ($this->hasRole('bendahara')) {
+            return (int) $this->currentUnitId() === (int) $unitId;
+        }
+
+        return false;
+    }
+
+    /**
      * Check if user can manage/edit specific organization's data.
      */
     public function canManageOrganization(OrganizationUnit $org): bool

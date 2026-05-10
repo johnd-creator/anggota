@@ -14,78 +14,40 @@ class FinanceLedgerPolicy
 
     public function view(User $user, FinanceLedger $ledger): bool
     {
-        if ($user->canViewGlobalScope()) {
-            return true;
-        }
-
-        if ($user->hasRole('bendahara')) {
-            return $user->canAccessFinanceUnit($ledger->organization_unit_id);
-        }
-
-        if ($user->hasRole(['admin_unit', 'pengurus'])) {
-            $unitId = $user->currentUnitId();
-
-            return $unitId !== null && $unitId === $ledger->organization_unit_id;
-        }
-
-        return false;
+        return $user->canAccessFinanceUnit($ledger->organization_unit_id);
     }
 
     public function create(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_pusat', 'bendahara']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'bendahara', 'bendahara_pusat']);
     }
 
     public function update(User $user, FinanceLedger $ledger): bool
     {
-        if ($user->hasGlobalAccess()) {
-            return true;
-        }
-
-        if ($user->hasRole('bendahara_pusat')) {
-            return false;
-        }
-
-        if ($user->hasRole('admin_pusat')) {
-            return (int) $ledger->created_by === (int) $user->id;
-        }
-
         if ($user->hasRole('bendahara')) {
             if (FinanceLedger::workflowEnabled() && in_array($ledger->status, ['approved', 'rejected'])) {
                 return false;
             }
 
-            return (int) $user->currentUnitId() === (int) $ledger->organization_unit_id
+            return $user->canManageFinanceUnit($ledger->organization_unit_id)
                 && (int) $ledger->created_by === (int) $user->id;
         }
 
-        return false;
+        return $user->canManageFinanceUnit($ledger->organization_unit_id);
     }
 
     public function delete(User $user, FinanceLedger $ledger): bool
     {
-        if ($user->hasGlobalAccess()) {
-            return true;
-        }
-
-        if ($user->hasRole('bendahara_pusat')) {
-            return false;
-        }
-
-        if ($user->hasRole('admin_pusat')) {
-            return (int) $ledger->created_by === (int) $user->id;
-        }
-
         if ($user->hasRole('bendahara')) {
             if (FinanceLedger::workflowEnabled() && in_array($ledger->status, ['approved', 'rejected'])) {
                 return false;
             }
 
-            return (int) $user->currentUnitId() === (int) $ledger->organization_unit_id
+            return $user->canManageFinanceUnit($ledger->organization_unit_id)
                 && (int) $ledger->created_by === (int) $user->id;
         }
 
-        return false;
+        return $user->canManageFinanceUnit($ledger->organization_unit_id);
     }
 
     /**
@@ -104,6 +66,10 @@ class FinanceLedgerPolicy
 
         if ($user->hasGlobalAccess()) {
             return true;
+        }
+
+        if ($user->hasRole(['bendahara', 'bendahara_pusat'])) {
+            return $user->canManageFinanceUnit($ledger->organization_unit_id);
         }
 
         if ($user->hasRole(['admin_unit', 'admin_pusat', 'pengurus_pusat'])) {

@@ -52,7 +52,7 @@ class DuesPaymentPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole(['super_admin', 'admin_pusat', 'bendahara']);
+        return $user->hasRole(['super_admin', 'admin_pusat', 'bendahara', 'bendahara_pusat']);
     }
 
     /**
@@ -60,29 +60,7 @@ class DuesPaymentPolicy
      */
     public function update(User $user, DuesPayment $duesPayment): bool
     {
-        // Super admin can manage all
-        if ($user->hasRole('super_admin')) {
-            return true;
-        }
-
-        if ($user->hasRole('bendahara_pusat')) {
-            return false;
-        }
-
-        // admin_pusat can only edit DPP transactions
-        if ($user->hasRole('admin_pusat')) {
-            $dppOrg = $user->managedOrganization;
-
-            return $dppOrg && $dppOrg->is_pusat && $duesPayment->organization_unit_id === $dppOrg->id;
-        }
-
-        if ($user->hasRole('bendahara')) {
-            $unitId = $user->currentUnitId();
-
-            return $unitId !== null && $unitId === $duesPayment->organization_unit_id;
-        }
-
-        return false;
+        return $user->canManageFinanceUnit($duesPayment->organization_unit_id);
     }
 
     /**
@@ -91,27 +69,7 @@ class DuesPaymentPolicy
      */
     public function updateForUnit(User $user, int $unitId): bool
     {
-        // Super admin can manage all
-        if ($user->hasRole('super_admin')) {
-            return true;
-        }
-
-        if ($user->hasRole('bendahara_pusat')) {
-            return false;
-        }
-
-        // admin_pusat can only update DPP
-        if ($user->hasRole('admin_pusat')) {
-            $dppOrg = $user->managedOrganization;
-
-            return $dppOrg && $dppOrg->is_pusat && $unitId === $dppOrg->id;
-        }
-
-        if ($user->hasRole('bendahara')) {
-            return $user->currentUnitId() === $unitId;
-        }
-
-        return false;
+        return $user->canManageFinanceUnit($unitId);
     }
 
     /**
@@ -120,28 +78,6 @@ class DuesPaymentPolicy
      */
     public function updateForMember(User $user, Member $member): bool
     {
-        // Super admin can manage all
-        if ($user->hasRole('super_admin')) {
-            return true;
-        }
-
-        if ($user->hasRole('bendahara_pusat')) {
-            return false;
-        }
-
-        // admin_pusat can only update DPP members (should not exist)
-        if ($user->hasRole('admin_pusat')) {
-            $dppOrg = $user->managedOrganization;
-
-            return $dppOrg && $dppOrg->is_pusat && $member->organization_unit_id === $dppOrg->id;
-        }
-
-        if ($user->hasRole('bendahara')) {
-            $unitId = $user->currentUnitId();
-
-            return $unitId !== null && $unitId === $member->organization_unit_id;
-        }
-
-        return false;
+        return $user->canManageFinanceUnit($member->organization_unit_id);
     }
 }
