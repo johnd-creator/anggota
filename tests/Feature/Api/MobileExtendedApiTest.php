@@ -309,6 +309,51 @@ test('mobile bendahara can read pusat ledgers and dues but cannot write pusat da
     ], $headers)->assertForbidden();
 });
 
+test('mobile finance dues mirrors web member checklist list', function () {
+    $unitA = OrganizationUnit::factory()->create(['name' => 'Unit A', 'is_pusat' => false]);
+    $bendahara = mobileExtendedUser('bendahara', $unitA);
+    $period = now()->format('Y-m');
+    $paidMember = Member::factory()->create([
+        'organization_unit_id' => $unitA->id,
+        'full_name' => 'Anggota Sudah Bayar',
+    ]);
+    $unpaidMember = Member::factory()->create([
+        'organization_unit_id' => $unitA->id,
+        'full_name' => 'Anggota Belum Bayar',
+    ]);
+
+    DuesPayment::create([
+        'member_id' => $paidMember->id,
+        'organization_unit_id' => $unitA->id,
+        'period' => $period,
+        'status' => 'paid',
+        'amount' => 30000,
+        'paid_at' => now(),
+        'recorded_by' => $bendahara->id,
+    ]);
+
+    $headers = ['Authorization' => 'Bearer '.mobileExtendedToken($bendahara)];
+
+    $this->getJson('/api/mobile/v1/finance/dues?period='.$period, $headers)
+        ->assertOk()
+        ->assertJsonPath('meta.total', 2)
+        ->assertJsonFragment([
+            'member_id' => $paidMember->id,
+            'member_name' => 'Anggota Sudah Bayar',
+            'status' => 'paid',
+        ])
+        ->assertJsonFragment([
+            'member_id' => $unpaidMember->id,
+            'member_name' => 'Anggota Belum Bayar',
+            'status' => 'unpaid',
+        ]);
+
+    $this->getJson('/api/mobile/v1/finance/dues/dashboard?period='.$period, $headers)
+        ->assertOk()
+        ->assertJsonPath('summary.paid', 1)
+        ->assertJsonPath('summary.unpaid', 1);
+});
+
 test('activity log is created on finance ledger creation', function () {
     $unit = OrganizationUnit::factory()->create();
     $superAdmin = mobileExtendedUser('super_admin', $unit);

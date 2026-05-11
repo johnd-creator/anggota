@@ -267,16 +267,56 @@ class FinanceController extends Controller
         $request->user()->loadMissing('role');
         $this->authorizeDuesAdmin($request);
         Gate::authorize('viewAny', DuesPayment::class);
-        $query = DuesPayment::with(['member:id,full_name,kta_number,organization_unit_id', 'organizationUnit:id,name,code'])->latest('period');
-        $this->applyDuesUnitScope($query, $request->user(), $request->query('unit_id'));
-        foreach (['period', 'status', 'member_id'] as $filter) {
-            if ($request->filled($filter)) {
-                $query->where($filter, $request->query($filter));
+        $period = $request->query('period', now()->format('Y-m'));
+        $query = Member::query()
+            ->select([
+                'members.id',
+                'members.full_name',
+                'members.kta_number',
+                'members.organization_unit_id',
+                'dues_payments.status as dues_status',
+                'dues_payments.amount',
+                'dues_payments.paid_at',
+                'dues_payments.notes',
+                'dues_payments.id as dues_payment_id',
+            ])
+            ->leftJoin('dues_payments', function ($join) use ($period) {
+                $join->on('members.id', '=', 'dues_payments.member_id')
+                    ->where('dues_payments.period', '=', $period);
+            })
+            ->where('members.status', 'aktif');
+
+        $this->applyDuesMemberUnitScope($query, $request->user(), $request->query('unit_id'));
+
+        if ($request->filled('status')) {
+            if ($request->query('status') === 'paid') {
+                $query->where('dues_payments.status', 'paid');
+            } elseif ($request->query('status') === 'unpaid') {
+                $query->where(function ($q) {
+                    $q->whereNull('dues_payments.status')
+                        ->orWhere('dues_payments.status', 'unpaid');
+                });
+            } else {
+                $query->where('dues_payments.status', $request->query('status'));
             }
         }
+        if ($request->filled('member_id')) {
+            $query->where('members.id', $request->query('member_id'));
+        }
 
-        $paginator = $query->paginate($this->perPage($request));
-        $paginator->getCollection()->transform(fn (DuesPayment $dues) => new DuesPaymentResource($dues));
+        $paginator = $query->orderBy('members.full_name')->paginate($this->perPage($request));
+        $paginator->getCollection()->transform(fn ($member) => [
+            'id' => $member->dues_payment_id,
+            'member_id' => $member->id,
+            'member_name' => $member->full_name,
+            'kta_number' => $member->kta_number,
+            'organization_unit_id' => $member->organization_unit_id,
+            'period' => $period,
+            'status' => $member->dues_status ?? 'unpaid',
+            'amount' => (float) ($member->amount ?? 0),
+            'paid_at' => $member->paid_at,
+            'notes' => $member->notes,
+        ]);
 
         return $this->paginated($paginator, 'dues');
     }
@@ -327,18 +367,23 @@ class FinanceController extends Controller
         $request->user()->loadMissing('role');
         $this->authorizeDuesAdmin($request);
         Gate::authorize('viewAny', DuesPayment::class);
-        $query = DuesPayment::query();
-        $this->applyDuesUnitScope($query, $request->user(), $request->query('unit_id'));
-        if ($period = $request->query('period')) {
-            $query->where('period', $period);
-        }
+        $period = $request->query('period', now()->format('Y-m'));
+        $membersQuery = Member::query()->where('members.status', 'aktif');
+        $this->applyDuesMemberUnitScope($membersQuery, $request->user(), $request->query('unit_id'));
+
+        $paymentsQuery = DuesPayment::query()->where('period', $period);
+        $this->applyDuesUnitScope($paymentsQuery, $request->user(), $request->query('unit_id'));
+
+        $totalMembers = (clone $membersQuery)->count();
+        $paid = (clone $paymentsQuery)->where('status', 'paid')->count();
+        $waived = (clone $paymentsQuery)->where('status', 'waived')->count();
 
         return response()->json([
             'summary' => [
-                'paid' => (clone $query)->where('status', 'paid')->count(),
-                'unpaid' => (clone $query)->where('status', 'unpaid')->count(),
-                'waived' => (clone $query)->where('status', 'waived')->count(),
-                'total_amount' => (float) (clone $query)->sum('amount'),
+                'paid' => $paid,
+                'unpaid' => max($totalMembers - $paid - $waived, 0),
+                'waived' => $waived,
+                'total_amount' => (float) (clone $paymentsQuery)->sum('amount'),
             ],
         ]);
     }
@@ -421,6 +466,30 @@ class FinanceController extends Controller
         }
 
         $query->where('organization_unit_id', $user->currentUnitId());
+    }
+
+    private function applyDuesMemberUnitScope($query, $user, ?string $unitParam = null): void
+    {
+        if ($user->canViewGlobalScope()) {
+            if ($unitParam) {
+                $query->where('members.organization_unit_id', (int) $unitParam);
+            }
+            return;
+        }
+
+        if ($user->hasRole('bendahara')) {
+            $accessibleIds = $user->accessibleFinanceUnitIds();
+            if ($unitParam) {
+                abort_unless(in_array((int) $unitParam, $accessibleIds, true), 403, 'Anda tidak memiliki akses ke unit tersebut.');
+                $query->where('members.organization_unit_id', (int) $unitParam);
+            } else {
+                $query->whereIn('members.organization_unit_id', $accessibleIds);
+            }
+
+            return;
+        }
+
+        $query->where('members.organization_unit_id', $user->currentUnitId());
     }
 
     private function applyFinanceUnitFilter($query, $user, ?string $unitParam = null): void
