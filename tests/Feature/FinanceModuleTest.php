@@ -73,6 +73,23 @@ class FinanceModuleTest extends TestCase
         ]);
     }
 
+    public function test_super_admin_can_create_global_category_from_browser_null_payload()
+    {
+        $response = $this->actingAs($this->superAdmin)
+            ->post(route('finance.categories.store'), [
+                'name' => 'Global Browser Payload',
+                'type' => 'income',
+                'organization_unit_id' => 'null',
+            ]);
+
+        $response->assertRedirect();
+
+        $this->assertDatabaseHas('finance_categories', [
+            'name' => 'Global Browser Payload',
+            'organization_unit_id' => null,
+        ]);
+    }
+
     public function test_bendahara_can_only_create_unit_categories()
     {
         // Try to create global category (should fail or force unit_id depending on controller logic)

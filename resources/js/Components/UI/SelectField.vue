@@ -51,8 +51,8 @@ import { computed } from 'vue';
 
 const props = defineProps({
   modelValue: {
-    type: [String, Number],
-    default: '',
+    type: [String, Number, Boolean, Array, Object],
+    default: null,
   },
   options: {
     type: Array,
@@ -92,7 +92,8 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue']);
 
 const handleChange = (event) => {
-  emit('update:modelValue', event.target.value);
+  const selectedOption = event.target.selectedOptions?.[0];
+  emit('update:modelValue', selectedOption?._value ?? event.target.value);
 };
 
 const selectClasses = computed(() => {

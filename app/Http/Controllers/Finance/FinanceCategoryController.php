@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Finance;
 use App\Http\Controllers\Controller;
 use App\Models\FinanceCategory;
 use App\Models\OrganizationUnit;
+use App\Models\User;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,10 +15,26 @@ use Inertia\Inertia;
 
 class FinanceCategoryController extends Controller
 {
+    protected function normalizeOrganizationUnitId(mixed $value): ?int
+    {
+        if ($value === null || $value === '' || $value === 'null') {
+            return null;
+        }
+
+        if (is_numeric($value)) {
+            $intValue = (int) $value;
+
+            return $intValue > 0 ? $intValue : null;
+        }
+
+        return null;
+    }
+
     public function index(Request $request)
     {
         Gate::authorize('viewAny', FinanceCategory::class);
 
+        /** @var User $user */
         $user = Auth::user();
         $isGlobal = $user->canViewGlobalScope();
         $unitId = $user->currentUnitId();
@@ -68,6 +85,7 @@ class FinanceCategoryController extends Controller
     {
         Gate::authorize('create', FinanceCategory::class);
 
+        /** @var User $user */
         $user = Auth::user();
         $units = $user->hasGlobalAccess() ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
 
@@ -81,6 +99,7 @@ class FinanceCategoryController extends Controller
     {
         Gate::authorize('create', FinanceCategory::class);
 
+        /** @var User $user */
         $user = Auth::user();
         $isGlobal = $user->hasGlobalAccess();
 
@@ -89,7 +108,7 @@ class FinanceCategoryController extends Controller
 
         // Non-global: force to their unit, ignore request param
         $unitId = $isGlobal
-            ? ($request->input('organization_unit_id') ? (int) $request->input('organization_unit_id') : null)
+            ? $this->normalizeOrganizationUnitId($request->input('organization_unit_id'))
             : $user->currentUnitId();
 
         // Non-global without unit = error
@@ -139,6 +158,7 @@ class FinanceCategoryController extends Controller
     {
         Gate::authorize('update', $category);
 
+        /** @var User $user */
         $user = Auth::user();
         $units = $user->hasGlobalAccess() ? OrganizationUnit::select('id', 'name')->orderBy('name')->get() : [];
 
@@ -152,6 +172,7 @@ class FinanceCategoryController extends Controller
     {
         Gate::authorize('update', $category);
 
+        /** @var User $user */
         $user = Auth::user();
         $isGlobal = $user->hasGlobalAccess();
 
@@ -160,7 +181,7 @@ class FinanceCategoryController extends Controller
 
         // Non-global: force to their unit, ignore request param
         $unitId = $isGlobal
-            ? ($request->input('organization_unit_id') ? (int) $request->input('organization_unit_id') : null)
+            ? $this->normalizeOrganizationUnitId($request->input('organization_unit_id'))
             : $user->currentUnitId();
 
         // Non-global without unit = error
@@ -230,6 +251,7 @@ class FinanceCategoryController extends Controller
     {
         Gate::authorize('viewAny', FinanceCategory::class);
 
+        /** @var User $user */
         $user = Auth::user();
         $isGlobal = $user->canViewGlobalScope();
         $unitId = $user->currentUnitId();
