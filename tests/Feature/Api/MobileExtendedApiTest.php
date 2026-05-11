@@ -348,6 +348,12 @@ test('mobile finance dues mirrors web member checklist list', function () {
             'status' => 'unpaid',
         ]);
 
+    $this->getJson('/api/mobile/v1/finance/dues?period='.$period.'&q=Belum', $headers)
+        ->assertOk()
+        ->assertJsonPath('meta.total', 1)
+        ->assertJsonFragment(['member_name' => 'Anggota Belum Bayar'])
+        ->assertJsonMissing(['member_name' => 'Anggota Sudah Bayar']);
+
     $this->getJson('/api/mobile/v1/finance/dues/dashboard?period='.$period, $headers)
         ->assertOk()
         ->assertJsonPath('summary.paid', 1)

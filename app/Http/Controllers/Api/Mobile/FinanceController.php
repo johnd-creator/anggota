@@ -303,6 +303,13 @@ class FinanceController extends Controller
         if ($request->filled('member_id')) {
             $query->where('members.id', $request->query('member_id'));
         }
+        if ($search = $request->query('q') ?: $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('members.full_name', 'like', "%{$search}%")
+                    ->orWhere('members.kta_number', 'like', "%{$search}%")
+                    ->orWhere('members.nra', 'like', "%{$search}%");
+            });
+        }
 
         $paginator = $query->orderBy('members.full_name')->paginate($this->perPage($request));
         $paginator->getCollection()->transform(fn ($member) => [
