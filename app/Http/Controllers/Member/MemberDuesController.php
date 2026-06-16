@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Member;
 
 use App\Http\Controllers\Controller;
 use App\Models\DuesPayment;
+use App\Models\FinanceCategory;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -35,6 +36,18 @@ class MemberDuesController extends Controller
         $member = \App\Models\Member::find($memberId);
         $joinDate = $member->join_date ? Carbon::parse($member->join_date)->startOfMonth() : null;
 
+        // Get current default amount from the recurring "Iuran Anggota" category
+        $defaultAmount = FinanceCategory::where('is_recurring', true)
+            ->where('type', 'income')
+            ->where(function ($q) use ($member) {
+                $q->whereNull('organization_unit_id');
+                if ($member && $member->organization_unit_id) {
+                    $q->orWhere('organization_unit_id', $member->organization_unit_id);
+                }
+            })
+            ->orderByRaw('CASE WHEN organization_unit_id IS NOT NULL THEN 0 ELSE 1 END')
+            ->value('default_amount') ?? (int) config('dues.default_amount', 30000);
+
         $payments = DuesPayment::where('member_id', $memberId)
             ->whereIn('period', $periods)
             ->orderByDesc('period')
@@ -42,7 +55,7 @@ class MemberDuesController extends Controller
             ->keyBy('period');
 
         // Build full list with virtual unpaid for missing periods
-        $paymentsList = collect($periods)->map(function ($period) use ($payments, $joinDate) {
+        $paymentsList = collect($periods)->map(function ($period) use ($payments, $joinDate, $defaultAmount) {
             // Check if user had not joined yet
             $periodDate = Carbon::createFromFormat('Y-m', $period)->endOfMonth();
             if ($joinDate && $periodDate->lt($joinDate)) {
@@ -63,7 +76,7 @@ class MemberDuesController extends Controller
             return [
                 'period' => $period,
                 'status' => 'unpaid',
-                'amount' => (float) config('dues.default_amount', 30000),
+                'amount' => (float) $defaultAmount,
                 'paid_at' => null,
                 'notes' => null,
             ];
@@ -82,7 +95,7 @@ class MemberDuesController extends Controller
                 'unpaid_count' => $unpaidPeriods->count(),
                 'unpaid_periods' => $unpaidPeriods->take(3)->values(),
             ],
-            'default_amount' => (int) config('dues.default_amount', 30000),
+            'default_amount' => (int) $defaultAmount,
         ]);
     }
 

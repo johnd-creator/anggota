@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\DuesPayment;
+use App\Models\FinanceCategory;
 use App\Models\Member;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -89,7 +90,10 @@ class GenerateMonthlyDues extends Command
      */
     protected function generateForPeriod(string $period, bool $dryRun): array
     {
-        $amount = config('dues.default_amount', 30000);
+        $amount = FinanceCategory::where('is_recurring', true)
+            ->where('type', 'income')
+            ->whereNull('organization_unit_id')
+            ->value('default_amount') ?? (int) config('dues.default_amount', 30000);
         $periodEnd = Carbon::createFromFormat('Y-m', $period)->endOfMonth();
 
         // Get active members with join dates

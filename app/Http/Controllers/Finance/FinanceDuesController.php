@@ -185,6 +185,7 @@ class FinanceDuesController extends Controller
             'status' => ['required', 'in:paid,unpaid'],
             'amount' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'category_id' => ['required', 'exists:finance_categories,id'],
         ]);
 
         // Validate amount when marking as paid
@@ -210,7 +211,8 @@ class FinanceDuesController extends Controller
             $validated['status'],
             $validated['amount'] ?? null,
             $validated['notes'] ?? null,
-            $user
+            $user,
+            $validated['category_id']
         );
 
         if (!$success) {
@@ -226,6 +228,7 @@ class FinanceDuesController extends Controller
                 'status_before' => $statusBefore,
                 'status_after' => $validated['status'],
                 'amount' => $validated['amount'] ?? null,
+                'category_id' => $validated['category_id'],
             ],
             $member,
             $user->id,

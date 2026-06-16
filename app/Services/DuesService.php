@@ -139,47 +139,86 @@ class DuesService
         return $result;
     }
 
-    /**
-     * Record single payment (for backward compatibility).
-     */
     public function recordSinglePayment(
         int $memberId,
         string $period,
         string $status,
         ?float $amount,
         ?string $notes,
-        User $user
+        User $user,
+        int $categoryId
     ): bool {
         $member = Member::find($memberId);
         if (!$member) {
             return false;
         }
 
-        // Check unit access
-        if (! $user->canManageFinanceUnit($member->organization_unit_id)) {
+        if (!$user->canManageFinanceUnit($member->organization_unit_id)) {
             return false;
         }
 
-        $data = [
-            'organization_unit_id' => $member->organization_unit_id,
-            'status' => $status,
-            'notes' => $notes,
-        ];
-
-        if ($status === 'paid') {
-            $data['amount'] = $amount;
-            $data['paid_at'] = now();
-            $data['recorded_by'] = $user->id;
-        } else {
-            $data['amount'] = null;
-            $data['paid_at'] = null;
-            $data['recorded_by'] = null;
+        $category = FinanceCategory::find($categoryId);
+        if (!$category) {
+            return false;
         }
 
-        DuesPayment::updateOrCreate(
-            ['member_id' => $memberId, 'period' => $period],
-            $data
-        );
+        DB::transaction(function () use ($memberId, $period, $status, $amount, $notes, $user, $categoryId, $member) {
+            $data = [
+                'organization_unit_id' => $member->organization_unit_id,
+                'status' => $status,
+                'notes' => $notes,
+            ];
+
+            if ($status === 'paid') {
+                $data['amount'] = $amount;
+                $data['paid_at'] = now();
+                $data['recorded_by'] = $user->id;
+            } else {
+                $data['amount'] = null;
+                $data['paid_at'] = null;
+                $data['recorded_by'] = null;
+            }
+
+            DuesPayment::updateOrCreate(
+                ['member_id' => $memberId, 'period' => $period],
+                $data
+            );
+
+            $escapedName = str_replace(['%', '_'], ['\%', '\_'], $member->full_name);
+            $ledgerPattern = "Iuran {$period}: %{$escapedName}%";
+
+            if ($status === 'paid') {
+                $exists = FinanceLedger::where('organization_unit_id', $member->organization_unit_id)
+                    ->where('finance_category_id', $categoryId)
+                    ->where('type', 'income')
+                    ->where('description', 'LIKE', $ledgerPattern)
+                    ->exists();
+
+                if (!$exists) {
+                    $description = "Iuran {$period}: {$member->full_name}";
+                    if ($notes) {
+                        $description .= " - {$notes}";
+                    }
+
+                    FinanceLedger::create([
+                        'organization_unit_id' => $member->organization_unit_id,
+                        'finance_category_id' => $categoryId,
+                        'type' => 'income',
+                        'amount' => $amount,
+                        'description' => $description,
+                        'date' => now()->toDateString(),
+                        'status' => FinanceLedger::workflowEnabled() ? 'submitted' : 'approved',
+                        'created_by' => $user->id,
+                    ]);
+                }
+            } else {
+                FinanceLedger::where('organization_unit_id', $member->organization_unit_id)
+                    ->where('finance_category_id', $categoryId)
+                    ->where('type', 'income')
+                    ->where('description', 'LIKE', $ledgerPattern)
+                    ->delete();
+            }
+        });
 
         return true;
     }

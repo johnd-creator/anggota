@@ -132,17 +132,26 @@ class LoginController extends Controller
             $roleName = $whitelist[$domain];
         }
 
-        // Find or Create User
+        // Find or create user. Keep the existing password when linking Google SSO;
+        // otherwise a Google login silently breaks manual email/password login.
         try {
-            $user = User::updateOrCreate(
-                ['email' => $email],
-                [
+            $user = User::where('email', $email)->first();
+
+            if ($user) {
+                $user->forceFill([
                     'name' => $googleUser->getName(),
                     'google_id' => $googleUser->getId(),
                     'avatar' => $this->sanitizeAvatarUrl($googleUser->getAvatar()),
-                    'password' => bcrypt(Str::random(16)), // Random password
-                ]
-            );
+                ])->save();
+            } else {
+                $user = User::create([
+                    'email' => $email,
+                    'name' => $googleUser->getName(),
+                    'google_id' => $googleUser->getId(),
+                    'avatar' => $this->sanitizeAvatarUrl($googleUser->getAvatar()),
+                    'password' => bcrypt(Str::random(16)),
+                ]);
+            }
         } catch (\Throwable $e) {
             Log::error('Google login user upsert failed', [
                 'request_id' => $request->headers->get('X-Request-Id'),

@@ -169,6 +169,12 @@
         <div class="space-y-4">
           <p class="text-neutral-600">Tandai iuran bulan <strong>{{ period }}</strong> untuk <strong>{{ $toTitleCase(selectedMember?.full_name) }}</strong> sebagai sudah bayar.</p>
           <div>
+            <label class="block text-sm font-medium text-neutral-700 mb-1">Jenis Iuran *</label>
+            <select v-model="payForm.category_id" class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700">
+              <option v-for="cat in recurringCategories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+            </select>
+          </div>
+          <div>
             <label class="block text-sm font-medium text-neutral-700 mb-1">Nominal (Rp) *</label>
             <input type="number" v-model.number="payForm.amount" min="1" step="1000" class="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700" placeholder="Contoh: 50000" />
             <p v-if="payError" class="text-xs text-red-600 mt-1">{{ payError }}</p>
@@ -300,7 +306,7 @@ function canManageMember(member) {
 // Pay modal state
 const showPayModal = ref(false)
 const selectedMember = ref(null)
-const payForm = ref({ amount: null, notes: '' })
+const payForm = ref({ amount: null, notes: '', category_id: '' })
 const payError = ref('')
 const submitting = ref(false)
 
@@ -348,7 +354,12 @@ function applyFilters() {
 
 function openPayModal(member) {
   selectedMember.value = member
-  payForm.value = { amount: null, notes: '' }
+  const defaultCat = quickCategoryId.value || (props.recurringCategories.length > 0 ? props.recurringCategories[0].id : '')
+  payForm.value = { amount: null, notes: '', category_id: defaultCat }
+  if (defaultCat) {
+    const cat = props.recurringCategories.find(c => c.id === defaultCat)
+    if (cat && cat.default_amount) payForm.value.amount = parseFloat(cat.default_amount)
+  }
   payError.value = ''
   showPayModal.value = true
 }
@@ -406,6 +417,7 @@ function submitPay() {
     status: 'paid',
     amount: payForm.value.amount,
     notes: payForm.value.notes,
+    category_id: payForm.value.category_id,
   }, {
     preserveScroll: true,
     onSuccess() {
@@ -425,12 +437,14 @@ function confirmRevert(member) {
 
 function submitRevert() {
   submitting.value = true
+  const revertCategoryId = quickCategoryId.value || (props.recurringCategories.length > 0 ? props.recurringCategories[0].id : '')
   router.post('/finance/dues/update', {
     member_id: selectedMember.value.id,
     period: period.value,
     status: 'unpaid',
     amount: null,
     notes: null,
+    category_id: revertCategoryId,
   }, {
     preserveScroll: true,
     onSuccess() {
