@@ -61,6 +61,7 @@ class ReportsExportController extends Controller
             'q' => 'nullable|string|max:80',
             // Members specific
             'union_position_id' => 'nullable|integer',
+            'employment_type' => 'nullable|string|in:organik,tkwt',
             'include_documents' => 'nullable',
             // Aspirations specific
             'include_member' => 'nullable',
@@ -148,6 +149,7 @@ class ReportsExportController extends Controller
                 'union_position_id',
                 'join_date',
                 'employee_id',
+                'employment_type',
                 'photo_path',
                 'documents'
             ])
@@ -168,6 +170,9 @@ class ReportsExportController extends Controller
         if (!empty($params['union_position_id'])) {
             $query->where('union_position_id', $params['union_position_id']);
         }
+        if (!empty($params['employment_type'])) {
+            $query->where('employment_type', $params['employment_type']);
+        }
         if (!empty($params['q'])) {
             $search = '%' . $params['q'] . '%';
             $query->where(function ($q) use ($search) {
@@ -184,6 +189,7 @@ class ReportsExportController extends Controller
             'date_start' => $params['date_start'] ?? null,
             'date_end' => $params['date_end'] ?? null,
             'union_position_id' => $params['union_position_id'] ?? null,
+            'employment_type' => $params['employment_type'] ?? null,
         ]);
         if (!empty($params['q'])) {
             $safeFilters['q_len'] = strlen($params['q']);
@@ -208,6 +214,7 @@ class ReportsExportController extends Controller
             'Email',
             'Telepon',
             'Employee ID',
+            'Jenis Pekerja',
             'NIP',
             'Has Photo',
             'Has Documents'
@@ -235,6 +242,11 @@ class ReportsExportController extends Controller
                         $email,
                         $phone,
                         $m->employee_id,
+                        match ($m->employment_type) {
+                            'organik' => 'Organik',
+                            'tkwt' => 'TKWT',
+                            default => '',
+                        },
                         $nip,
                         $m->photo_path ? 'YA' : 'TIDAK',
                         !empty($m->documents) ? 'YA' : 'TIDAK'

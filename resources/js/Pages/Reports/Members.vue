@@ -74,6 +74,15 @@
                />
             </div>
 
+            <!-- Employment Type -->
+            <div>
+               <SelectField
+                 label="Jenis Pekerja"
+                 v-model="form.employment_type"
+                 :options="employmentTypeOptions"
+               />
+            </div>
+
             <!-- Options -->
             <div class="md:col-span-2 flex items-center gap-2 mt-2">
                <Checkbox v-model:checked="form.include_documents" id="include_documents" />
@@ -155,6 +164,12 @@ const statusOptions = [
   { value: 'meninggal', label: 'Meninggal' },
 ];
 
+const employmentTypeOptions = [
+  { value: '', label: 'Semua Jenis Pekerja' },
+  { value: 'organik', label: 'Organik' },
+  { value: 'tkwt', label: 'TKWT' },
+];
+
 // Initial State
 const form = ref({
    q: '',
@@ -163,6 +178,7 @@ const form = ref({
    date_start: '',
    date_end: '',
    union_position_id: '',
+   employment_type: '',
    include_documents: false,
 });
 
@@ -174,6 +190,7 @@ function resetFilters() {
       date_start: '',
       date_end: '',
       union_position_id: '',
+      employment_type: '',
       include_documents: false,
    };
 }
@@ -198,6 +215,7 @@ function downloadCsv() {
    if (form.value.date_start) params.append('date_start', form.value.date_start);
    if (form.value.date_end) params.append('date_end', form.value.date_end);
    if (form.value.union_position_id) params.append('union_position_id', form.value.union_position_id);
+   if (form.value.employment_type) params.append('employment_type', form.value.employment_type);
    if (form.value.include_documents) params.append('include_documents', '1');
 
    const url = `/reports/export?${params.toString()}`;
